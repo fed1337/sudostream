@@ -1,0 +1,15 @@
+coverage:
+  precision: 2
+  round: down
+  range: "60..70"
+  status:
+    project:
+      default:
+        target: 60%
+        threshold: 1%
+    patch:
+      default:
+        target: 70%
+comment:
+  layout: "condensed_header, diff, flags, tree, condensed_footer"
+  require_changes: true

@@ -1,0 +1,97 @@
+services:
+  app:
+    image: ghcr.io/fed1337/sudostream:latest
+    container_name: sudostream
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      # DLNA / UPnP Media Server
+      - "8200:8200"
+      # SSDP is UDP multicast 239.255.255.250:1900 see below
+      # Optional: publish SSDP
+      # - "1900:1900/udp"
+    environment:
+      SUDOSTREAM_DATABASE_URL: "postgres://sudostream:sudostream@postgres:5432/sudostream?sslmode=disable"
+      SUDOSTREAM_ADMIN_EMAIL: "admin@router.lan"
+      SUDOSTREAM_ADMIN_PASSWORD: "changeme"
+      # Generate (≥32 bytes): openssl rand -hex 32
+      SUDOSTREAM_JWT_SECRET: ""
+      SUDOSTREAM_JWT_ACCESS_TTL: "15m"
+      SUDOSTREAM_JWT_REFRESH_TTL: "168h"
+      # Generate (base64 32-byte AES key): openssl rand -base64 32
+      SUDOSTREAM_TOTP_ENCRYPTION_KEY: ""
+      SUDOSTREAM_BASE_URL: "http://localhost:8080"
+      SUDOSTREAM_INVITE_TTL_HOURS: "24"
+      SUDOSTREAM_CONFIRM_EMAIL_TTL_HOURS: "24"
+      SUDOSTREAM_RESET_PASSWORD_TTL_HOURS: "24"
+      SUDOSTREAM_TOTP_LEEWAY_SECONDS: "30"
+      SUDOSTREAM_DB_MAX_CONNS: "10"
+      SUDOSTREAM_DB_MIN_CONNS: "2"
+      SUDOSTREAM_DB_MAX_CONN_LIFETIME: "1h"
+      SUDOSTREAM_DB_MAX_CONN_IDLE_TIME: "30m"
+      SUDOSTREAM_SMTP_HOST: ""
+      SUDOSTREAM_SMTP_PORT: "587"
+      SUDOSTREAM_SMTP_USER: ""
+      SUDOSTREAM_SMTP_PASSWORD: ""
+      SUDOSTREAM_SMTP_FROM: "sudostream@router.lan"
+      SUDOSTREAM_SMTP_FROM_NAME: "sudoStream"
+      SUDOSTREAM_COOKIE_SECURE: "false"
+      # HTTP description / SOAP / progressive streams (admin must enable, create and pick TV account)
+      SUDOSTREAM_DLNA_HTTP_PORT: "8200"
+      # Optional listen host (empty = 0.0.0.0)
+      SUDOSTREAM_DLNA_HTTP_BIND: ""
+      # SSDP multicast host:port (UPnP default). Do not change unless you know why
+      SUDOSTREAM_DLNA_SSDP_MULTICAST: "239.255.255.250:1900"
+      # Optional: force LOCATION / stream URL host when auto-detect picks the wrong NIC
+      SUDOSTREAM_DLNA_ADVERTISE_HOST: ""
+      # For reliable TV discovery, uncomment host networking and remove app ports: above
+      # network_mode: host
+      # (then point SUDOSTREAM_DATABASE_URL at localhost Postgres publish, or keep postgres linked carefully)
+      # OpenSubtitles API Auth: Username = account username (not email)
+      SUDOSTREAM_OPENSUBTITLES_API_KEY: ""
+      SUDOSTREAM_OPENSUBTITLES_USERNAME: ""
+      SUDOSTREAM_OPENSUBTITLES_PASSWORD: ""
+      # TMDB — https://www.themoviedb.org/settings/api — v3 key and/or v4 read access token
+      SUDOSTREAM_TMDB_API_KEY: ""
+      SUDOSTREAM_TMDB_ACCESS_TOKEN: ""
+      # TheTVDB v4 — https://thetvdb.com/api-information (PIN optional for some subscriber keys)
+      SUDOSTREAM_TVDB_API_KEY: ""
+      SUDOSTREAM_TVDB_PIN: ""
+      # Fanart.tv — https://fanart.tv/api-info/ — needs prior tmdb_id / tvdb_id from metadata
+      SUDOSTREAM_FANART_API_KEY: ""
+      SUDOSTREAM_FANART_CLIENT_KEY: ""
+      # AniDB — CLIENT required for titles/XML.
+      # USERNAME/PASSWORD optional (website login) for UDP ed2k FILE before title match.
+      SUDOSTREAM_ANIDB_CLIENT: ""
+      SUDOSTREAM_ANIDB_USERNAME: ""
+      SUDOSTREAM_ANIDB_PASSWORD: ""
+    volumes:
+      - ./media:/media:ro
+      - ./cache:/var/lib/sudostream/cache
+      - ./logs:/var/lib/sudostream/logs
+    restart: unless-stopped
+    stop_grace_period: 15s
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: sudostream-postgres
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: sudostream
+      POSTGRES_PASSWORD: sudostream
+      POSTGRES_DB: sudostream
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U sudostream -d sudostream" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:

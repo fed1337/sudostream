@@ -1,0 +1,59 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - arangolint
+    - dupword
+    - wsl
+    - wsl_v5
+    - gomodguard
+    - testpackage
+    - tagalign
+    - exhaustruct
+    - exhaustruct_v5
+    - gochecknoglobals
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: "math/rand$"
+              desc: use math/rand/v2
+            - pkg: "github.com/sirupsen/logrus"
+              desc: not allowed
+            - pkg: "github.com/pkg/errors"
+              desc: Should be replaced by standard lib errors package
+    varnamelen:
+      max-distance: 7
+      ignore-decls:
+        - c *gin.Context
+        - t *testing.T
+        - a *allure.Context
+        - f *foo.Bar
+        - e error
+        - i int
+        - const C
+        - T any
+        - m map[string]int
+    cyclop:
+      max-complexity: 10
+    funlen:
+      lines: 100
+  exclusions:
+    paths:
+      - "openapi/"
+      - "web/"
+      - "cache/"
+      - "logs/"
+formatters:
+  enable:
+    - gofumpt
+#    - goimports
+#    - golines
+#    - swaggo
+  exclusions:
+    paths:
+      - "openapi/"
+      - "web/"
+      - "cache/"
+      - "logs/"

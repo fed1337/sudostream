@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: sudostream-postgres-test
+    environment:
+      POSTGRES_USER: sudostream
+      POSTGRES_PASSWORD: sudostream
+      POSTGRES_DB: sudostream_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./internal/db/test-init.sql:/docker-entrypoint-initdb.d/01-pgcrypto.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U sudostream -d sudostream_test" ]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /var/lib/postgresql

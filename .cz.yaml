@@ -1,0 +1,13 @@
+---
+commitizen:
+  changelog_file: CHANGELOG.md
+  name: cz_conventional_commits
+  tag_format: v$version
+  update_changelog_on_bump: true
+  version: 0.0.0
+  version_files:
+  - internal/version/version.go:Version = "
+  - cmd/server/main.go:@version
+  - web/package.json:version
+  version_scheme: semver2
+  breaking_change_exclamation_in_title: true

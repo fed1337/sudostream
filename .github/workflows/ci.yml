@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  pull-requests: write
+  checks: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codequality:
+    if: "!startsWith(github.event.head_commit.message, 'bump:')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Go vuln check
+        id: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: 1.26
+          go-package: ./...
+
+      - name: Run Golangci-lint
+        uses: golangci/golangci-lint-action@v9
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@master
+        with:
+          dockerfile: "Dockerfile"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: make frontend-install
+
+      - name: Run frontend lint and format check
+        run: make frontend-check
+
+  test:
+    needs: codequality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: sudostream
+          POSTGRES_PASSWORD: sudostream
+          POSTGRES_DB: sudostream
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sudostream -d sudostream"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SUDOSTREAM_DATABASE_URL: postgres://sudostream:sudostream@localhost:5432/sudostream?sslmode=disable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install jellyfin-ffmpeg
+        env:
+          JELLYFIN_FFMPEG_VERSION: 8.1.2-4
+        run: |
+          set -eux
+          url="https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${JELLYFIN_FFMPEG_VERSION}/jellyfin-ffmpeg_${JELLYFIN_FFMPEG_VERSION}_portable_linux64-gpl.tar.xz"
+          curl -fsSL -o /tmp/jellyfin-ffmpeg.tar.xz "$url"
+          sudo mkdir -p /opt/ffmpeg
+          sudo tar -xJf /tmp/jellyfin-ffmpeg.tar.xz -C /opt/ffmpeg
+          sudo chmod +x /opt/ffmpeg/ffmpeg /opt/ffmpeg/ffprobe
+          sudo ln -sfn /opt/ffmpeg/ffmpeg /usr/local/bin/ffmpeg
+          sudo ln -sfn /opt/ffmpeg/ffprobe /usr/local/bin/ffprobe
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+
+      - name: Run tests with coverage
+        run: |
+          ALLURE_RESULTS_DIR=${{ github.workspace }}/allure-results \
+          make test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.txt
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Build Allure report
+        if: always()
+        env:
+          ALLURE_SERVICE_TOKEN: ${{ secrets.ALLURE_SERVICE_TOKEN || '' }}
+        run: |
+          npm install --no-save allure
+          npx --yes allure generate allure-results
+
+      - name: Post Allure summary to PR
+        if: always() && github.event_name == 'pull_request'
+        uses: allure-framework/allure-action@v0
+        with:
+          report-directory: ./allure-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          sections: all

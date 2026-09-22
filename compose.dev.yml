@@ -1,0 +1,29 @@
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: sudostream-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: unless-stopped
+
+  app:
+#    image: ghcr.io/fed1337/sudostream:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DISTROLESS_TAG: debug-nonroot
+        APP_UID: "${APP_UID:-65532}"
+        APP_GID: "${APP_GID:-65532}"
+    depends_on:
+      mailpit:
+        condition: service_started
+    environment:
+      SUDOSTREAM_SMTP_HOST: mailpit
+      SUDOSTREAM_SMTP_PORT: "1025"
+      SUDOSTREAM_TOTP_ENCRYPTION_KEY: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
+      SUDOSTREAM_JWT_SECRET: "24c8358af47c83aa534258a9b23f16478d85657d2d17d663c3771a0dea5242f3"
+      GIN_MODE: debug
+    volumes:
+      - ./media:/media:rw

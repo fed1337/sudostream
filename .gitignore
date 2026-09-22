@@ -1,0 +1,14 @@
+.idea/
+.cursor/
+.agents/
+allure-results/
+coverage.*
+web/node_modules/
+web/dist/
+internal/frontend/dist/
+plans/
+cache/
+logs/
+media/
+CLAUDE.md
+AGENTS.md

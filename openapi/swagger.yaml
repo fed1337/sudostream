@@ -1,0 +1,4655 @@
+components:
+  schemas:
+    internal_httpapi.AcceptInviteRequest:
+      properties:
+        password:
+          type: string
+        token:
+          type: string
+      type: object
+    internal_httpapi.AddLibraryRootRequest:
+      properties:
+        relPath:
+          type: string
+      type: object
+    internal_httpapi.AdminUserResponse:
+      properties:
+        user:
+          $ref: '#/components/schemas/sudoStream_internal_auth.AdminUser'
+      type: object
+    internal_httpapi.AuthTokensResponse:
+      properties:
+        accessToken:
+          type: string
+        backupCodes:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        user:
+          $ref: '#/components/schemas/sudoStream_internal_auth.PublicUser'
+      type: object
+    internal_httpapi.ChangeEmailRequest:
+      properties:
+        newEmail:
+          type: string
+        password:
+          type: string
+        totp:
+          type: string
+      type: object
+    internal_httpapi.ChangePasswordRequest:
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+        totp:
+          type: string
+      type: object
+    internal_httpapi.CreateInviteRequest:
+      properties:
+        email:
+          type: string
+        expiresInHours:
+          type: integer
+        role:
+          type: string
+      type: object
+    internal_httpapi.CreateLibraryRequest:
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          type: string
+      type: object
+    internal_httpapi.CreateUserRequest:
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+      type: object
+    internal_httpapi.DisableTwoFactorRequest:
+      properties:
+        code:
+          type: string
+        password:
+          type: string
+      type: object
+    internal_httpapi.ErrorResponse:
+      properties:
+        error:
+          type: string
+      type: object
+    internal_httpapi.FavoritePatchRequest:
+      properties:
+        favorited:
+          type: boolean
+      type: object
+    internal_httpapi.FavoriteResponse:
+      properties:
+        favorited:
+          type: boolean
+      type: object
+    internal_httpapi.FolderTreeEntry:
+      properties:
+        assignedLibraryId:
+          type: string
+        name:
+          type: string
+        relPath:
+          type: string
+      type: object
+    internal_httpapi.FolderTreeResponse:
+      properties:
+        entries:
+          items:
+            $ref: '#/components/schemas/internal_httpapi.FolderTreeEntry'
+          type: array
+          uniqueItems: false
+        path:
+          type: string
+      type: object
+    internal_httpapi.ForgotPasswordRequest:
+      properties:
+        email:
+          type: string
+      type: object
+    internal_httpapi.GrantsResponse:
+      properties:
+        grants:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_access.UserGrantView'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.HealthResponse:
+      properties:
+        status:
+          type: string
+        version:
+          type: string
+      type: object
+    internal_httpapi.HomeItemsResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_homeshelf.ShelfItem'
+          type: array
+          uniqueItems: false
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+      type: object
+    internal_httpapi.HomeStatsResponse:
+      properties:
+        libraries:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_homeshelf.LibraryStat'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.InvitesResponse:
+      properties:
+        invites:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_auth.InviteView'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.LibrariesResponse:
+      properties:
+        libraries:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_access.Library'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.LibraryResponse:
+      properties:
+        library:
+          $ref: '#/components/schemas/sudoStream_internal_access.Library'
+      type: object
+    internal_httpapi.LoginRequest:
+      properties:
+        email:
+          example: admin@localhost.lan
+          type: string
+        password:
+          type: string
+      type: object
+    internal_httpapi.LoginResponse:
+      properties:
+        accessToken:
+          type: string
+        pendingToken:
+          type: string
+        status:
+          type: string
+        user:
+          $ref: '#/components/schemas/sudoStream_internal_auth.PublicUser'
+      type: object
+    internal_httpapi.MaintenanceRunResponse:
+      properties:
+        run:
+          $ref: '#/components/schemas/sudoStream_internal_maintenance.Run'
+      type: object
+    internal_httpapi.MaintenanceRunsResponse:
+      properties:
+        runs:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_maintenance.Run'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.MaintenanceStatusResponse:
+      properties:
+        actions:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_maintenance.ActionStatus'
+          type: array
+          uniqueItems: false
+        cacheBytes:
+          type: integer
+      type: object
+    internal_httpapi.MeResponse:
+      properties:
+        user:
+          $ref: '#/components/schemas/sudoStream_internal_auth.PublicUser'
+      type: object
+    internal_httpapi.OAuthErrorResponse:
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string
+        pending_token:
+          type: string
+      type: object
+    internal_httpapi.OAuthTokenResponse:
+      properties:
+        access_token:
+          type: string
+        expires_in:
+          type: integer
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+      type: object
+    internal_httpapi.PatchLibraryRequest:
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+      type: object
+    internal_httpapi.PatchMaintenanceRequest:
+      properties:
+        schedules:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_maintenance.ScheduleInput'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.PatchProviderSettingsRequest:
+      properties:
+        allowOverrideUserMetadata:
+          type: boolean
+        metadataApplyMode:
+          type: string
+        metadataProvider:
+          type: string
+        metadataWriteTarget:
+          type: string
+        posterProvider:
+          type: string
+        subtitleLanguages:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        subtitleProvider:
+          type: string
+      type: object
+    internal_httpapi.PlaybackNegotiateRequest:
+      properties:
+        deviceProfile:
+          $ref: '#/components/schemas/sudoStream_internal_playback.DeviceProfile'
+        fallback:
+          type: boolean
+        qualityHeight:
+          description: QualityHeight is the selected ladder rung; 0 / omitted means
+            original/source.
+          type: integer
+        transcode:
+          type: boolean
+      type: object
+    internal_httpapi.PlaybackResponse:
+      properties:
+        audioTracks:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_transcode.TrackInfo'
+          type: array
+          uniqueItems: false
+        chapters:
+          description: Chapters are container chapter atoms on any video file (not
+            limited to film/series).
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_transcode.ChapterInfo'
+          type: array
+          uniqueItems: false
+        durationSeconds:
+          type: number
+        encoder:
+          type: string
+        error:
+          type: string
+        masterUrl:
+          type: string
+        packagingMode:
+          $ref: '#/components/schemas/sudoStream_internal_transcode.PackagingMode'
+        playMethod:
+          $ref: '#/components/schemas/sudoStream_internal_playback.PlayMethod'
+        providerSubtitleTracks:
+          items:
+            $ref: '#/components/schemas/internal_httpapi.ProviderSubtitleTrack'
+          type: array
+          uniqueItems: false
+        qualities:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_transcode.QualityInfo'
+          type: array
+          uniqueItems: false
+        series:
+          $ref: '#/components/schemas/internal_httpapi.PlaybackSeriesContext'
+        status:
+          $ref: '#/components/schemas/sudoStream_internal_transcode.Status'
+        streamUrl:
+          type: string
+        subtitleTracks:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_transcode.TrackInfo'
+          type: array
+          uniqueItems: false
+        toneMapped:
+          type: boolean
+        userSubtitle:
+          $ref: '#/components/schemas/internal_httpapi.UserSubtitleTrack'
+      type: object
+    internal_httpapi.PlaybackSeriesContext:
+      description: Series is set only for paths in a series library with resolvable
+        S/E identity.
+      properties:
+        episode:
+          type: integer
+        librarySlug:
+          type: string
+        season:
+          type: integer
+        showKey:
+          type: string
+        showName:
+          type: string
+      type: object
+    internal_httpapi.ProviderAvailability:
+      properties:
+        metadata:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        poster:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        subtitle:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.ProviderSettingsResponse:
+      properties:
+        available:
+          $ref: '#/components/schemas/internal_httpapi.ProviderAvailability'
+        settings:
+          $ref: '#/components/schemas/sudoStream_internal_provider.Settings'
+      type: object
+    internal_httpapi.ProviderSubtitleTrack:
+      properties:
+        label:
+          type: string
+        lang:
+          type: string
+        url:
+          type: string
+      type: object
+    internal_httpapi.PutGrantsRequest:
+      properties:
+        grants:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_access.GrantInput'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.RefreshResponse:
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/sudoStream_internal_auth.PublicUser'
+      type: object
+    internal_httpapi.ResendInviteRequest:
+      properties:
+        expiresInHours:
+          type: integer
+      type: object
+    internal_httpapi.ResetPasswordRequest:
+      properties:
+        password:
+          type: string
+        token:
+          type: string
+      type: object
+    internal_httpapi.SearchResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_metadata.SearchHit'
+          type: array
+          uniqueItems: false
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+      type: object
+    internal_httpapi.SessionsResponse:
+      properties:
+        sessions:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_auth.SessionView'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.StatusResponse:
+      properties:
+        status:
+          type: string
+      type: object
+    internal_httpapi.TrashListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_trash.Item'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.TrashSettingsResponse:
+      properties:
+        retentionDays:
+          type: integer
+      type: object
+    internal_httpapi.TwoFactorConfirmRequest:
+      properties:
+        code:
+          type: string
+        pendingToken:
+          type: string
+      type: object
+    internal_httpapi.TwoFactorSetupRequest:
+      properties:
+        pendingToken:
+          type: string
+      type: object
+    internal_httpapi.UpdateUserRequest:
+      properties:
+        email:
+          type: string
+        enabled:
+          type: boolean
+        role:
+          type: string
+      type: object
+    internal_httpapi.UserResponse:
+      properties:
+        user:
+          $ref: '#/components/schemas/sudoStream_internal_auth.PublicUser'
+      type: object
+    internal_httpapi.UserSubtitleTrack:
+      description: UserSubtitle is the current user's uploaded caption when present
+        (TTL 1d).
+      properties:
+        label:
+          type: string
+        lang:
+          type: string
+        url:
+          type: string
+      type: object
+    internal_httpapi.UsersResponse:
+      properties:
+        users:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_auth.AdminUser'
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.VerifyTwoFactorRequest:
+      properties:
+        code:
+          type: string
+        pendingToken:
+          type: string
+      type: object
+    internal_httpapi.WatchPatchRequest:
+      properties:
+        durationSeconds:
+          type: number
+        positionSeconds:
+          type: number
+        watched:
+          type: boolean
+      type: object
+    internal_httpapi.WatchResponse:
+      properties:
+        durationSeconds:
+          type: number
+        positionSeconds:
+          type: number
+        watched:
+          type: boolean
+      type: object
+    sudoStream_internal_access.GrantInput:
+      properties:
+        libraryId:
+          type: string
+        permissions:
+          $ref: '#/components/schemas/sudoStream_internal_access.LibraryPermissions'
+      type: object
+    sudoStream_internal_access.Library:
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        relPath:
+          type: string
+        roots:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        slug:
+          type: string
+        type:
+          $ref: '#/components/schemas/sudoStream_internal_access.LibraryType'
+      type: object
+    sudoStream_internal_access.LibraryPermissions:
+      properties:
+        create:
+          type: boolean
+        delete:
+          type: boolean
+        read:
+          type: boolean
+        update:
+          type: boolean
+      type: object
+    sudoStream_internal_access.LibraryType:
+      enum:
+      - film
+      - series
+      - music
+      - photos
+      - other
+      type: string
+      x-enum-varnames:
+      - LibraryTypeFilm
+      - LibraryTypeSeries
+      - LibraryTypeMusic
+      - LibraryTypePhotos
+      - LibraryTypeOther
+    sudoStream_internal_access.UserGrantView:
+      properties:
+        library:
+          $ref: '#/components/schemas/sudoStream_internal_access.Library'
+        permissions:
+          $ref: '#/components/schemas/sudoStream_internal_access.LibraryPermissions'
+      type: object
+    sudoStream_internal_auth.AdminUser:
+      properties:
+        createdAt:
+          type: string
+        email:
+          type: string
+        emailVerified:
+          type: boolean
+        enabled:
+          type: boolean
+        has2FA:
+          type: boolean
+        id:
+          type: string
+        lastLoginAt:
+          type: string
+        mustChangePassword:
+          type: boolean
+        role:
+          type: string
+        status:
+          type: string
+      type: object
+    sudoStream_internal_auth.InviteView:
+      properties:
+        createdAt:
+          type: string
+        email:
+          type: string
+        expired:
+          type: boolean
+        expiresAt:
+          type: string
+        id:
+          type: string
+        role:
+          type: string
+      type: object
+    sudoStream_internal_auth.PublicUser:
+      properties:
+        email:
+          type: string
+        has2FA:
+          type: boolean
+        id:
+          type: string
+        mustChangePassword:
+          type: boolean
+        role:
+          type: string
+      type: object
+    sudoStream_internal_auth.SessionView:
+      properties:
+        createdAt:
+          type: string
+        current:
+          type: boolean
+        expiresAt:
+          type: string
+        id:
+          type: string
+        ip:
+          type: string
+        userAgent:
+          type: string
+      type: object
+    sudoStream_internal_auth.Settings:
+      properties:
+        emailConfirmationRequired:
+          type: boolean
+        twoFactorRequired:
+          type: boolean
+      type: object
+    sudoStream_internal_auth.TwoFactorConfirmResult:
+      properties:
+        backupCodes:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    sudoStream_internal_auth.TwoFactorSetup:
+      properties:
+        otpauthURL:
+          type: string
+        secret:
+          type: string
+      type: object
+    sudoStream_internal_catalog.Episode:
+      properties:
+        actions:
+          $ref: '#/components/schemas/sudoStream_internal_mediafs.Action'
+        episode:
+          type: integer
+        episodeTitle:
+          type: string
+        favorited:
+          type: boolean
+        path:
+          type: string
+        posterUrl:
+          type: string
+        season:
+          type: integer
+        title:
+          type: string
+        watched:
+          type: boolean
+      type: object
+    sudoStream_internal_catalog.LibraryCatalog:
+      properties:
+        limit:
+          type: integer
+        movies:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_catalog.Movie'
+          type: array
+          uniqueItems: false
+        offset:
+          type: integer
+        shows:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_catalog.ShowSummary'
+          type: array
+          uniqueItems: false
+        total:
+          type: integer
+        type:
+          $ref: '#/components/schemas/sudoStream_internal_access.LibraryType'
+      type: object
+    sudoStream_internal_catalog.Movie:
+      properties:
+        actions:
+          $ref: '#/components/schemas/sudoStream_internal_mediafs.Action'
+        favorited:
+          type: boolean
+        path:
+          type: string
+        posterUrl:
+          type: string
+        title:
+          type: string
+        watched:
+          type: boolean
+        year:
+          type: integer
+      type: object
+    sudoStream_internal_catalog.SeasonEpisodes:
+      properties:
+        episodes:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_catalog.Episode'
+          type: array
+          uniqueItems: false
+        limit:
+          type: integer
+        offset:
+          type: integer
+        season:
+          type: integer
+        total:
+          type: integer
+      type: object
+    sudoStream_internal_catalog.SeasonSummary:
+      properties:
+        episodeCount:
+          type: integer
+        season:
+          type: integer
+      type: object
+    sudoStream_internal_catalog.ShowDetail:
+      properties:
+        actions:
+          $ref: '#/components/schemas/sudoStream_internal_mediafs.Action'
+        episodeCount:
+          type: integer
+        name:
+          type: string
+        posterPath:
+          type: string
+        posterUrl:
+          type: string
+        seasonCount:
+          type: integer
+        seasons:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_catalog.SeasonSummary'
+          type: array
+          uniqueItems: false
+        showKey:
+          type: string
+      type: object
+    sudoStream_internal_catalog.ShowSummary:
+      properties:
+        actions:
+          $ref: '#/components/schemas/sudoStream_internal_mediafs.Action'
+        episodeCount:
+          type: integer
+        name:
+          type: string
+        posterPath:
+          type: string
+        posterUrl:
+          type: string
+        seasonCount:
+          type: integer
+        showKey:
+          type: string
+      type: object
+    sudoStream_internal_dlna.Settings:
+      properties:
+        enabled:
+          type: boolean
+        udn:
+          description: UDN is a stable uuid:… for SSDP (generated on first save when
+            empty).
+          type: string
+        userId:
+          type: string
+      type: object
+    sudoStream_internal_homeshelf.LibraryStat:
+      properties:
+        libraryId:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        totalCount:
+          type: integer
+        watchedCount:
+          type: integer
+        watchedPercent:
+          type: number
+      type: object
+    sudoStream_internal_homeshelf.ShelfItem:
+      properties:
+        durationSeconds:
+          type: number
+        librarySlug:
+          type: string
+        path:
+          type: string
+        positionSeconds:
+          type: number
+        posterUrl:
+          type: string
+        title:
+          type: string
+      type: object
+    sudoStream_internal_maintenance.ActionStatus:
+      properties:
+        action:
+          type: string
+        latestRun:
+          $ref: '#/components/schemas/sudoStream_internal_maintenance.Run'
+        running:
+          type: boolean
+        schedule:
+          $ref: '#/components/schemas/sudoStream_internal_maintenance.Schedule'
+      type: object
+    sudoStream_internal_maintenance.Run:
+      properties:
+        action:
+          type: string
+        finishedAt:
+          type: string
+        id:
+          type: string
+        libraryId:
+          type: string
+        startedAt:
+          type: string
+        status:
+          type: string
+        summary:
+          additionalProperties: {}
+          type: object
+        trigger:
+          type: string
+      type: object
+    sudoStream_internal_maintenance.Schedule:
+      properties:
+        action:
+          type: string
+        config:
+          additionalProperties: {}
+          type: object
+        cron:
+          type: string
+        enabled:
+          type: boolean
+        id:
+          type: string
+        libraryId:
+          type: string
+        updatedAt:
+          type: string
+      type: object
+    sudoStream_internal_maintenance.ScheduleInput:
+      properties:
+        action:
+          type: string
+        config:
+          additionalProperties: {}
+          type: object
+        cron:
+          type: string
+        enabled:
+          type: boolean
+        libraryId:
+          type: string
+      type: object
+    sudoStream_internal_mediafs.Action:
+      properties:
+        canDelete:
+          type: boolean
+        download:
+          type: string
+        play:
+          type: string
+        thumbnail:
+          type: string
+      type: object
+    sudoStream_internal_mediafs.Breadcrumb:
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+      type: object
+    sudoStream_internal_mediafs.BrowseResponse:
+      properties:
+        breadcrumbs:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_mediafs.Breadcrumb'
+          type: array
+          uniqueItems: false
+        folder:
+          $ref: '#/components/schemas/sudoStream_internal_mediafs.Item'
+        limit:
+          type: integer
+        offset:
+          type: integer
+        path:
+          type: string
+        total:
+          type: integer
+      type: object
+    sudoStream_internal_mediafs.Item:
+      properties:
+        actions:
+          $ref: '#/components/schemas/sudoStream_internal_mediafs.Action'
+        children:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_mediafs.Item'
+          type: array
+          uniqueItems: false
+        extension:
+          type: string
+        favorited:
+          type: boolean
+        isDir:
+          type: boolean
+        mimeType:
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        watched:
+          type: boolean
+      type: object
+    sudoStream_internal_metadata.FilenameHint:
+      properties:
+        episode:
+          type: integer
+        season:
+          type: integer
+      type: object
+    sudoStream_internal_metadata.MetadataResponse:
+      properties:
+        display_name:
+          type: string
+        effective:
+          $ref: '#/components/schemas/sudoStream_internal_metadata.VideoFields'
+        filename_hint:
+          $ref: '#/components/schemas/sudoStream_internal_metadata.FilenameHint'
+        library_type:
+          $ref: '#/components/schemas/sudoStream_internal_access.LibraryType'
+        overridden_by:
+          type: string
+        path:
+          type: string
+        probed_at:
+          type: string
+        source:
+          $ref: '#/components/schemas/sudoStream_internal_metadata.SourceFields'
+        uses_metadata_for_display:
+          type: boolean
+      type: object
+    sudoStream_internal_metadata.PatchRequest:
+      properties:
+        fields:
+          additionalProperties:
+            $ref: '#/components/schemas/sudoStream_internal_metadata.jsonValue'
+          type: object
+        target:
+          $ref: '#/components/schemas/sudoStream_internal_metadata.PatchTarget'
+      type: object
+    sudoStream_internal_metadata.PatchTarget:
+      enum:
+      - override
+      - file
+      type: string
+      x-enum-varnames:
+      - PatchTargetOverride
+      - PatchTargetFile
+    sudoStream_internal_metadata.SearchHit:
+      properties:
+        librarySlug:
+          type: string
+        libraryType:
+          $ref: '#/components/schemas/sudoStream_internal_access.LibraryType'
+        path:
+          type: string
+        showKey:
+          type: string
+        title:
+          type: string
+      type: object
+    sudoStream_internal_metadata.SourceFields:
+      properties:
+        original:
+          $ref: '#/components/schemas/sudoStream_internal_metadata.VideoFields'
+        override:
+          $ref: '#/components/schemas/sudoStream_internal_metadata.VideoFields'
+      type: object
+    sudoStream_internal_metadata.VideoFields:
+      properties:
+        actors:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        audio_channels:
+          type: integer
+        audio_codec:
+          type: string
+        audio_languages:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        bitrate:
+          type: integer
+        composer:
+          type: string
+        content_rating:
+          type: string
+        country:
+          type: string
+        description:
+          type: string
+        directors:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        duration_seconds:
+          type: number
+        ed2k_hash:
+          type: string
+        episode:
+          type: integer
+        episode_title:
+          type: string
+        frame_rate:
+          type: string
+        genres:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        hash_file_size:
+          description: size when hashes were computed
+          type: integer
+        height:
+          type: integer
+        imdb_id:
+          type: string
+        language:
+          type: string
+        movie_hash:
+          description: System-owned identity hashes (scan-time; never overwritten;
+            not PATCH-editable).
+          type: string
+        original_title:
+          type: string
+        producers:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        release_date:
+          type: string
+        season:
+          type: integer
+        show:
+          type: string
+        sort_title:
+          type: string
+        studio:
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        title:
+          type: string
+        tmdb_id:
+          type: string
+        tvdb_id:
+          type: string
+        tvmaze_id:
+          type: string
+        video_codec:
+          type: string
+        width:
+          type: integer
+        writers:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        year:
+          type: integer
+      type: object
+    sudoStream_internal_metadata.jsonValue:
+      type: object
+    sudoStream_internal_network.ProbeResult:
+      properties:
+        durationMs:
+          type: integer
+        error:
+          type: string
+        ok:
+          type: boolean
+        statusCode:
+          type: integer
+        via:
+          type: string
+      type: object
+    sudoStream_internal_network.Settings:
+      properties:
+        hasProxyPassword:
+          type: boolean
+        noProxy:
+          type: string
+        proxyPassword:
+          type: string
+        proxyUrl:
+          type: string
+        proxyUser:
+          type: string
+      type: object
+    sudoStream_internal_playback.DeviceProfile:
+      properties:
+        directPlay:
+          items:
+            $ref: '#/components/schemas/sudoStream_internal_playback.DirectPlayProfile'
+          type: array
+          uniqueItems: false
+        maxStaticBitrate:
+          type: integer
+        preferHls:
+          type: boolean
+        subtitle:
+          description: Subtitle lists supported subtitle delivery modes (e.g. "external").
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    sudoStream_internal_playback.DirectPlayProfile:
+      properties:
+        audioCodec:
+          type: string
+        container:
+          type: string
+        videoCodec:
+          type: string
+      type: object
+    sudoStream_internal_playback.PlayMethod:
+      enum:
+      - directPlay
+      - remux
+      - transcode
+      type: string
+      x-enum-varnames:
+      - MethodDirectPlay
+      - MethodRemux
+      - MethodTranscode
+    sudoStream_internal_provider.Settings:
+      properties:
+        allowOverrideUserMetadata:
+          type: boolean
+        libraryId:
+          type: string
+        metadataApplyMode:
+          type: string
+        metadataProvider:
+          type: string
+        metadataWriteTarget:
+          type: string
+        posterProvider:
+          type: string
+        subtitleLanguages:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        subtitleProvider:
+          type: string
+        updatedAt:
+          type: string
+      type: object
+    sudoStream_internal_transcode.ChapterInfo:
+      properties:
+        endSeconds:
+          type: number
+        startSeconds:
+          type: number
+        title:
+          type: string
+      type: object
+    sudoStream_internal_transcode.DownmixAlgorithm:
+      enum:
+      - none
+      - ac4
+      type: string
+      x-enum-varnames:
+      - DownmixNone
+      - DownmixAC4
+    sudoStream_internal_transcode.HwAccel:
+      enum:
+      - "off"
+      - qsv
+      - vaapi
+      - nvenc
+      - rockchip
+      type: string
+      x-enum-varnames:
+      - HwAccelOff
+      - HwAccelQSV
+      - HwAccelVAAPI
+      - HwAccelNVENC
+      - HwAccelRockchip
+    sudoStream_internal_transcode.PackagingMode:
+      enum:
+      - remux
+      - transcode
+      type: string
+      x-enum-varnames:
+      - PackagingRemux
+      - PackagingTranscode
+    sudoStream_internal_transcode.QualityInfo:
+      properties:
+        height:
+          type: integer
+        label:
+          type: string
+      type: object
+    sudoStream_internal_transcode.Status:
+      enum:
+      - idle
+      - ready
+      - processing
+      - error
+      type: string
+      x-enum-varnames:
+      - StatusIdle
+      - StatusReady
+      - StatusProcessing
+      - StatusError
+    sudoStream_internal_transcode.ToneMappingAlgorithm:
+      enum:
+      - bt2390
+      - hable
+      - reinhard
+      - mobius
+      type: string
+      x-enum-varnames:
+      - ToneMappingBT2390
+      - ToneMappingHable
+      - ToneMappingReinhard
+      - ToneMappingMobius
+    sudoStream_internal_transcode.TrackInfo:
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+      type: object
+    sudoStream_internal_transcode.TranscodeSettings:
+      properties:
+        downmixAlgorithm:
+          $ref: '#/components/schemas/sudoStream_internal_transcode.DownmixAlgorithm'
+        hwAccel:
+          $ref: '#/components/schemas/sudoStream_internal_transcode.HwAccel'
+        toneMappingAlgorithm:
+          $ref: '#/components/schemas/sudoStream_internal_transcode.ToneMappingAlgorithm'
+        toneMappingEnabled:
+          type: boolean
+      type: object
+    sudoStream_internal_trash.Item:
+      properties:
+        deletedAt:
+          type: string
+        deletedBy:
+          type: string
+        id:
+          type: string
+        libraryId:
+          type: string
+        originalRelPath:
+          type: string
+        trashRelPath:
+          type: string
+      type: object
+externalDocs:
+  description: ""
+  url: ""
+info:
+  description: HTTP API for browsing and streaming media files.
+  title: sudoStream API
+  version: 0.35.0
+openapi: 3.1.0
+paths:
+  /api/admin/dlna/settings:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_dlna.Settings'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get DLNA settings
+      tags:
+      - admin
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/sudoStream_internal_dlna.Settings'
+                description: DLNA settings
+                summary: body
+        description: DLNA settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_dlna.Settings'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update DLNA settings
+      tags:
+      - admin
+  /api/admin/folder-tree:
+    get:
+      description: Shallow directory listing for the library folder picker. Skips
+        dot-directories.
+      parameters:
+      - description: Parent path under media root
+        in: query
+        name: path
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.FolderTreeResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List media folders
+      tags:
+      - admin
+  /api/admin/invites:
+    get:
+      parameters:
+      - description: Filter by email
+        in: query
+        name: email
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.InvitesResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List invites
+      tags:
+      - admin
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.CreateInviteRequest'
+                description: Invite
+                summary: body
+        description: Invite
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Create invite
+      tags:
+      - admin
+  /api/admin/invites/{id}:
+    delete:
+      parameters:
+      - description: Invite ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Revoke invite
+      tags:
+      - admin
+  /api/admin/invites/{id}/resend:
+    post:
+      parameters:
+      - description: Invite ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.ResendInviteRequest'
+                description: Optional TTL override
+                summary: body
+        description: Optional TTL override
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Resend invite
+      tags:
+      - admin
+  /api/admin/libraries:
+    get:
+      description: Returns registered media libraries for ACL management.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibrariesResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List libraries
+      tags:
+      - admin
+    post:
+      description: Creates an empty library. Attach folders with POST /roots.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.CreateLibraryRequest'
+                description: Library fields
+                summary: body
+        description: Library fields
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibraryResponse'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Create library
+      tags:
+      - admin
+  /api/admin/libraries/{id}:
+    delete:
+      description: Removes the library registry row and grants. Media files are not
+        deleted.
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Delete library
+      tags:
+      - admin
+    patch:
+      description: Sets display name and/or UI type for a registered library. Name
+        is display-only.
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.PatchLibraryRequest'
+                description: Library fields
+                summary: body
+        description: Library fields
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibraryResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update library
+      tags:
+      - admin
+  /api/admin/libraries/{id}/maintenance:
+    get:
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.MaintenanceStatusResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Get library maintenance
+      tags:
+      - admin
+    patch:
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.PatchMaintenanceRequest'
+                description: Schedules
+                summary: body
+        description: Schedules
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.MaintenanceStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+      summary: Patch library maintenance schedules
+      tags:
+      - admin
+  /api/admin/libraries/{id}/providers:
+    get:
+      description: Admin only. Metadata/poster/subtitle provider settings for film
+        and series libraries. Never mandatory.
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ProviderSettingsResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Get library providers
+      tags:
+      - admin
+    patch:
+      description: Admin only. At most one provider per slot (metadata/poster/subtitle);
+        all slots optional.
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.PatchProviderSettingsRequest'
+                description: Provider settings
+                summary: body
+        description: Provider settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ProviderSettingsResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Update library providers
+      tags:
+      - admin
+  /api/admin/libraries/{id}/roots:
+    delete:
+      description: Detaches a folder from the library. Files stay on disk.
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Media-relative folder
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibraryResponse'
+          description: OK
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Remove library folder
+      tags:
+      - admin
+    post:
+      description: Attaches a media-relative folder to the library. Exclusive across
+        libraries.
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.AddLibraryRootRequest'
+                description: Folder
+                summary: body
+        description: Folder
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibraryResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Add library folder
+      tags:
+      - admin
+  /api/admin/libraries/{id}/sync:
+    post:
+      description: Re-probes video metadata for one library folder.
+      parameters:
+      - description: Library ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibraryResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Sync library metadata
+      tags:
+      - admin
+  /api/admin/libraries/sync:
+    post:
+      description: Prunes library roots whose folders are missing on disk. Does not
+        auto-create libraries.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibrariesResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Sync libraries
+      tags:
+      - admin
+  /api/admin/maintenance:
+    get:
+      description: Schedules and latest runs for libraries.scan and playback.cache.purge.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.MaintenanceStatusResponse'
+          description: OK
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Get global maintenance
+      tags:
+      - admin
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.PatchMaintenanceRequest'
+                description: Schedules
+                summary: body
+        description: Schedules
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.MaintenanceStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Patch global maintenance schedules
+      tags:
+      - admin
+  /api/admin/maintenance/{action}/run:
+    post:
+      parameters:
+      - description: Action key
+        in: path
+        name: action
+        required: true
+        schema:
+          type: string
+      - description: Library ID (required for per-library actions)
+        in: query
+        name: libraryId
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.MaintenanceRunResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+      summary: Run maintenance action
+      tags:
+      - admin
+  /api/admin/maintenance/runs:
+    get:
+      parameters:
+      - description: Max rows (default 50)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.MaintenanceRunsResponse'
+          description: OK
+      summary: List maintenance runs
+      tags:
+      - admin
+  /api/admin/network/settings:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_network.Settings'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get network (provider proxy) settings
+      tags:
+      - admin
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/sudoStream_internal_network.Settings'
+                description: Network settings
+                summary: body
+        description: Network settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_network.Settings'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update network (provider proxy) settings
+      tags:
+      - admin
+  /api/admin/network/settings/test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/sudoStream_internal_network.Settings'
+                description: Draft network settings
+                summary: body
+        description: Draft network settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_network.ProbeResult'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Test network (provider proxy) connection
+      tags:
+      - admin
+  /api/admin/sessions/{id}:
+    delete:
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Revoke session (admin)
+      tags:
+      - admin
+  /api/admin/settings:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_auth.Settings'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get auth settings
+      tags:
+      - admin
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/sudoStream_internal_auth.Settings'
+                description: Settings
+                summary: body
+        description: Settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_auth.Settings'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update auth settings
+      tags:
+      - admin
+  /api/admin/transcode/settings:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_transcode.TranscodeSettings'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get transcode settings
+      tags:
+      - admin
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/sudoStream_internal_transcode.TranscodeSettings'
+                description: Transcode settings
+                summary: body
+        description: Transcode settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_transcode.TranscodeSettings'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update transcode settings
+      tags:
+      - admin
+  /api/admin/trash:
+    delete:
+      responses:
+        "204":
+          description: No Content
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Empty recycle bin
+      tags:
+      - admin
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.TrashListResponse'
+          description: OK
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: List deleted items
+      tags:
+      - admin
+  /api/admin/trash/{id}:
+    delete:
+      parameters:
+      - description: Trash item id
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+      summary: Delete a trash item forever
+      tags:
+      - admin
+  /api/admin/trash/{id}/restore:
+    post:
+      parameters:
+      - description: Trash item id
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_trash.Item'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+      summary: Restore a deleted item
+      tags:
+      - admin
+  /api/admin/trash/settings:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.TrashSettingsResponse'
+          description: OK
+      summary: Get recycle bin settings
+      tags:
+      - admin
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.TrashSettingsResponse'
+                description: Recycle bin settings
+                summary: body
+        description: Recycle bin settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.TrashSettingsResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+      summary: Update recycle bin settings
+      tags:
+      - admin
+  /api/admin/users:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.UsersResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List users
+      tags:
+      - admin
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.CreateUserRequest'
+                description: New user
+                summary: body
+        description: New user
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.UserResponse'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Create user
+      tags:
+      - admin
+  /api/admin/users/{id}:
+    delete:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Delete disabled user
+      tags:
+      - admin
+    patch:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.UpdateUserRequest'
+                description: User patch
+                summary: body
+        description: User patch
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.AdminUserResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update user
+      tags:
+      - admin
+  /api/admin/users/{id}/2fa/reset:
+    post:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Reset user 2FA
+      tags:
+      - admin
+  /api/admin/users/{id}/libraries:
+    get:
+      description: Returns all libraries with the user's CRUD permissions.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.GrantsResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get user library grants
+      tags:
+      - admin
+    put:
+      description: Replaces all library CRUD grants for a non-admin user.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.PutGrantsRequest'
+                description: Grant list
+                summary: body
+        description: Grant list
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.GrantsResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Set user library grants
+      tags:
+      - admin
+  /api/admin/users/{id}/resend-confirm:
+    post:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Resend email confirmation
+      tags:
+      - admin
+  /api/admin/users/{id}/sessions:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.SessionsResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List user sessions
+      tags:
+      - admin
+  /api/admin/users/{id}/sessions/revoke-all:
+    post:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Revoke all user sessions
+      tags:
+      - admin
+  /api/auth/2fa:
+    delete:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.DisableTwoFactorRequest'
+                description: Password and TOTP code
+                summary: body
+        description: Password and TOTP code
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+      summary: Disable 2FA
+      tags:
+      - auth
+  /api/auth/2fa/confirm:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.TwoFactorConfirmRequest'
+                description: TOTP code
+                summary: body
+        description: TOTP code
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_auth.TwoFactorConfirmResult'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+      summary: Confirm 2FA setup
+      tags:
+      - auth
+  /api/auth/2fa/setup:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.TwoFactorSetupRequest'
+                description: Optional pending token
+                summary: body
+        description: Optional pending token
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_auth.TwoFactorSetup'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+      summary: Start 2FA setup
+      tags:
+      - auth
+  /api/auth/2fa/verify:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.VerifyTwoFactorRequest'
+                description: Pending token and code
+                summary: body
+        description: Pending token and code
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.AuthTokensResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+      summary: Verify 2FA login
+      tags:
+      - auth
+  /api/auth/accept-invite:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.AcceptInviteRequest'
+                description: Invite token
+                summary: body
+        description: Invite token
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+      summary: Accept invite
+      tags:
+      - auth
+  /api/auth/change-email:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.ChangeEmailRequest'
+                description: Email change
+                summary: body
+        description: Email change
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Request email change
+      tags:
+      - auth
+  /api/auth/change-password:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.ChangePasswordRequest'
+                description: Password change
+                summary: body
+        description: Password change
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LoginResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Change password
+      tags:
+      - auth
+  /api/auth/confirm-email:
+    get:
+      parameters:
+      - description: Confirmation token
+        in: query
+        name: token
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.StatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+      summary: Confirm email
+      tags:
+      - auth
+  /api/auth/forgot-password:
+    post:
+      description: Always returns 204 to avoid email enumeration.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.ForgotPasswordRequest'
+                description: Email
+                summary: body
+        description: Email
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+      summary: Forgot password
+      tags:
+      - auth
+  /api/auth/login:
+    post:
+      description: Authenticates a user. May return a 2FA challenge instead of tokens.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.LoginRequest'
+                description: Credentials
+                summary: body
+        description: Credentials
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LoginResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Login
+      tags:
+      - auth
+  /api/auth/logout:
+    post:
+      description: Revokes the current refresh session.
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+      summary: Logout
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      description: Returns the authenticated user profile.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.MeResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+      summary: Current user
+      tags:
+      - auth
+  /api/auth/refresh:
+    post:
+      description: Reads the httpOnly refresh cookie and returns a new access token.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.RefreshResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+      summary: Refresh access token
+      tags:
+      - auth
+  /api/auth/reset-password:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.ResetPasswordRequest'
+                description: Reset token
+                summary: body
+        description: Reset token
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+      summary: Reset password
+      tags:
+      - auth
+  /api/auth/sessions:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.SessionsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List sessions
+      tags:
+      - auth
+  /api/auth/sessions/{id}:
+    delete:
+      parameters:
+      - description: Session ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Revoke session
+      tags:
+      - auth
+  /api/auth/sessions/revoke-all:
+    post:
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Revoke all sessions
+      tags:
+      - auth
+  /api/browse:
+    get:
+      description: Returns immediate children (shallow) for the media root, paginated.
+      parameters:
+      - description: Page size (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_mediafs.BrowseResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Browse media root
+      tags:
+      - media
+  /api/browse/{path}:
+    get:
+      description: Returns immediate children (shallow) for a path under the media
+        root, paginated.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: Page size (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_mediafs.BrowseResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Browse folder
+      tags:
+      - media
+  /api/catalog/{librarySlug}:
+    get:
+      description: Film movie cards or series show cards for a typed library (paginated).
+      parameters:
+      - description: Library slug
+        in: path
+        name: librarySlug
+        required: true
+        schema:
+          type: string
+      - description: Page size (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_catalog.LibraryCatalog'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+      summary: Library catalog
+      tags:
+      - media
+  /api/catalog/{librarySlug}/shows/{showKey}:
+    get:
+      description: Season/special headers with episode counts (episodes loaded separately).
+      parameters:
+      - description: Library slug
+        in: path
+        name: librarySlug
+        required: true
+        schema:
+          type: string
+      - description: Normalized show key
+        in: path
+        name: showKey
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_catalog.ShowDetail'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+      summary: Series show catalog
+      tags:
+      - media
+  /api/catalog/{librarySlug}/shows/{showKey}/seasons/{season}/episodes:
+    get:
+      description: Episodes for one season of a show (full season when limit omitted).
+      parameters:
+      - description: Library slug
+        in: path
+        name: librarySlug
+        required: true
+        schema:
+          type: string
+      - description: Normalized show key
+        in: path
+        name: showKey
+        required: true
+        schema:
+          type: string
+      - description: Season number (0 = specials)
+        in: path
+        name: season
+        required: true
+        schema:
+          type: integer
+      - description: Optional page size (omit for full season; max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_catalog.SeasonEpisodes'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+      summary: Series season episodes
+      tags:
+      - media
+  /api/download/{path}:
+    get:
+      description: Downloads file content with content-disposition attachment.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: OK
+        "400":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Download media file
+      tags:
+      - media
+  /api/favorite/{path}:
+    get:
+      description: Returns whether the current user has favorited a media file
+      parameters:
+      - description: Media file path
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.FavoriteResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get favorite status
+      tags:
+      - media
+    patch:
+      description: Marks or clears favorite for a media file for the current user
+      parameters:
+      - description: Media file path
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.FavoritePatchRequest'
+                description: Favorite flag
+                summary: body
+        description: Favorite flag
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.FavoriteResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update favorite status
+      tags:
+      - media
+  /api/health:
+    get:
+      description: Returns service health and the current application version.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.HealthResponse'
+          description: OK
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.HealthResponse'
+          description: Service Unavailable
+      summary: Healthcheck
+      tags:
+      - system
+  /api/libraries:
+    get:
+      description: Returns libraries the current user may read, including type metadata.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.LibrariesResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List readable libraries
+      tags:
+      - media
+  /api/me/continue:
+    get:
+      parameters:
+      - description: Maximum items (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.HomeItemsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List continue watching
+      tags:
+      - home
+  /api/me/favorites:
+    get:
+      parameters:
+      - description: Maximum items (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.HomeItemsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List home favorites
+      tags:
+      - home
+  /api/me/stats:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.HomeStatsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get home library statistics
+      tags:
+      - home
+  /api/me/unwatched:
+    get:
+      parameters:
+      - description: Maximum items (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.HomeItemsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List unwatched media
+      tags:
+      - home
+  /api/me/watched:
+    get:
+      parameters:
+      - description: Maximum items (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.HomeItemsResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: List recently watched media
+      tags:
+      - home
+  /api/media/{path}:
+    delete:
+      description: Moves a media path into /media/.trash; directories are always recursive
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: Ignored for recycle-bin deletes; directories always move as a
+          tree
+        in: query
+        name: recursive
+        schema:
+          type: boolean
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Delete media file or folder
+      tags:
+      - media
+  /api/metadata/{path}:
+    get:
+      description: Returns cached original and override metadata for a video path.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_metadata.MetadataResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get video metadata
+      tags:
+      - media
+    patch:
+      description: Updates per-file override metadata or writes embedded file tags
+        via ffmpeg.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/sudoStream_internal_metadata.PatchRequest'
+                description: Metadata patch
+                summary: body
+        description: Metadata patch
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/sudoStream_internal_metadata.MetadataResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Patch video metadata
+      tags:
+      - media
+  /api/oauth/token:
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.OAuthTokenResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.OAuthErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.OAuthErrorResponse'
+          description: Unauthorized
+      summary: OAuth2 token
+      tags:
+      - oauth
+  /api/play/{path}:
+    get:
+      description: Retrieve HLS master playlist or media segments for video playback
+      parameters:
+      - description: Media file path with optional HLS resource suffix
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+          description: OK
+        "400":
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+        "503":
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Get HLS playlist or segment
+      tags:
+      - media
+  /api/playback/{path}:
+    get:
+      description: Retrieve job status, qualities, and tracks. Prefer POST + deviceProfile
+        for FI-8.
+      parameters:
+      - description: Media file path
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: Start HLS transcode job
+        in: query
+        name: transcode
+        schema:
+          type: boolean
+      - description: Start transcode after direct playback failed
+        in: query
+        name: fallback
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.PlaybackResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get playback status and metadata
+      tags:
+      - media
+    post:
+      description: Accepts a device profile; returns playMethod (directPlay/remux/transcode)
+        + URLs.
+      parameters:
+      - description: Media file path
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.PlaybackNegotiateRequest'
+                description: Device profile and quality selection
+                summary: body
+        description: Device profile and quality selection
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.PlaybackResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Negotiate playback method
+      tags:
+      - media
+  /api/provider-poster/{path}:
+    get:
+      description: Serves a locally cached poster from providers.posters. 404 when
+        none cached; use /api/thumbnail.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            image/jpeg:
+              schema:
+                format: binary
+                type: string
+            image/png:
+              schema:
+                format: binary
+                type: string
+            image/webp:
+              schema:
+                type: string
+          description: OK
+        "400":
+          content:
+            image/jpeg:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/png:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/webp:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            image/jpeg:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/png:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/webp:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            image/jpeg:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/png:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/webp:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get provider poster
+      tags:
+      - media
+  /api/provider-subtitle/{path}:
+    get:
+      description: Serves a locally cached subtitle from providers.subtitles. Query
+        lang is ISO 639-1.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: ISO 639-1 language code
+        in: query
+        name: lang
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            text/vtt:
+              schema:
+                type: string
+          description: OK
+        "400":
+          content:
+            text/vtt:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            text/vtt:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            text/vtt:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get provider subtitle
+      tags:
+      - media
+  /api/search:
+    get:
+      description: Finds indexed videos in readable libraries by filename and metadata
+        tokens.
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        schema:
+          type: string
+      - description: Page size (default 28, max 100)
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.SearchResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Search media
+      tags:
+      - media
+  /api/stream/{path}:
+    get:
+      description: Serves original file bytes with Range support for progressive playback.
+        Not a download.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: OK
+        "206":
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: Partial Content
+        "400":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Stream media file (Direct Play)
+      tags:
+      - media
+  /api/thumbnail/{path}:
+    get:
+      description: Serves a cached video poster (WebP; maintenance warm only) or resizes
+        an image on the fly.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      - description: Thumbnail width (images only)
+        in: query
+        name: w
+        schema:
+          default: 320
+          maximum: 1024
+          minimum: 32
+          type: integer
+      - description: Thumbnail height (images only)
+        in: query
+        name: h
+        schema:
+          default: 320
+          maximum: 1024
+          minimum: 32
+          type: integer
+      responses:
+        "200":
+          content:
+            image/jpeg:
+              schema:
+                format: binary
+                type: string
+            image/webp:
+              schema:
+                type: string
+          description: OK
+        "400":
+          content:
+            image/jpeg:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/webp:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            image/jpeg:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/webp:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            image/jpeg:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+            image/webp:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get thumbnail
+      tags:
+      - media
+  /api/user-subtitle/{path}:
+    delete:
+      description: Removes the per-user uploaded subtitle for a media path
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+      summary: Delete user subtitle
+      tags:
+      - media
+    get:
+      description: Serves the per-user uploaded WebVTT for a media path when present
+        and not expired
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            text/vtt:
+              schema:
+                type: string
+          description: OK
+        "403":
+          content:
+            text/vtt:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            text/vtt:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+      summary: Get user subtitle
+      tags:
+      - media
+    put:
+      description: Accepts VTT or SRT (multipart field "file"); replaces existing
+        upload. TTL 1d.
+      parameters:
+      - description: Path under media root
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              oneOf:
+              - title: lang
+                type: string
+              - title: label
+                type: string
+              - title: file
+                type: file
+          multipart/form-data:
+            schema:
+              type: object
+        description: ISO 639-1 language code | Display label | Subtitle file (.vtt
+          or .srt)
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.UserSubtitleTrack'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Request Entity Too Large
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Upload user subtitle
+      tags:
+      - media
+  /api/watch/{path}:
+    get:
+      description: Returns whether the current user has marked a media file as watched
+      parameters:
+      - description: Media file path
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.WatchResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get watched status
+      tags:
+      - media
+    patch:
+      description: Marks watched state or saves playback progress for a media file
+      parameters:
+      - description: Media file path
+        in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/internal_httpapi.WatchPatchRequest'
+                description: Watched flag and optional progress
+                summary: body
+        description: Watched flag and optional progress
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.WatchResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update watched status
+      tags:
+      - media
+  /metrics:
+    get:
+      description: Returns Prometheus exposition format metrics.
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: OK
+      summary: Prometheus metrics
+      tags:
+      - system
+servers:
+- description: Local development server
+  url: http://localhost:8080

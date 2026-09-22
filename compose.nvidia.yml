@@ -1,0 +1,17 @@
+# Requires NVIDIA Container Toolkit on the host.
+#
+# Usage:
+#   docker compose -f compose.yml -f compose.nvidia.yml up -d
+
+services:
+  app:
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

@@ -1,0 +1,7 @@
+minimumReleaseAgeExclude:
+  - "@videojs/core@10.0.0-beta.28"
+  - "@videojs/media@10.0.0-beta.28"
+  - "@videojs/react@10.0.0-beta.28"
+  - "@videojs/spf@10.0.0-beta.28"
+  - "@videojs/store@10.0.0-beta.28"
+  - "@videojs/utils@10.0.0-beta.28"

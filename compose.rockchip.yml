@@ -1,0 +1,16 @@
+# Rockchip RKMPP passthrough.
+#
+# Host needs a Rockchip BSP kernel (5.10/6.1). Optional libmali on the host for OpenCL HDR tonemap.
+#
+# Usage:
+#   docker compose -f compose.yml -f compose.rockchip.yml up -d
+
+services:
+  app:
+    privileged: true
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/mali0:/dev/mali0
+      - /dev/rga:/dev/rga
+      - /dev/mpp_service:/dev/mpp_service

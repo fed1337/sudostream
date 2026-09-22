@@ -1,0 +1,15 @@
+# Intel / AMD VA-API passthrough
+#
+# Usage (with base compose.yml):
+#   RENDER_GID=$(getent group render | cut -d: -f3) docker compose -f compose.yml -f compose.vaapi.yml up -d
+#
+# Intel: LIBVA_DRIVER_NAME=iHD (default below). AMD: set LIBVA_DRIVER_NAME=radeonsi (or omit)
+
+services:
+  app:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${RENDER_GID:-992}"
+    environment:
+      LIBVA_DRIVER_NAME: ${LIBVA_DRIVER_NAME:-iHD}

@@ -1,0 +1,17 @@
+# Intel Quick Sync (QSV) passthrough.
+#
+# Needs /dev/dri (renderD*) and the host render group. Image includes OneVPL (libvpl2).
+# Admin: set hwAccel=qsv. Do not combine with compose.nvidia.yml.
+#
+# Usage:
+#   RENDER_GID=$(getent group render | cut -d: -f3) \
+#     docker compose -f compose.yml -f compose.qsv.yml up -d
+
+services:
+  app:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${RENDER_GID:-992}"
+    environment:
+      LIBVA_DRIVER_NAME: ${LIBVA_DRIVER_NAME:-iHD}

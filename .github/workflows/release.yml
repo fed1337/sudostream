@@ -6,9 +6,8 @@ on:
       - master
 
 permissions:
-  contents: write
   packages: write
-  actions: read
+  actions: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +15,9 @@ concurrency:
 
 jobs:
   release:
-    if: "!startsWith(github.event.head_commit.message, 'bump:')"
+    if: >-
+      ${{ !startsWith(github.event.head_commit.message, 'bump:')
+          && !startsWith(github.event.head_commit.message, 'docs:') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

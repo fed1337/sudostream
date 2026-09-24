@@ -2,12 +2,13 @@ name: CI
 
 on:
   push:
+    branches:
+      - dev
   pull_request:
 
 permissions:
   pull-requests: write
   checks: write
-  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,7 +16,9 @@ concurrency:
 
 jobs:
   codequality:
-    if: "!startsWith(github.event.head_commit.message, 'bump:')"
+    if: >-
+      ${{ !startsWith(github.event.head_commit.message, 'bump:')
+          && !startsWith(github.event.head_commit.message, 'docs:') }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:

@@ -113,7 +113,7 @@ func WriteFileTags(ctx context.Context, absPath string, tags map[string]string) 
 	}
 	args = append(args, tempPath)
 
-	output, err := exec.CommandContext( //nolint:gosec // absPath resolved via mediafs
+	output, err := exec.CommandContext(
 		ctx,
 		"ffmpeg",
 		args...,

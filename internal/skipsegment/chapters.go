@@ -11,6 +11,7 @@ const (
 	maxIntroSec         = 150
 	maxScanWindowSec    = 600 // 10 minutes
 	maxScanRuntimeRatio = 0.30
+	msPerSecond         = 1000
 )
 
 var (
@@ -23,32 +24,42 @@ var (
 
 // IntroFromChapters picks the first valid opening intro from embedded chapters.
 // Returns nil when no qualifying chapter exists (prefer miss over bad skip).
+//
+//nolint:cyclop // single-pass scan with explicit guards; splitting would obscure rules
 func IntroFromChapters(chapters []ChapterCue, durationSeconds float64) *Intro {
 	if len(chapters) == 0 || durationSeconds <= 0 {
 		return nil
 	}
 
 	scanWindow := introScanWindowSec(durationSeconds)
+	prevTitleWasIntro := false
 
-	for index, chapter := range chapters {
+	for _, chapter := range chapters {
 		if !titleMatchesIntro(chapter.Title) || titleMatchesRecap(chapter.Title) {
+			prevTitleWasIntro = false
+
 			continue
 		}
-		if index > 0 && titleMatchesIntro(chapters[index-1].Title) &&
-			!titleMatchesRecap(chapters[index-1].Title) {
+		if prevTitleWasIntro {
 			continue
 		}
 
 		start := chapter.StartSeconds
 		end := chapter.EndSeconds
 		if end <= start {
+			prevTitleWasIntro = true
+
 			continue
 		}
 		duration := end - start
 		if duration < minIntroSec || duration > maxIntroSec {
+			prevTitleWasIntro = true
+
 			continue
 		}
 		if start < 0 || start > scanWindow {
+			prevTitleWasIntro = true
+
 			continue
 		}
 
@@ -63,11 +74,12 @@ func IntroFromChapters(chapters []ChapterCue, durationSeconds float64) *Intro {
 }
 
 func introScanWindowSec(durationSeconds float64) float64 {
-	cap := durationSeconds * maxScanRuntimeRatio
-	if cap > maxScanWindowSec {
-		cap = maxScanWindowSec
+	windowSec := durationSeconds * maxScanRuntimeRatio
+	if windowSec > maxScanWindowSec {
+		windowSec = maxScanWindowSec
 	}
-	return cap
+
+	return windowSec
 }
 
 func titleMatchesIntro(title string) bool {
@@ -75,6 +87,7 @@ func titleMatchesIntro(title string) bool {
 	if title == "" {
 		return false
 	}
+
 	return introTitleRe.MatchString(title)
 }
 
@@ -83,6 +96,7 @@ func titleMatchesRecap(title string) bool {
 	if title == "" {
 		return false
 	}
+
 	return recapTitleRe.MatchString(title)
 }
 
@@ -90,5 +104,6 @@ func secondsToMs(seconds float64) int64 {
 	if seconds <= 0 {
 		return 0
 	}
-	return int64(math.Round(seconds * 1000))
+
+	return int64(math.Round(seconds * msPerSecond))
 }

@@ -22,7 +22,6 @@ func hasPackagedSubtitleTracks(outDir string) bool {
 }
 
 func subtitleVTTHasCues(vttPath string) bool {
-	//nolint:gosec // vttPath is under transcode cache directory
 	raw, err := os.ReadFile(vttPath)
 	if err != nil || len(raw) < 12 {
 		return false

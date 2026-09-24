@@ -333,7 +333,7 @@ type ffprobeStream struct {
 }
 
 func embeddedCoverStream(ctx context.Context, mediaPath string) (int, bool) {
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		ctx,
 		"ffprobe",
 		"-v", "quiet",
@@ -375,7 +375,7 @@ func extractEmbeddedArtWebP(
 	mediaPath, tempPath string,
 	streamIndex int,
 ) error {
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		ctx,
 		"ffmpeg",
 		"-v", "quiet",
@@ -416,7 +416,7 @@ func frameCaptureOutputOK(path string) bool {
 }
 
 func extractFrameAtWebP(ctx context.Context, mediaPath, tempPath, seek string) error {
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		ctx,
 		"ffmpeg",
 		"-v", "error",

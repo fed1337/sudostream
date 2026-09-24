@@ -11,8 +11,11 @@ Run the stack via Docker Compose — no local Go binary required. To list all ta
 
 **Coverage:** project floor **≥ 60%**; touched packages / PR patch **≥ 70%** ([`codecov.yml`](codecov.yml)).
 
-**Tests:** Go tests use [allure-go](https://github.com/allure-framework/allure-go) (`commons/gotest`). Match the `allure.Test` pattern in existing `*_test.go`
-files. Do not put secrets in test titles or attachments — published reports are treated as public QA.
+**Tests:** **All** Go tests must use [allure-go](https://github.com/allure-framework/allure-go) (`allure.Test` in every
+scenario).
+Prefer **table-driven** cases inside or per-row with Allure.
+`*_test.go` is excluded from golangci **linters** (not formatters).
+Do not put secrets in test titles or attachments — published reports are public.
 
 ## Pull requests
 

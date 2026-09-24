@@ -186,7 +186,7 @@ func NormalizeSubtitleUpload(raw []byte, filename string) ([]byte, error) {
 
 func readSidecarSubtitleFile(inputPath string) ([]byte, error) {
 	// inputPath is a resolved sidecar beside media.
-	//nolint:gosec // G304
+
 	raw, err := os.ReadFile(inputPath)
 	if err != nil {
 		return nil, fmt.Errorf("read sidecar subtitle: %w", err)

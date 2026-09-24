@@ -29,7 +29,7 @@ func ProbeKeyframes(ctx context.Context, mediaPath string) ([]float64, error) {
 	probeCtx, cancel := context.WithTimeout(ctx, keyframeProbeTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		probeCtx,
 		"ffprobe",
 		"-v", "error",
@@ -102,7 +102,6 @@ func WriteKeyframes(outDir string, keyframes []float64) error {
 
 // ReadKeyframes loads cached keyframe timestamps.
 func ReadKeyframes(outDir string) ([]float64, bool) {
-	//nolint:gosec // outDir is under transcode cache root
 	raw, err := os.ReadFile(filepath.Join(outDir, keyframeMarker))
 	if err != nil {
 		return nil, false

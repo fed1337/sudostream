@@ -490,7 +490,6 @@ func convertEmbeddedSubtitleToWebVTT(
 ) error {
 	_ = os.Remove(outputPath)
 
-	//nolint:gosec // mediaPath resolved via mediafs
 	cmd := exec.CommandContext(
 		ctx,
 		"ffmpeg",

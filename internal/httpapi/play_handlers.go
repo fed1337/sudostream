@@ -283,7 +283,6 @@ func (h *handler) writeTranscodeResourceMissing(c *gin.Context, status transcode
 }
 
 func (h *handler) serveHLSPlaylist(c *gin.Context, diskPath string) {
-	//nolint:gosec // diskPath is under transcode cache directory
 	raw, err := os.ReadFile(diskPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "failed to read playlist"})

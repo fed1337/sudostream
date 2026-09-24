@@ -137,7 +137,6 @@ func WriteSourceMeta(outDir string, meta SourceMeta) error {
 
 // ReadSourceMeta loads the cached probe summary when present.
 func ReadSourceMeta(outDir string) (SourceMeta, bool) {
-	//nolint:gosec // outDir is under transcode cache root
 	raw, err := os.ReadFile(filepath.Join(outDir, sourceMetaMarker))
 	if err != nil {
 		return SourceMeta{}, false

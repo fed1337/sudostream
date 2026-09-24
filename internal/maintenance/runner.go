@@ -96,11 +96,11 @@ func (s *Service) runThumbnailsWarm(ctx context.Context, libraryID string) (map[
 		generated += count
 		if warmErr != nil {
 			return map[string]any{
-					"generated": generated,
-				}, fmt.Errorf(
-					"warm thumbnails: %w",
-					warmErr,
-				)
+				"generated": generated,
+			}, fmt.Errorf(
+				"warm thumbnails: %w",
+				warmErr,
+			)
 		}
 	}
 

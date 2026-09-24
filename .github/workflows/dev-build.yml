@@ -6,9 +6,8 @@ on:
       - dev
 
 permissions:
-  contents: read
   packages: write
-  actions: read
+  actions: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -1,0 +1,86 @@
+---
+name: "Bug Report"
+description: "File a bug report"
+labels: [ "bug" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Image tag (`:dev`, `vX.Y.Z`) or commit SHA
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: If you do not provide a way to reproduce the issue, your issue will likely be closed.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      placeholder: What exactly you expected after taking these steps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      placeholder: What exactly happened after taking these steps.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      description: How you run sudoStream?
+      multiple: true
+      options:
+        - Docker (amd64)
+        - Docker (arm64)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: You can add more details about your OS, hardware, deployment options here.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Redact secrets, tokens, emails. This will be automatically formatted as code, no need for backticks.
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you confirm that
+      options:
+        - label: This is not a feature request.
+          required: true
+        - label: I added a very descriptive title to this issue.
+          required: true
+        - label: I used the GitHub search to find a similar issue and didn't find it.
+          required: true
+        - label: I read the documentation and didn't find the answer.
+          required: true

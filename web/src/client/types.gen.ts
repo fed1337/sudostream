@@ -206,6 +206,10 @@ export type InternalHttpapiPlaybackResponse = {
    * Series is set only for paths in a series library with resolvable S/E identity.
    */
   series?: InternalHttpapiPlaybackSeriesContext;
+  /**
+   * SkipIntro is set when chapter metadata identifies an opening intro segment (E-23).
+   */
+  skipIntro?: SudoStreamInternalSkipsegmentIntro;
   status?: SudoStreamInternalTranscodeStatus;
   streamUrl?: string;
   subtitleTracks?: Array<SudoStreamInternalTranscodeTrackInfo>;
@@ -710,6 +714,12 @@ export type SudoStreamInternalProviderSettings = {
   subtitleLanguages?: Array<string>;
   subtitleProvider?: string;
   updatedAt?: string;
+};
+
+export type SudoStreamInternalSkipsegmentIntro = {
+  endMs?: number;
+  source?: string;
+  startMs?: number;
 };
 
 export type SudoStreamInternalTranscodeChapterInfo = {

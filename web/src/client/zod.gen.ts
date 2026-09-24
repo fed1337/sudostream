@@ -663,6 +663,12 @@ export const zInternalHttpapiProviderSettingsResponse = z.object({
   settings: zSudoStreamInternalProviderSettings.optional()
 });
 
+export const zSudoStreamInternalSkipsegmentIntro = z.object({
+  endMs: z.int().optional(),
+  source: z.string().optional(),
+  startMs: z.int().optional()
+});
+
 export const zSudoStreamInternalTranscodeChapterInfo = z.object({
   endSeconds: z.number().optional(),
   startSeconds: z.number().optional(),
@@ -717,6 +723,7 @@ export const zInternalHttpapiPlaybackResponse = z.object({
   providerSubtitleTracks: z.array(zInternalHttpapiProviderSubtitleTrack).optional(),
   qualities: z.array(zSudoStreamInternalTranscodeQualityInfo).optional(),
   series: zInternalHttpapiPlaybackSeriesContext.optional(),
+  skipIntro: zSudoStreamInternalSkipsegmentIntro.optional(),
   status: zSudoStreamInternalTranscodeStatus.optional(),
   streamUrl: z.string().optional(),
   subtitleTracks: z.array(zSudoStreamInternalTranscodeTrackInfo).optional(),

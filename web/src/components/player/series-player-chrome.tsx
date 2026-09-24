@@ -9,6 +9,8 @@ import {
   uniqueSeasons,
   type SeriesEpisodeOption,
 } from "@/lib/series-nav";
+import { SkipIntroAction } from "@/components/player/skip-intro-action";
+import { isInSkipIntroSegment, type SkipIntroSegment } from "@/lib/skip-intro";
 import { cn } from "@/lib/utils";
 
 type SeriesPlayerChromeProps = {
@@ -21,6 +23,7 @@ type SeriesPlayerChromeProps = {
   onSelectEpisode: (path: string) => void;
   onUploadSubtitle?: (file: File) => Promise<void>;
   uploadBusy?: boolean;
+  skipIntro?: SkipIntroSegment | null;
 };
 
 type PlaybackEndedState = {
@@ -49,6 +52,7 @@ export function SeriesPlayerChrome({
   onSelectEpisode,
   onUploadSubtitle,
   uploadBusy,
+  skipIntro,
 }: SeriesPlayerChromeProps): ReactNode {
   const { t } = useTranslation();
   const playback = usePlayer(selectPlayback) as PlaybackEndedState | undefined;
@@ -77,7 +81,12 @@ export function SeriesPlayerChrome({
     return currentTime / duration >= NEXT_EPISODE_RATIO;
   }, [ended, time?.currentTime, time?.duration]);
 
-  const showNext = Boolean(nav.next && nearEnd);
+  const showSkipIntro = useMemo(
+    () => isInSkipIntroSegment(skipIntro ?? undefined, time?.currentTime ?? 0),
+    [skipIntro, time?.currentTime],
+  );
+  const showNext = Boolean(nav.next && nearEnd && !showSkipIntro);
+  const showActions = showSkipIntro || showNext;
 
   const congratsKind =
     ended && nav.seriesComplete
@@ -207,15 +216,18 @@ export function SeriesPlayerChrome({
           ) : null}
         </div>
 
-        {showNext ? (
+        {showActions ? (
           <div className="sudostream-series-chrome__actions">
-            <button
-              type="button"
-              className="sudostream-series-chrome__next"
-              onClick={() => onSelectEpisode(nav.next!.path)}
-            >
-              {t("player.nextEpisode")}
-            </button>
+            {skipIntro ? <SkipIntroAction segment={skipIntro} /> : null}
+            {showNext ? (
+              <button
+                type="button"
+                className="sudostream-series-chrome__next"
+                onClick={() => onSelectEpisode(nav.next!.path)}
+              >
+                {t("player.nextEpisode")}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

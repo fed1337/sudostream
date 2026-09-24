@@ -19,3 +19,7 @@ openapi/
 *.yml
 *.yaml
 makefile
+.venv/
+site/
+.cache/
+uv.lock

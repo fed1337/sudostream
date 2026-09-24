@@ -12,3 +12,6 @@ logs/
 media/
 CLAUDE.md
 AGENTS.md
+.venv/
+site/
+.cache/

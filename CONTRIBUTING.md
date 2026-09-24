@@ -17,9 +17,10 @@ files. Do not put secrets in test titles or attachments — published reports ar
 ## Pull requests
 
 1. Branch from `dev`
-2. Keep diffs small; match existing style and patterns.
-3. Add or update tests for behavior changes.
-4. Run `make fix && make check && make test` (and `make frontend-fix && make frontend-check` if you touched `web/`) before opening a PR.
+2. Open a PR into `dev`
+3. Keep diffs small; match existing style and patterns.
+4. Add or update tests for behavior changes.
+5. Run `make fix && make check && make test` (and `make frontend-fix && make frontend-check` if you touched `web/`) before opening a PR.
 
 ## License
 

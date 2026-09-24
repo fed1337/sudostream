@@ -31,6 +31,7 @@ help:
 	@echo "  dev-down          Stop dev stack"
 	@echo "  prod-up           Start prod stack (GHCR image)"
 	@echo "  prod-down         Stop prod stack"
+	@echo "  docs              Generate and serve docs locally"
 	@echo ""
 
 check:
@@ -103,5 +104,8 @@ build:
 		-o out/sudostream \
 		./cmd/server
 
+docs:
+	uv run mkdocs serve
+
 .PHONY: help check fix test test-db-up test-db-down openapi frontend-install frontend-typegen \
-	frontend-check frontend-fix frontend-dev frontend-build docker-build dev-up dev-down prod-up prod-down build
+	frontend-check frontend-fix frontend-dev frontend-build docker-build dev-up dev-down prod-up prod-down build docs

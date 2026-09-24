@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
+site_name: sudoStream Docs
+site_url: https://fed1337.github.io/sudostream
+repo_url: https://github.com/fed1337/sudostream
+theme:
+  name: material
+  icon:
+    repo: fontawesome/solid/forward
+  features:
+    - toc.follow
+    - navigation.top
+    - navigation.tracking
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+  font:
+    code: Jetbrains Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+plugins:
+  - search:
+      lang:
+        - en
+        - ru
+  - optimize:
+      optimize_png: false
+  - privacy:
+      concurrency: 4
+      cache: false
+markdown_extensions:
+  - attr_list

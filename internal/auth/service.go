@@ -586,7 +586,7 @@ func (s *Service) createPendingLoginToken(ctx context.Context, user *User) (stri
 		return "", fmt.Errorf("create pending login token: %w", err)
 	}
 
-	err = s.store.CreateAuthToken(ctx, Token{ //nolint:exhaustruct // partial insert row
+	err = s.store.CreateAuthToken(ctx, Token{
 		UserID:    user.ID,
 		Email:     user.Email,
 		Purpose:   TokenPurposeLogin2FA,

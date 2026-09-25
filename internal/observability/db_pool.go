@@ -9,15 +9,15 @@ import (
 
 //nolint:gochecknoglobals // Prometheus metrics are registered process-wide.
 var (
-	dbSQLInUseConns = promauto.NewGauge(prometheus.GaugeOpts{ //nolint:exhaustruct
+	dbSQLInUseConns = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "db_sql_in_use_conns",
 		Help: "Number of database connections currently in use.",
 	})
-	dbSQLIdleConns = promauto.NewGauge(prometheus.GaugeOpts{ //nolint:exhaustruct
+	dbSQLIdleConns = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "db_sql_idle_conns",
 		Help: "Number of idle database connections in the pool.",
 	})
-	dbSQLOpenConns = promauto.NewGauge(prometheus.GaugeOpts{ //nolint:exhaustruct
+	dbSQLOpenConns = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "db_sql_open_conns",
 		Help: "Number of open database connections in the pool.",
 	})

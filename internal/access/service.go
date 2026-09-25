@@ -609,7 +609,7 @@ func (s *Service) permissionsForPath(
 		return LibraryPermissions{}, false, err
 	}
 	if canonical == "" {
-		return LibraryPermissions{}, false, nil //nolint:exhaustruct // zero perms
+		return LibraryPermissions{}, false, nil
 	}
 
 	libraries, err := s.store.ListLibraries(ctx)
@@ -619,7 +619,7 @@ func (s *Service) permissionsForPath(
 
 	library, ok := MatchLibrary(libraries, canonical)
 	if !ok {
-		return LibraryPermissions{}, false, nil //nolint:exhaustruct // zero perms
+		return LibraryPermissions{}, false, nil
 	}
 
 	grants, err := s.store.GetUserGrantMap(ctx, userID)
@@ -629,7 +629,7 @@ func (s *Service) permissionsForPath(
 
 	perms, found := grants[library.ID]
 	if !found {
-		return LibraryPermissions{}, false, nil //nolint:exhaustruct // zero perms
+		return LibraryPermissions{}, false, nil
 	}
 
 	return perms, true, nil

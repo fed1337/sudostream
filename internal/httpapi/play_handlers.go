@@ -13,6 +13,7 @@ import (
 	"sudoStream/internal/mediafs"
 	"sudoStream/internal/observability"
 	"sudoStream/internal/playback"
+	"sudoStream/internal/skipsegment"
 	"sudoStream/internal/transcode"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,8 @@ type PlaybackResponse struct {
 	UserSubtitle *UserSubtitleTrack `json:"userSubtitle,omitempty"`
 	// Chapters are container chapter atoms on any video file (not limited to film/series).
 	Chapters []transcode.ChapterInfo `json:"chapters,omitempty"`
+	// SkipIntro is set when chapter metadata identifies an opening intro segment (E-23).
+	SkipIntro *skipsegment.Intro `json:"skipIntro,omitempty"`
 	// Series is set only for paths in a series library with resolvable S/E identity.
 	Series *PlaybackSeriesContext `json:"series,omitempty"`
 }
@@ -280,7 +283,6 @@ func (h *handler) writeTranscodeResourceMissing(c *gin.Context, status transcode
 }
 
 func (h *handler) serveHLSPlaylist(c *gin.Context, diskPath string) {
-	//nolint:gosec // diskPath is under transcode cache directory
 	raw, err := os.ReadFile(diskPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "failed to read playlist"})
@@ -463,6 +465,7 @@ func (h *handler) respondHLSPlayback(
 		ProviderSubtitleTracks: h.providerSubtitleTracks(c.Request.Context(), mediaPath),
 		UserSubtitle:           h.userSubtitleTrack(c, mediaPath),
 		Chapters:               chapters,
+		SkipIntro:              skipIntroFromChapters(chapters, playbackInfo.DurationSeconds),
 		Series:                 h.playbackSeriesContext(c, mediaPath),
 	})
 }
@@ -523,8 +526,26 @@ func (h *handler) respondDirectPlay(
 		ProviderSubtitleTracks: h.providerSubtitleTracks(c.Request.Context(), mediaPath),
 		UserSubtitle:           h.userSubtitleTrack(c, mediaPath),
 		Chapters:               chapters,
+		SkipIntro:              skipIntroFromChapters(chapters, caps.DurationSeconds),
 		Series:                 h.playbackSeriesContext(c, mediaPath),
 	})
+}
+
+func skipIntroFromChapters(chapters []transcode.ChapterInfo, durationSeconds float64) *skipsegment.Intro {
+	if len(chapters) == 0 || durationSeconds <= 0 {
+		return nil
+	}
+
+	cues := make([]skipsegment.ChapterCue, len(chapters))
+	for index, chapter := range chapters {
+		cues[index] = skipsegment.ChapterCue{
+			StartSeconds: chapter.StartSeconds,
+			EndSeconds:   chapter.EndSeconds,
+			Title:        chapter.Title,
+		}
+	}
+
+	return skipsegment.IntroFromChapters(cues, durationSeconds)
 }
 
 func (h *handler) sourceCapsForPlayback(

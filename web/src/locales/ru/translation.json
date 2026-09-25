@@ -212,6 +212,7 @@
     "seasonValue": "Сезон {{number}}",
     "episodeValue": "Серия {{number}}",
     "nextEpisode": "Следующая серия",
+    "skipIntro": "Пропустить заставку",
     "uploadSubtitle": "Загрузить субтитры",
     "seasonCompleteTitle": "Сезон завершён",
     "seasonCompleteBody": "Вы закончили сезон {{season}} сериала «{{show}}».",

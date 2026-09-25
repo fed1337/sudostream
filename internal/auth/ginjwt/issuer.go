@@ -9,11 +9,11 @@ import (
 	"sudoStream/internal/auth"
 	"time"
 
+	authpostgres "sudoStream/internal/auth/postgres"
+
 	jwtmw "github.com/appleboy/gin-jwt/v3"
 	"github.com/appleboy/gin-jwt/v3/core"
 	"github.com/gin-gonic/gin"
-
-	authpostgres "sudoStream/internal/auth/postgres"
 )
 
 const (

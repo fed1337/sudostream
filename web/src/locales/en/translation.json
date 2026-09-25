@@ -212,6 +212,7 @@
     "seasonValue": "Season {{number}}",
     "episodeValue": "Episode {{number}}",
     "nextEpisode": "Next episode",
+    "skipIntro": "Skip intro",
     "uploadSubtitle": "Upload subtitle",
     "seasonCompleteTitle": "Season complete",
     "seasonCompleteBody": "You’ve finished season {{season}} of {{show}}.",

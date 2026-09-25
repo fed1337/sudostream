@@ -4,9 +4,10 @@ import (
 	"context"
 	"os"
 	"sudoStream/internal/auth"
-	authpostgres "sudoStream/internal/auth/postgres"
 	"testing"
 	"time"
+
+	authpostgres "sudoStream/internal/auth/postgres"
 
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )

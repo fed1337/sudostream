@@ -293,7 +293,6 @@ func (s *Service) startSession(
 		downmix:    settings.DownmixAlgorithm,
 	})
 
-	//nolint:gosec // mediaPath resolved via mediafs; args built internally
 	cmd := exec.CommandContext(sessionCtx, "ffmpeg", args...)
 
 	stderr := &tailBuffer{limit: stderrTailLimit}

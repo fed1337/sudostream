@@ -534,7 +534,12 @@ export const internal_httpapi_PlaybackResponseSchema = {
       uniqueItems: false
     },
     series: {
-      $ref: '#/components/schemas/internal_httpapi.PlaybackSeriesContext'
+      $ref: '#/components/schemas/internal_httpapi.PlaybackSeriesContext',
+      description: 'Series is set only for paths in a series library with resolvable S/E identity.'
+    },
+    skipIntro: {
+      $ref: '#/components/schemas/sudoStream_internal_skipsegment.Intro',
+      description: 'SkipIntro is set when chapter metadata identifies an opening intro segment (E-23).'
     },
     status: {
       $ref: '#/components/schemas/sudoStream_internal_transcode.Status'
@@ -553,14 +558,14 @@ export const internal_httpapi_PlaybackResponseSchema = {
       type: 'boolean'
     },
     userSubtitle: {
-      $ref: '#/components/schemas/internal_httpapi.UserSubtitleTrack'
+      $ref: '#/components/schemas/internal_httpapi.UserSubtitleTrack',
+      description: 'UserSubtitle is the current user\'s uploaded caption when present (TTL 1d).'
     }
   },
   type: 'object'
 } as const;
 
 export const internal_httpapi_PlaybackSeriesContextSchema = {
-  description: 'Series is set only for paths in a series library with resolvable S/E identity.',
   properties: {
     episode: {
       type: 'integer'
@@ -793,7 +798,6 @@ export const internal_httpapi_UserResponseSchema = {
 } as const;
 
 export const internal_httpapi_UserSubtitleTrackSchema = {
-  description: 'UserSubtitle is the current user\'s uploaded caption when present (TTL 1d).',
   properties: {
     label: {
       type: 'string'
@@ -1930,6 +1934,21 @@ export const sudoStream_internal_provider_SettingsSchema = {
     },
     updatedAt: {
       type: 'string'
+    }
+  },
+  type: 'object'
+} as const;
+
+export const sudoStream_internal_skipsegment_IntroSchema = {
+  properties: {
+    endMs: {
+      type: 'integer'
+    },
+    source: {
+      type: 'string'
+    },
+    startMs: {
+      type: 'integer'
     }
   },
   type: 'object'

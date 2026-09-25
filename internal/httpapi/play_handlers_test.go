@@ -200,6 +200,52 @@ func TestIsVideoMediaFile(t *testing.T) {
 	})
 }
 
+func TestPlaybackHandler_ReturnsSkipIntroFromChapterTitles(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "GET /api/playback exposes skipIntro from opening chapter", func(a *allure.Context) {
+		t := a.T()
+		gin.SetMode(gin.TestMode)
+
+		fixture := newPlayTestFixture(t, playTestSampleRel)
+		meta := fixture.sourceMeta()
+		meta.DurationSeconds = 3600
+		meta.Chapters = []transcode.ChapterInfo{
+			{StartSeconds: 0, EndSeconds: 30, Title: "Recap"},
+			{StartSeconds: 30, EndSeconds: 120, Title: "Opening Theme"},
+		}
+		fixture.writePublishedCacheWithMeta(t, meta)
+
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodGet,
+			"/api/playback/"+fixture.rel,
+			nil,
+		)
+		ctx.Params = gin.Params{{Key: playTestPathParamKey, Value: fixture.rel}}
+
+		fixture.handler().playback(ctx)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status: got %d body=%s", recorder.Code, recorder.Body.String())
+		}
+
+		var body PlaybackResponse
+		err := json.Unmarshal(recorder.Body.Bytes(), &body)
+		if err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if body.SkipIntro == nil {
+			t.Fatal("missing skipIntro")
+		}
+		if body.SkipIntro.StartMs != 30000 || body.SkipIntro.EndMs != 120000 {
+			t.Fatalf("skipIntro range: %+v", body.SkipIntro)
+		}
+	})
+}
+
 func TestPlaybackHandler_ReturnsReadyFromSeededCache(t *testing.T) {
 	t.Parallel()
 

@@ -42,7 +42,7 @@ func ProbePath(absPath string) (VideoFields, error) {
 
 // ProbePathContext runs ffprobe with cancellation support.
 func ProbePathContext(ctx context.Context, absPath string) (VideoFields, error) {
-	output, err := exec.CommandContext( //nolint:gosec // absPath resolved via mediafs
+	output, err := exec.CommandContext(
 		ctx,
 		"ffprobe",
 		"-v", "quiet",

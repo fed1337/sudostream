@@ -466,7 +466,6 @@ func isTranscodeComplete(outDir string) bool {
 }
 
 func readTranscodeError(outDir string) (string, bool) {
-	//nolint:gosec // outDir is under the transcode cache root
 	raw, err := os.ReadFile(filepath.Join(outDir, errorMarker))
 	if err != nil {
 		return "", false

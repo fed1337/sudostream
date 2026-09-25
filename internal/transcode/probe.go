@@ -131,7 +131,7 @@ func needsToneMap(transfer, primaries, pixFmt string) bool {
 
 // ProbeSource inspects a media file with ffprobe.
 func ProbeSource(ctx context.Context, mediaPath string) (SourceInfo, error) {
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		ctx,
 		"ffprobe",
 		"-v", "quiet",
@@ -163,7 +163,7 @@ func ProbeSource(ctx context.Context, mediaPath string) (SourceInfo, error) {
 
 // ProbeChapters inspects chapter atoms only (fallback when cached source meta lacks them).
 func ProbeChapters(ctx context.Context, mediaPath string) ([]ChapterInfo, error) {
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		ctx,
 		"ffprobe",
 		"-v", "quiet",

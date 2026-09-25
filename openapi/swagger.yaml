@@ -331,6 +331,12 @@ components:
           uniqueItems: false
         series:
           $ref: '#/components/schemas/internal_httpapi.PlaybackSeriesContext'
+          description: Series is set only for paths in a series library with resolvable
+            S/E identity.
+        skipIntro:
+          $ref: '#/components/schemas/sudoStream_internal_skipsegment.Intro'
+          description: SkipIntro is set when chapter metadata identifies an opening
+            intro segment (E-23).
         status:
           $ref: '#/components/schemas/sudoStream_internal_transcode.Status'
         streamUrl:
@@ -344,10 +350,10 @@ components:
           type: boolean
         userSubtitle:
           $ref: '#/components/schemas/internal_httpapi.UserSubtitleTrack'
+          description: UserSubtitle is the current user's uploaded caption when present
+            (TTL 1d).
       type: object
     internal_httpapi.PlaybackSeriesContext:
-      description: Series is set only for paths in a series library with resolvable
-        S/E identity.
       properties:
         episode:
           type: integer
@@ -488,8 +494,6 @@ components:
           $ref: '#/components/schemas/sudoStream_internal_auth.PublicUser'
       type: object
     internal_httpapi.UserSubtitleTrack:
-      description: UserSubtitle is the current user's uploaded caption when present
-        (TTL 1d).
       properties:
         label:
           type: string
@@ -1218,6 +1222,15 @@ components:
         updatedAt:
           type: string
       type: object
+    sudoStream_internal_skipsegment.Intro:
+      properties:
+        endMs:
+          type: integer
+        source:
+          type: string
+        startMs:
+          type: integer
+      type: object
     sudoStream_internal_transcode.ChapterInfo:
       properties:
         endSeconds:
@@ -1327,7 +1340,7 @@ externalDocs:
 info:
   description: HTTP API for browsing and streaming media files.
   title: sudoStream API
-  version: 0.35.0
+  version: 0.1.0
 openapi: 3.1.0
 paths:
   /api/admin/dlna/settings:
@@ -1353,11 +1366,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/sudoStream_internal_dlna.Settings'
-                description: DLNA settings
-                summary: body
+              $ref: '#/components/schemas/sudoStream_internal_dlna.Settings'
+              description: DLNA settings
+              summary: body
         description: DLNA settings
         required: true
       responses:
@@ -1443,11 +1454,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.CreateInviteRequest'
-                description: Invite
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.CreateInviteRequest'
+              description: Invite
+              summary: body
         description: Invite
         required: true
       responses:
@@ -1514,11 +1523,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.ResendInviteRequest'
-                description: Optional TTL override
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.ResendInviteRequest'
+              description: Optional TTL override
+              summary: body
         description: Optional TTL override
       responses:
         "204":
@@ -1569,11 +1576,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.CreateLibraryRequest'
-                description: Library fields
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.CreateLibraryRequest'
+              description: Library fields
+              summary: body
         description: Library fields
         required: true
       responses:
@@ -1641,11 +1646,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.PatchLibraryRequest'
-                description: Library fields
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.PatchLibraryRequest'
+              description: Library fields
+              summary: body
         description: Library fields
         required: true
       responses:
@@ -1719,11 +1722,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.PatchMaintenanceRequest'
-                description: Schedules
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.PatchMaintenanceRequest'
+              description: Schedules
+              summary: body
         description: Schedules
         required: true
       responses:
@@ -1801,11 +1802,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.PatchProviderSettingsRequest'
-                description: Provider settings
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.PatchProviderSettingsRequest'
+              description: Provider settings
+              summary: body
         description: Provider settings
         required: true
       responses:
@@ -1896,11 +1895,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.AddLibraryRootRequest'
-                description: Folder
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.AddLibraryRootRequest'
+              description: Folder
+              summary: body
         description: Folder
         required: true
       responses:
@@ -2013,11 +2010,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.PatchMaintenanceRequest'
-                description: Schedules
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.PatchMaintenanceRequest'
+              description: Schedules
+              summary: body
         description: Schedules
         required: true
       responses:
@@ -2119,11 +2114,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/sudoStream_internal_network.Settings'
-                description: Network settings
-                summary: body
+              $ref: '#/components/schemas/sudoStream_internal_network.Settings'
+              description: Network settings
+              summary: body
         description: Network settings
         required: true
       responses:
@@ -2154,11 +2147,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/sudoStream_internal_network.Settings'
-                description: Draft network settings
-                summary: body
+              $ref: '#/components/schemas/sudoStream_internal_network.Settings'
+              description: Draft network settings
+              summary: body
         description: Draft network settings
         required: true
       responses:
@@ -2227,11 +2218,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/sudoStream_internal_auth.Settings'
-                description: Settings
-                summary: body
+              $ref: '#/components/schemas/sudoStream_internal_auth.Settings'
+              description: Settings
+              summary: body
         description: Settings
         required: true
       responses:
@@ -2279,11 +2268,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/sudoStream_internal_transcode.TranscodeSettings'
-                description: Transcode settings
-                summary: body
+              $ref: '#/components/schemas/sudoStream_internal_transcode.TranscodeSettings'
+              description: Transcode settings
+              summary: body
         description: Transcode settings
         required: true
       responses:
@@ -2414,11 +2401,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.TrashSettingsResponse'
-                description: Recycle bin settings
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.TrashSettingsResponse'
+              description: Recycle bin settings
+              summary: body
         description: Recycle bin settings
         required: true
       responses:
@@ -2460,11 +2445,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.CreateUserRequest'
-                description: New user
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.CreateUserRequest'
+              description: New user
+              summary: body
         description: New user
         required: true
       responses:
@@ -2546,11 +2529,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.UpdateUserRequest'
-                description: User patch
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.UpdateUserRequest'
+              description: User patch
+              summary: body
         description: User patch
         required: true
       responses:
@@ -2641,11 +2622,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.PutGrantsRequest'
-                description: Grant list
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.PutGrantsRequest'
+              description: Grant list
+              summary: body
         description: Grant list
         required: true
       responses:
@@ -2755,11 +2734,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.DisableTwoFactorRequest'
-                description: Password and TOTP code
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.DisableTwoFactorRequest'
+              description: Password and TOTP code
+              summary: body
         description: Password and TOTP code
         required: true
       responses:
@@ -2786,11 +2763,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.TwoFactorConfirmRequest'
-                description: TOTP code
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.TwoFactorConfirmRequest'
+              description: TOTP code
+              summary: body
         description: TOTP code
         required: true
       responses:
@@ -2821,11 +2796,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.TwoFactorSetupRequest'
-                description: Optional pending token
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.TwoFactorSetupRequest'
+              description: Optional pending token
+              summary: body
         description: Optional pending token
       responses:
         "200":
@@ -2861,11 +2834,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.VerifyTwoFactorRequest'
-                description: Pending token and code
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.VerifyTwoFactorRequest'
+              description: Pending token and code
+              summary: body
         description: Pending token and code
         required: true
       responses:
@@ -2896,11 +2867,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.AcceptInviteRequest'
-                description: Invite token
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.AcceptInviteRequest'
+              description: Invite token
+              summary: body
         description: Invite token
         required: true
       responses:
@@ -2927,11 +2896,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.ChangeEmailRequest'
-                description: Email change
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.ChangeEmailRequest'
+              description: Email change
+              summary: body
         description: Email change
         required: true
       responses:
@@ -2970,11 +2937,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.ChangePasswordRequest'
-                description: Password change
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.ChangePasswordRequest'
+              description: Password change
+              summary: body
         description: Password change
         required: true
       responses:
@@ -3037,11 +3002,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.ForgotPasswordRequest'
-                description: Email
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.ForgotPasswordRequest'
+              description: Email
+              summary: body
         description: Email
         required: true
       responses:
@@ -3063,11 +3026,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.LoginRequest'
-                description: Credentials
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.LoginRequest'
+              description: Credentials
+              summary: body
         description: Credentials
         required: true
       responses:
@@ -3163,11 +3124,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.ResetPasswordRequest'
-                description: Reset token
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.ResetPasswordRequest'
+              description: Reset token
+              summary: body
         description: Reset token
         required: true
       responses:
@@ -3568,11 +3527,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.FavoritePatchRequest'
-                description: Favorite flag
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.FavoritePatchRequest'
+              description: Favorite flag
+              summary: body
         description: Favorite flag
         required: true
       responses:
@@ -3915,11 +3872,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/sudoStream_internal_metadata.PatchRequest'
-                description: Metadata patch
-                summary: body
+              $ref: '#/components/schemas/sudoStream_internal_metadata.PatchRequest'
+              description: Metadata patch
+              summary: body
         description: Metadata patch
         required: true
       responses:
@@ -3968,7 +3923,7 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              type: string
+              type: object
       responses:
         "200":
           content:
@@ -4110,11 +4065,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.PlaybackNegotiateRequest'
-                description: Device profile and quality selection
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.PlaybackNegotiateRequest'
+              description: Device profile and quality selection
+              summary: body
         description: Device profile and quality selection
       responses:
         "200":
@@ -4490,20 +4443,23 @@ paths:
           type: string
       requestBody:
         content:
-          application/x-www-form-urlencoded:
-            schema:
-              oneOf:
-              - title: lang
-                type: string
-              - title: label
-                type: string
-              - title: file
-                type: file
           multipart/form-data:
             schema:
+              properties:
+                file:
+                  description: Subtitle file (.vtt or .srt)
+                  format: binary
+                  type: string
+                label:
+                  description: Display label
+                  type: string
+                lang:
+                  description: ISO 639-1 language code
+                  type: string
+              required:
+              - file
               type: object
-        description: ISO 639-1 language code | Display label | Subtitle file (.vtt
-          or .srt)
+        description: ISO 639-1 language code
         required: true
       responses:
         "200":
@@ -4596,11 +4552,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/internal_httpapi.WatchPatchRequest'
-                description: Watched flag and optional progress
-                summary: body
+              $ref: '#/components/schemas/internal_httpapi.WatchPatchRequest'
+              description: Watched flag and optional progress
+              summary: body
         description: Watched flag and optional progress
         required: true
       responses:

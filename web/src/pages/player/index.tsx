@@ -347,6 +347,7 @@ export default function PlayerPage() {
               : null
           }
           chapters={playback?.chapters}
+          skipIntro={playback?.skipIntro}
           seriesChrome={seriesChrome}
           onUploadSubtitle={async (file) => {
             await uploadMutation.mutateAsync(file);

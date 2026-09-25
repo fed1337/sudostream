@@ -44,18 +44,23 @@ linters:
       - comments
       - common-false-positives
     paths:
-      - "openapi/"
-      - "web/"
       - "cache/"
+      - "docs/"
       - "logs/"
+      - "openapi/"
+      - "site/"
+      - "web/"
       - "_test.go"
 formatters:
   enable:
+    - goimports
     - gofumpt
     - swaggo
   exclusions:
     paths:
-      - "openapi/"
-      - "web/"
       - "cache/"
+      - "docs/"
       - "logs/"
+      - "openapi/"
+      - "site/"
+      - "web/"

@@ -7,13 +7,14 @@ import (
 	"errors"
 	"os"
 	"sudoStream/internal/access"
-	accesspostgres "sudoStream/internal/access/postgres"
 	"sudoStream/internal/db"
 	"sudoStream/internal/metadata"
 	"sudoStream/internal/watch"
-	watchpostgres "sudoStream/internal/watch/postgres"
 	"testing"
 	"time"
+
+	accesspostgres "sudoStream/internal/access/postgres"
+	watchpostgres "sudoStream/internal/watch/postgres"
 
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )

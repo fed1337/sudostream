@@ -45,7 +45,6 @@ import (
 	metadatapostgres "sudoStream/internal/metadata/postgres"
 	anilist "sudoStream/internal/provider/anilist"
 	opensubtitles "sudoStream/internal/provider/opensubtitles"
-
 	providerpostgres "sudoStream/internal/provider/postgres"
 	trashpostgres "sudoStream/internal/trash/postgres"
 	watchpostgres "sudoStream/internal/watch/postgres"

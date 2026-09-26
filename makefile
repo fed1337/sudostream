@@ -83,7 +83,11 @@ frontend-build:
 	cp -r web/dist internal/frontend/dist
 
 docker-build:
-	DOCKER_BUILDKIT=1 docker build --build-arg DISTROLESS_TAG=nonroot -t sudostream:local .
+	DOCKER_BUILDKIT=1 docker build --build-arg DISTROLESS_TAG=nonroot \
+	  --build-arg BUILD_VERSION=dev \
+	  --build-arg BUILD_REVISION=$$(git rev-parse HEAD 2>/dev/null || echo unknown) \
+	  --build-arg IMAGE_REF_NAME=$$(git branch --show-current 2>/dev/null || echo local) \
+	  -t sudostream:local .
 
 dev-up:
 	$(COMPOSE_DEV) up -d --build

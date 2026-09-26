@@ -218,6 +218,15 @@ export const internal_httpapi_GrantsResponseSchema = {
 
 export const internal_httpapi_HealthResponseSchema = {
   properties: {
+    build: {
+      type: 'string'
+    },
+    ref: {
+      type: 'string'
+    },
+    revision: {
+      type: 'string'
+    },
     status: {
       type: 'string'
     },

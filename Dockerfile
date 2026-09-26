@@ -22,6 +22,9 @@ FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS builder
 WORKDIR /src
 
 ARG TARGETARCH
+ARG BUILD_VERSION=dev
+ARG BUILD_REVISION=unknown
+ARG IMAGE_REF_NAME=local
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -32,12 +35,18 @@ COPY --from=frontend /src/web/dist ./internal/frontend/dist
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
+    set -eux; \
+    SHORT_REV="${BUILD_REVISION}"; \
+    if [ "${#SHORT_REV}" -gt 7 ]; then SHORT_REV="${SHORT_REV:0:7}"; fi; \
     TAGS="embed nomsgpack"; \
     if [ "$TARGETARCH" = "amd64" ]; then TAGS="$TAGS sonic avx"; fi; \
     CGO_ENABLED=0 GOOS=linux GOARCH="$TARGETARCH" go build \
     -tags="$TAGS" \
     -trimpath \
-    -ldflags="-s -w" \
+    -ldflags="-s -w \
+    -X sudoStream/internal/version.Build=${BUILD_VERSION} \
+    -X sudoStream/internal/version.Revision=${SHORT_REV} \
+    -X sudoStream/internal/version.Ref=${IMAGE_REF_NAME}" \
     -o /out/sudostream \
     ./cmd/server
 

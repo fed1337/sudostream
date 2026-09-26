@@ -202,6 +202,15 @@
             },
             "internal_httpapi.HealthResponse": {
                 "properties": {
+                    "build": {
+                        "type": "string"
+                    },
+                    "ref": {
+                        "type": "string"
+                    },
+                    "revision": {
+                        "type": "string"
+                    },
                     "status": {
                         "type": "string"
                     },

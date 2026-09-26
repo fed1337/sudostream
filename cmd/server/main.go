@@ -188,7 +188,7 @@ func main() { //nolint:funlen // composition root wiring
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	log.Printf("starting sudoStream v%s (media root: %s)", version.Version, mediaRoot)
+	log.Printf("starting sudoStream %s (media root: %s)", version.Identity(), mediaRoot)
 
 	err = listenUntilSignal(srv)
 	if err != nil {

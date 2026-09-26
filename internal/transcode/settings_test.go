@@ -130,9 +130,9 @@ func TestParseDownmixAlgorithm(t *testing.T) {
 		if err != nil || got != DownmixNone {
 			t.Fatalf("none: %q %v", got, err)
 		}
-		_, err = ParseDownmixAlgorithm("dave750")
-		if err == nil {
-			t.Fatal("expected invalid downmix")
+		got, err = ParseDownmixAlgorithm("dave750")
+		if err != nil || got != DownmixDave750 {
+			t.Fatalf("dave750: got %q err=%v", got, err)
 		}
 	})
 }

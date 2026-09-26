@@ -42,6 +42,8 @@ var (
 	ErrInvalidHwAccel = errors.New("invalid hwAccel value")
 	// ErrInvalidDownmix is returned when a settings patch has an unknown downmixAlgorithm.
 	ErrInvalidDownmix = errors.New("invalid downmixAlgorithm value")
+	// ErrInvalidDownmixBoost is returned when downmixBoost is outside 0.5–3.0.
+	ErrInvalidDownmixBoost = errors.New("invalid downmixBoost value")
 	// ErrInvalidToneMappingAlgorithm is returned for an unknown toneMappingAlgorithm.
 	ErrInvalidToneMappingAlgorithm = errors.New("invalid toneMappingAlgorithm value")
 	// ErrSettingsUnavailable is returned when the settings store is not configured.
@@ -55,6 +57,7 @@ var (
 type TranscodeSettings struct {
 	HwAccel              HwAccel              `json:"hwAccel"`
 	DownmixAlgorithm     DownmixAlgorithm     `json:"downmixAlgorithm"`
+	DownmixBoost         float64              `json:"downmixBoost,omitempty"`
 	ToneMappingEnabled   bool                 `json:"toneMappingEnabled"`
 	ToneMappingAlgorithm ToneMappingAlgorithm `json:"toneMappingAlgorithm"`
 }
@@ -64,6 +67,7 @@ func (s *TranscodeSettings) UnmarshalJSON(data []byte) error {
 	type rawSettings struct {
 		HwAccel              HwAccel              `json:"hwAccel"`
 		DownmixAlgorithm     DownmixAlgorithm     `json:"downmixAlgorithm"`
+		DownmixBoost         float64              `json:"downmixBoost"`
 		ToneMappingEnabled   *bool                `json:"toneMappingEnabled"`
 		ToneMappingAlgorithm ToneMappingAlgorithm `json:"toneMappingAlgorithm"`
 	}
@@ -76,6 +80,7 @@ func (s *TranscodeSettings) UnmarshalJSON(data []byte) error {
 
 	s.HwAccel = raw.HwAccel
 	s.DownmixAlgorithm = raw.DownmixAlgorithm
+	s.DownmixBoost = raw.DownmixBoost
 	s.ToneMappingAlgorithm = raw.ToneMappingAlgorithm
 	if raw.ToneMappingEnabled == nil {
 		s.ToneMappingEnabled = true
@@ -127,9 +132,27 @@ func ParseDownmixAlgorithm(raw string) (DownmixAlgorithm, error) {
 		return DownmixNone, nil
 	case DownmixAC4, "":
 		return DownmixAC4, nil
+	case DownmixDave750:
+		return DownmixDave750, nil
+	case DownmixNightmodeDialogue:
+		return DownmixNightmodeDialogue, nil
+	case DownmixRFC7845:
+		return DownmixRFC7845, nil
 	default:
 		return "", ErrInvalidDownmix
 	}
+}
+
+// ParseDownmixBoost validates admin downmixBoost (0 means algorithm default).
+func ParseDownmixBoost(raw float64, algo DownmixAlgorithm) (float64, error) {
+	if raw == 0 {
+		return DefaultDownmixBoost(algo), nil
+	}
+	if raw < minDownmixBoost || raw > maxDownmixBoost {
+		return 0, ErrInvalidDownmixBoost
+	}
+
+	return raw, nil
 }
 
 // ParseToneMappingAlgorithm validates and normalizes a toneMappingAlgorithm string.
@@ -160,6 +183,11 @@ func NormalizeTranscodeSettings(settings TranscodeSettings) (TranscodeSettings, 
 		return TranscodeSettings{}, err
 	}
 
+	boost, err := ParseDownmixBoost(settings.DownmixBoost, downmix)
+	if err != nil {
+		return TranscodeSettings{}, err
+	}
+
 	algo, err := ParseToneMappingAlgorithm(string(settings.ToneMappingAlgorithm))
 	if err != nil {
 		return TranscodeSettings{}, err
@@ -168,6 +196,7 @@ func NormalizeTranscodeSettings(settings TranscodeSettings) (TranscodeSettings, 
 	return TranscodeSettings{
 		HwAccel:              hwAccel,
 		DownmixAlgorithm:     downmix,
+		DownmixBoost:         boost,
 		ToneMappingEnabled:   settings.ToneMappingEnabled,
 		ToneMappingAlgorithm: algo,
 	}, nil

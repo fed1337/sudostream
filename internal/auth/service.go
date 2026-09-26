@@ -117,6 +117,8 @@ type Store interface {
 	) (*Token, error)
 	GetSettings(ctx context.Context) (Settings, error)
 	SaveSettings(ctx context.Context, settings Settings) error
+	GetPlaybackPreferences(ctx context.Context, userID string) (PlaybackPreferences, error)
+	SavePlaybackPreferences(ctx context.Context, userID string, prefs PlaybackPreferences) error
 	CreateAuthToken(ctx context.Context, token Token) error
 	GetAuthTokenByHash(ctx context.Context, tokenHash, purpose string) (*Token, error)
 	MarkAuthTokenUsed(ctx context.Context, tokenID string) error

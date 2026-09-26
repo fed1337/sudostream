@@ -171,6 +171,10 @@ export type InternalHttpapiPatchMaintenanceRequest = {
   schedules?: Array<SudoStreamInternalMaintenanceScheduleInput>;
 };
 
+export type InternalHttpapiPatchPlaybackPreferencesRequest = {
+  audioLanguages?: Array<string>;
+};
+
 export type InternalHttpapiPatchProviderSettingsRequest = {
   allowOverrideUserMetadata?: boolean;
   metadataApplyMode?: string;
@@ -189,6 +193,10 @@ export type InternalHttpapiPlaybackNegotiateRequest = {
    */
   qualityHeight?: number;
   transcode?: boolean;
+};
+
+export type InternalHttpapiPlaybackPreferencesResponse = {
+  audioLanguages?: Array<string>;
 };
 
 export type InternalHttpapiPlaybackResponse = {
@@ -731,7 +739,7 @@ export type SudoStreamInternalTranscodeChapterInfo = {
   title?: string;
 };
 
-export type SudoStreamInternalTranscodeDownmixAlgorithm = 'none' | 'ac4';
+export type SudoStreamInternalTranscodeDownmixAlgorithm = 'none' | 'ac4' | 'dave750' | 'nightmodeDialogue' | 'rfc7845';
 
 export type SudoStreamInternalTranscodeHwAccel = 'off' | 'qsv' | 'vaapi' | 'nvenc' | 'rockchip';
 
@@ -747,12 +755,14 @@ export type SudoStreamInternalTranscodeStatus = 'idle' | 'ready' | 'processing' 
 export type SudoStreamInternalTranscodeToneMappingAlgorithm = 'bt2390' | 'hable' | 'reinhard' | 'mobius';
 
 export type SudoStreamInternalTranscodeTrackInfo = {
+  default?: boolean;
   id?: string;
   label?: string;
 };
 
 export type SudoStreamInternalTranscodeTranscodeSettings = {
   downmixAlgorithm?: SudoStreamInternalTranscodeDownmixAlgorithm;
+  downmixBoost?: number;
   hwAccel?: SudoStreamInternalTranscodeHwAccel;
   toneMappingAlgorithm?: SudoStreamInternalTranscodeToneMappingAlgorithm;
   toneMappingEnabled?: boolean;
@@ -3279,6 +3289,71 @@ export type GetApiMeFavoritesResponses = {
 };
 
 export type GetApiMeFavoritesResponse = GetApiMeFavoritesResponses[keyof GetApiMeFavoritesResponses];
+
+export type GetApiMePlaybackPreferencesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/me/playback-preferences';
+};
+
+export type GetApiMePlaybackPreferencesErrors = {
+  /**
+   * Unauthorized
+   */
+  401: InternalHttpapiErrorResponse;
+  /**
+   * Internal Server Error
+   */
+  500: InternalHttpapiErrorResponse;
+};
+
+export type GetApiMePlaybackPreferencesError = GetApiMePlaybackPreferencesErrors[keyof GetApiMePlaybackPreferencesErrors];
+
+export type GetApiMePlaybackPreferencesResponses = {
+  /**
+   * OK
+   */
+  200: InternalHttpapiPlaybackPreferencesResponse;
+};
+
+export type GetApiMePlaybackPreferencesResponse = GetApiMePlaybackPreferencesResponses[keyof GetApiMePlaybackPreferencesResponses];
+
+export type PatchApiMePlaybackPreferencesData = {
+  /**
+   * Playback preferences
+   */
+  body: InternalHttpapiPatchPlaybackPreferencesRequest;
+  path?: never;
+  query?: never;
+  url: '/api/me/playback-preferences';
+};
+
+export type PatchApiMePlaybackPreferencesErrors = {
+  /**
+   * Bad Request
+   */
+  400: InternalHttpapiErrorResponse;
+  /**
+   * Unauthorized
+   */
+  401: InternalHttpapiErrorResponse;
+  /**
+   * Internal Server Error
+   */
+  500: InternalHttpapiErrorResponse;
+};
+
+export type PatchApiMePlaybackPreferencesError = PatchApiMePlaybackPreferencesErrors[keyof PatchApiMePlaybackPreferencesErrors];
+
+export type PatchApiMePlaybackPreferencesResponses = {
+  /**
+   * OK
+   */
+  200: InternalHttpapiPlaybackPreferencesResponse;
+};
+
+export type PatchApiMePlaybackPreferencesResponse = PatchApiMePlaybackPreferencesResponses[keyof PatchApiMePlaybackPreferencesResponses];
 
 export type GetApiMeStatsData = {
   body?: never;

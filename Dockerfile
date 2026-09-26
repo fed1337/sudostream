@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     set -eux; \
     SHORT_REV="${BUILD_REVISION}"; \
-    if [ "${#SHORT_REV}" -gt 7 ]; then SHORT_REV="${SHORT_REV:0:7}"; fi; \
+    SHORT_REV=$(printf '%.7s' "$BUILD_REVISION"); \
     TAGS="embed nomsgpack"; \
     if [ "$TARGETARCH" = "amd64" ]; then TAGS="$TAGS sonic avx"; fi; \
     CGO_ENABLED=0 GOOS=linux GOARCH="$TARGETARCH" go build \

@@ -110,6 +110,9 @@ func formatFromHeader(name, address string) string {
 	if name == "" {
 		return address
 	}
+	if hasHeaderControlChars(name) || hasHeaderControlChars(address) {
+		return address
+	}
 
 	escaped := strings.ReplaceAll(name, `\`, `\\`)
 	escaped = strings.ReplaceAll(escaped, `"`, `\"`)

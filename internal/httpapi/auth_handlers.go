@@ -4,6 +4,7 @@ import (
 	"errors"
 	"maps"
 	"net/http"
+	"regexp"
 	"strings"
 	"sudoStream/internal/auth"
 	"time"
@@ -840,6 +841,18 @@ func clearRefreshCookie(c *gin.Context, secure bool) {
 	c.SetCookie(refreshCookieName, "", -1, "/", "", secure, true)
 }
 
+var accessTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+
+const maxAccessTokenLength = 4096
+
+func isSafeAccessToken(token string) bool {
+	if token == "" || len(token) > maxAccessTokenLength {
+		return false
+	}
+
+	return accessTokenPattern.MatchString(token)
+}
+
 func bearerToken(header string) string {
 	const prefix = "Bearer "
 	if !strings.HasPrefix(header, prefix) {
@@ -850,9 +863,13 @@ func bearerToken(header string) string {
 }
 
 func accessToken(c *gin.Context) string {
-	if token := bearerToken(c.GetHeader("Authorization")); token != "" {
+	if token := bearerToken(c.GetHeader("Authorization")); isSafeAccessToken(token) {
 		return token
 	}
 
-	return strings.TrimSpace(c.Query("access_token"))
+	if token := strings.TrimSpace(c.Query("access_token")); isSafeAccessToken(token) {
+		return token
+	}
+
+	return ""
 }

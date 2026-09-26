@@ -57,13 +57,26 @@ func (m SourceMeta) NeedsToneMap() bool {
 
 // AudioTracks maps probed audio streams to the client track list.
 func (m SourceMeta) AudioTracks() []TrackInfo {
+	return m.AudioTracksWithDefault(0)
+}
+
+// AudioTracksWithDefault marks one track as the default for the player/HLS UI.
+func (m SourceMeta) AudioTracksWithDefault(defaultIndex int) []TrackInfo {
 	if len(m.AudioStreams) == 0 {
-		return []TrackInfo{{ID: "0", Label: defaultAudioTrackLabel}}
+		return []TrackInfo{{ID: "0", Label: defaultAudioTrackLabel, Default: true}}
+	}
+
+	if defaultIndex < 0 || defaultIndex >= len(m.AudioStreams) {
+		defaultIndex = 0
 	}
 
 	tracks := make([]TrackInfo, 0, len(m.AudioStreams))
 	for index, stream := range m.AudioStreams {
-		tracks = append(tracks, TrackInfo{ID: strconv.Itoa(index), Label: stream.Label})
+		tracks = append(tracks, TrackInfo{
+			ID:      strconv.Itoa(index),
+			Label:   stream.Label,
+			Default: index == defaultIndex,
+		})
 	}
 
 	return tracks

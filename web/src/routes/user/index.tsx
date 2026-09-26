@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { ChangeEmailForm } from "@/components/account/change-email-form";
+import { PlaybackPreferencesSection } from "@/components/account/playback-preferences-section";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
 import { SessionsSection } from "@/components/account/sessions-section";
 import { TwoFactorSection } from "@/components/account/two-factor-section";
@@ -42,6 +43,8 @@ export default function UserIndexPage() {
           </div>
         </CardContent>
       </Card>
+
+      <PlaybackPreferencesSection />
 
       <div className="grid gap-6 md:grid-cols-2 md:items-stretch">
         <ChangePasswordForm />

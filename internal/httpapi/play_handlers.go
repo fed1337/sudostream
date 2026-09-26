@@ -293,6 +293,16 @@ func (h *handler) serveHLSPlaylist(c *gin.Context, diskPath string) {
 	c.Header("Cache-Control", transcode.PlaylistCacheControl(raw))
 
 	body := transcode.NormalizePlaylistForClient(raw)
+	if strings.HasSuffix(filepath.Base(diskPath), hlsMasterPlaylist) {
+		outDir := filepath.Dir(diskPath)
+		if meta, ok := transcode.ReadSourceMeta(outDir); ok {
+			defaultIndex := transcode.SelectDefaultAudioStreamIndex(
+				meta.AudioStreams,
+				h.userAudioLanguages(c),
+			)
+			body = transcode.ApplyMasterPlaylistDefaultAudio(body, defaultIndex)
+		}
+	}
 	body = transcode.RewritePlaylistTokens(body, accessToken(c))
 	_, err = c.Writer.Write(body)
 	if err != nil {
@@ -426,8 +436,12 @@ func (h *handler) respondHLSPlayback(
 	capsOK bool,
 ) {
 	jobStatus := h.transcode.Status(cacheKey)
-	playbackInfo := transcode.BuildPlaybackInfoWithSettings(
-		outDir, masterURL, jobStatus, h.transcode.CurrentSettings(),
+	playbackInfo := transcode.BuildPlaybackInfoWithUserPrefs(
+		outDir,
+		masterURL,
+		jobStatus,
+		h.transcode.CurrentSettings(),
+		h.userAudioLanguages(c),
 	)
 
 	playMethod := resolvePlayMethod(decision, playbackInfo.PackagingMode, capsOK)
@@ -896,6 +910,20 @@ func setTestCacheRoot(root string) func() {
 	return func() {
 		testCacheRoot = previous
 	}
+}
+
+func (h *handler) userAudioLanguages(c *gin.Context) []string {
+	user, ok := currentUser(c)
+	if !ok || h.auth == nil {
+		return nil
+	}
+
+	langs, err := h.auth.PlaybackAudioLanguages(c.Request.Context(), user.ID)
+	if err != nil {
+		return nil
+	}
+
+	return langs
 }
 
 func cacheSubdir(subdir string) string {

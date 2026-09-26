@@ -338,6 +338,17 @@ func TestCacheKey_IncludesVersionSuffix(t *testing.T) {
 		if key == service.CacheKey("/media/a.mp4", 1, 2) {
 			t.Fatal("expected different key when tonemap algo changes")
 		}
+
+		service.SetSettingsProvider(func() TranscodeSettings {
+			settings := DefaultTranscodeSettings()
+			settings.DownmixAlgorithm = DownmixNone
+			settings.DownmixBoost = 2
+
+			return settings
+		})
+		if key == service.CacheKey("/media/a.mp4", 1, 2) {
+			t.Fatal("expected different key when downmix settings change")
+		}
 	})
 }
 

@@ -104,6 +104,10 @@ export const zInternalHttpapiPatchLibraryRequest = z.object({
   type: z.string().optional()
 });
 
+export const zInternalHttpapiPatchPlaybackPreferencesRequest = z.object({
+  audioLanguages: z.array(z.string()).optional()
+});
+
 export const zInternalHttpapiPatchProviderSettingsRequest = z.object({
   allowOverrideUserMetadata: z.boolean().optional(),
   metadataApplyMode: z.string().optional(),
@@ -112,6 +116,10 @@ export const zInternalHttpapiPatchProviderSettingsRequest = z.object({
   posterProvider: z.string().optional(),
   subtitleLanguages: z.array(z.string()).optional(),
   subtitleProvider: z.string().optional()
+});
+
+export const zInternalHttpapiPlaybackPreferencesResponse = z.object({
+  audioLanguages: z.array(z.string()).optional()
 });
 
 export const zInternalHttpapiPlaybackSeriesContext = z.object({
@@ -678,7 +686,13 @@ export const zSudoStreamInternalTranscodeChapterInfo = z.object({
   title: z.string().optional()
 });
 
-export const zSudoStreamInternalTranscodeDownmixAlgorithm = z.enum(['none', 'ac4']);
+export const zSudoStreamInternalTranscodeDownmixAlgorithm = z.enum([
+  'none',
+  'ac4',
+  'dave750',
+  'nightmodeDialogue',
+  'rfc7845'
+]);
 
 export const zSudoStreamInternalTranscodeHwAccel = z.enum([
   'off',
@@ -710,6 +724,7 @@ export const zSudoStreamInternalTranscodeToneMappingAlgorithm = z.enum([
 ]);
 
 export const zSudoStreamInternalTranscodeTrackInfo = z.object({
+  default: z.boolean().optional(),
   id: z.string().optional(),
   label: z.string().optional()
 });
@@ -736,6 +751,7 @@ export const zInternalHttpapiPlaybackResponse = z.object({
 
 export const zSudoStreamInternalTranscodeTranscodeSettings = z.object({
   downmixAlgorithm: zSudoStreamInternalTranscodeDownmixAlgorithm.optional(),
+  downmixBoost: z.number().optional(),
   hwAccel: zSudoStreamInternalTranscodeHwAccel.optional(),
   toneMappingAlgorithm: zSudoStreamInternalTranscodeToneMappingAlgorithm.optional(),
   toneMappingEnabled: z.boolean().optional()
@@ -1454,6 +1470,21 @@ export const zGetApiMeFavoritesQuery = z.object({
  * OK
  */
 export const zGetApiMeFavoritesResponse = zInternalHttpapiHomeItemsResponse;
+
+/**
+ * OK
+ */
+export const zGetApiMePlaybackPreferencesResponse = zInternalHttpapiPlaybackPreferencesResponse;
+
+/**
+ * Playback preferences
+ */
+export const zPatchApiMePlaybackPreferencesBody = zInternalHttpapiPatchPlaybackPreferencesRequest;
+
+/**
+ * OK
+ */
+export const zPatchApiMePlaybackPreferencesResponse = zInternalHttpapiPlaybackPreferencesResponse;
 
 /**
  * OK

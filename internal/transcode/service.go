@@ -150,12 +150,14 @@ func (s *Service) CacheKey(mediaPath string, mtime int64, size int64) string {
 		tmFlag = "1"
 	}
 	hashData := fmt.Sprintf(
-		"%s:%d:%d:v24:tm=%s:%s",
+		"%s:%d:%d:v25:tm=%s:%s:dm=%s:%g",
 		mediaPath,
 		mtime,
 		size,
 		tmFlag,
 		settings.ToneMappingAlgorithm,
+		settings.DownmixAlgorithm,
+		settings.DownmixBoost,
 	)
 	hash := sha256.Sum256([]byte(hashData))
 

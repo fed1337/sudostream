@@ -163,12 +163,14 @@ func softwareScaleExpr(height int) string {
 
 func nvencVideoFilter(rung QualityRung, toneMap ToneMapMode, algo ToneMappingAlgorithm) string {
 	scaleCUDA := fmt.Sprintf("scale_cuda=-2:min(%d\\,ih):format=nv12", rung.Height)
-	switch toneMap { //nolint:exhaustive // only CUDA/CPU apply on NVENC
+	switch toneMap {
 	case ToneMapCUDA:
 		return joinFilters(hwTonemapFilter("cuda", "nv12", algo), scaleCUDA)
 	case ToneMapCPU:
 		return joinFilters(cpuTonemapFilter(algo),
 			fmt.Sprintf("scale=-2:min(%d\\,ih),format=nv12,hwupload_cuda", rung.Height))
+	case ToneMapNone, ToneMapQSVVPP, ToneMapVulkan, ToneMapOpenCL:
+		return scaleCUDA
 	default:
 		return scaleCUDA
 	}
@@ -196,11 +198,13 @@ func qsvVideoFilter(rung QualityRung, toneMap ToneMapMode, algo ToneMappingAlgor
 func vaapiVideoFilter(rung QualityRung, toneMap ToneMapMode, algo ToneMappingAlgorithm) string {
 	// Ladder scale via scale_vaapi (E-5 E1). Never VAAPI VPP tonemap.
 	scaleVA := fmt.Sprintf("scale_vaapi=w=-2:h=min(%d\\,ih):format=nv12", rung.Height)
-	switch toneMap { //nolint:exhaustive // Vulkan/CPU/none only on VA-API
+	switch toneMap {
 	case ToneMapVulkan:
 		return joinFilters(vulkanTonemapFilter("nv12", algo), "hwupload", scaleVA)
 	case ToneMapCPU:
 		return joinFilters(cpuTonemapFilter(algo), "format=nv12,hwupload", scaleVA)
+	case ToneMapNone, ToneMapCUDA, ToneMapQSVVPP, ToneMapOpenCL:
+		return joinFilters("format=nv12,hwupload", scaleVA)
 	default:
 		return joinFilters("format=nv12,hwupload", scaleVA)
 	}
@@ -208,7 +212,7 @@ func vaapiVideoFilter(rung QualityRung, toneMap ToneMapMode, algo ToneMappingAlg
 
 func rockchipVideoFilter(rung QualityRung, toneMap ToneMapMode, algo ToneMappingAlgorithm) string {
 	scaleExpr := softwareScaleExpr(rung.Height)
-	switch toneMap { //nolint:exhaustive // OpenCL/CPU/none only on RKMPP
+	switch toneMap {
 	case ToneMapOpenCL:
 		return joinFilters(
 			"format=nv12,hwupload=derive_device=opencl",
@@ -218,6 +222,8 @@ func rockchipVideoFilter(rung QualityRung, toneMap ToneMapMode, algo ToneMapping
 		)
 	case ToneMapCPU:
 		return joinFilters(cpuTonemapFilter(algo), scaleExpr)
+	case ToneMapNone, ToneMapCUDA, ToneMapQSVVPP, ToneMapVulkan:
+		return scaleExpr
 	default:
 		return scaleExpr
 	}

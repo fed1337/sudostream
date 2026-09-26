@@ -80,6 +80,7 @@ func (s *Store) CreateUser(ctx context.Context, user auth.User, passwordHash str
 		Role:               user.Role,
 		Enabled:            user.Enabled,
 		MustChangePassword: user.MustChangePassword,
+		AudioLanguagePrefs: datatypes.JSON("[]"),
 	}
 
 	err := s.db.WithContext(ctx).
@@ -895,6 +896,56 @@ func (s *Store) ConsumeBackupCode(ctx context.Context, userID string, index int)
 	}
 
 	return nil
+}
+
+// GetPlaybackPreferences loads ordered audio language codes for a user.
+func (s *Store) GetPlaybackPreferences(ctx context.Context, userID string) (auth.PlaybackPreferences, error) {
+	var model userModel
+	err := s.db.WithContext(ctx).Select("audio_language_prefs").Where("id = ?", userID).First(&model).Error
+	if err != nil {
+		return auth.PlaybackPreferences{}, fmt.Errorf("get playback preferences: %w", err)
+	}
+
+	return playbackPrefsFromJSON(model.AudioLanguagePrefs), nil
+}
+
+// SavePlaybackPreferences stores ordered audio language codes for a user.
+func (s *Store) SavePlaybackPreferences(
+	ctx context.Context,
+	userID string,
+	prefs auth.PlaybackPreferences,
+) error {
+	raw, err := json.Marshal(prefs.AudioLanguages)
+	if err != nil {
+		return fmt.Errorf("encode playback preferences: %w", err)
+	}
+
+	result := s.db.WithContext(ctx).
+		Model(&userModel{}).
+		Where("id = ?", userID).
+		Updates(map[string]any{
+			"audio_language_prefs": datatypes.JSON(raw),
+			columnUpdatedAt:        time.Now().UTC(),
+		})
+	if result.Error != nil {
+		return fmt.Errorf("save playback preferences: %w", result.Error)
+	}
+
+	return nil
+}
+
+func playbackPrefsFromJSON(raw datatypes.JSON) auth.PlaybackPreferences {
+	if len(raw) == 0 {
+		return auth.PlaybackPreferences{AudioLanguages: []string{}}
+	}
+
+	var langs []string
+	err := json.Unmarshal(raw, &langs)
+	if err != nil {
+		return auth.PlaybackPreferences{AudioLanguages: []string{}}
+	}
+
+	return auth.PlaybackPreferences{AudioLanguages: langs}
 }
 
 func userFromModel(model userModel) *auth.User {

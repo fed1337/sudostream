@@ -383,6 +383,8 @@ func (h *adminHandler) patchTranscodeSettings(c *gin.Context) {
 			msg = "invalid hwAccel value"
 		case errors.Is(err, transcode.ErrInvalidDownmix):
 			msg = "invalid downmixAlgorithm value"
+		case errors.Is(err, transcode.ErrInvalidDownmixBoost):
+			msg = "invalid downmixBoost value"
 		case errors.Is(err, transcode.ErrInvalidToneMappingAlgorithm):
 			msg = "invalid toneMappingAlgorithm value"
 		}

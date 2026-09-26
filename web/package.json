@@ -19,9 +19,9 @@
     "@radix-ui/themes": "^3.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.103.2",
-    "@videojs/google-cast": "10.0.0-rc.2",
-    "@videojs/hlsjs-video": "10.0.0-rc.2",
-    "@videojs/react": "10.0.0-rc.2",
+    "@videojs/google-cast": "10.0.0-rc.4",
+    "@videojs/hlsjs-video": "10.0.0-rc.4",
+    "@videojs/react": "10.0.0-rc.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
@@ -29,7 +29,7 @@
     "i18next-browser-languagedetector": "^8.2.1",
     "input-otp": "^1.5.0",
     "ky": "^2.1.0",
-    "lucide-react": "^1.47.0",
+    "lucide-react": "^1.48.0",
     "next-themes": "^0.4.6",
     "qrcode.react": "^4.2.0",
     "radix-ui": "^1.6.7",
@@ -53,10 +53,10 @@
     "@vitejs/plugin-react": "^6.1.1",
     "oxfmt": "^0.66.0",
     "oxlint": "^1.85.0",
-    "oxlint-tsgolint": "^7.0.2002",
+    "oxlint-tsgolint": "^7.0.2003",
     "shadcn": "^4.21.0",
     "typescript": "~7.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.1"
   },
-  "packageManager": "pnpm@12.4.2"
+  "packageManager": "pnpm@12.6.0"
 }

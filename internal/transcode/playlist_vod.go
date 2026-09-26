@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -330,6 +331,42 @@ func subtitleMediaTags(tracks []packagedSubtitleTrack) []string {
 func escapeAttr(value string) string {
 	return strings.ReplaceAll(strings.TrimSpace(value), `"`, "'")
 }
+
+// ApplyMasterPlaylistDefaultAudio rewrites DEFAULT= on TYPE=AUDIO lines for user language policy.
+func ApplyMasterPlaylistDefaultAudio(playlist []byte, defaultIndex int) []byte {
+	if defaultIndex <= 0 {
+		return playlist
+	}
+
+	lines := strings.Split(string(playlist), "\n")
+	audioLine := 0
+	for index, line := range lines {
+		if !strings.Contains(line, "TYPE=AUDIO") {
+			continue
+		}
+
+		if audioLine == defaultIndex {
+			lines[index] = replacePlaylistDefaultFlag(line, "YES")
+		} else {
+			lines[index] = replacePlaylistDefaultFlag(line, "NO")
+		}
+
+		audioLine++
+	}
+
+	return []byte(strings.Join(lines, "\n"))
+}
+
+func replacePlaylistDefaultFlag(line, value string) string {
+	if strings.Contains(line, "DEFAULT=") {
+		return defaultFlagPattern.ReplaceAllString(line, "DEFAULT="+value)
+	}
+
+	return line
+}
+
+//nolint:gochecknoglobals // compiled once for master playlist rewrite
+var defaultFlagPattern = regexp.MustCompile(`DEFAULT=(YES|NO)`)
 
 func bitrateToInt(bitrate string) int {
 	value := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(bitrate)), "k")

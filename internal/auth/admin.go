@@ -159,7 +159,7 @@ func (s *Service) UpdateUser( //nolint:cyclop // email/enabled/role patches
 			ctx,
 			userID,
 			UserPatch{Role: patch.Role},
-		) //nolint:exhaustruct // role-only
+		)
 		if err != nil {
 			return AdminUser{}, fmt.Errorf("update user: %w", err)
 		}
@@ -225,7 +225,7 @@ func (s *Service) DeleteUser(ctx context.Context, userID string) error {
 	err = s.guardLastAdminMutation(
 		ctx,
 		*target,
-		UserPatch{Enabled: new(false)}, //nolint:exhaustruct // last-admin check
+		UserPatch{Enabled: new(false)},
 	)
 	if err != nil {
 		return err
@@ -273,7 +273,7 @@ func (s *Service) applyEnabledPatch(ctx context.Context, userID string, enabled 
 	err = s.store.UpdateUser(
 		ctx,
 		userID,
-		UserPatch{Enabled: &disabled}, //nolint:exhaustruct // partial patch
+		UserPatch{Enabled: &disabled},
 	)
 	if err != nil {
 		return fmt.Errorf("disable user: %w", err)

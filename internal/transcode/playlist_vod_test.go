@@ -169,3 +169,29 @@ func TestLadderHeights_IncludesNativeAndNeverUpscales(t *testing.T) {
 		},
 	)
 }
+
+func TestApplyMasterPlaylistDefaultAudio(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "rewrites DEFAULT= on TYPE=AUDIO lines for user track index", func(a *allure.Context) {
+		t := a.T()
+		playlist := []byte(
+			"#EXTM3U\n" +
+				`#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",DEFAULT=YES,NAME="JPN",LANGUAGE="jpn"` + "\n" +
+				`#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",DEFAULT=NO,NAME="ENG",LANGUAGE="eng"` + "\n",
+		)
+
+		unchanged := ApplyMasterPlaylistDefaultAudio(playlist, 0)
+		if string(unchanged) != string(playlist) {
+			t.Fatalf("index 0 should not rewrite playlist")
+		}
+
+		rewritten := string(ApplyMasterPlaylistDefaultAudio(playlist, 1))
+		if strings.Contains(rewritten, `DEFAULT=YES,NAME="JPN"`) {
+			t.Fatalf("first audio line should not stay DEFAULT=YES:\n%s", rewritten)
+		}
+		if !strings.Contains(rewritten, `DEFAULT=YES,NAME="ENG"`) {
+			t.Fatalf("second audio line should become DEFAULT=YES:\n%s", rewritten)
+		}
+	})
+}

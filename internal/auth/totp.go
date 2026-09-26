@@ -46,7 +46,7 @@ func (s *Service) StartTwoFactorSetup(
 	}
 
 	key, err := totp.Generate(
-		totp.GenerateOpts{ //nolint:exhaustruct // library defaults are sufficient
+		totp.GenerateOpts{
 			Issuer:      "sudoStream",
 			AccountName: email,
 			Period:      totpPeriodSeconds,
@@ -376,7 +376,7 @@ func (s *Service) validateTOTPCode(secret, code string, leewaySeconds int) bool 
 		code,
 		secret,
 		time.Now().UTC(),
-		totp.ValidateOpts{ //nolint:exhaustruct // library defaults are sufficient
+		totp.ValidateOpts{
 			Period:    totpPeriodSeconds,
 			Skew:      skew,
 			Digits:    otp.DigitsSix,

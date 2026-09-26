@@ -55,7 +55,7 @@ func TestSMTPSender_SendRejectsMissingHost(t *testing.T) {
 	allure.Test(t, "send fails when SMTP host is not configured", func(a *allure.Context) {
 		t := a.T()
 		sender := email.NewSMTPSender(
-			email.SMTPConfig{ //nolint:exhaustruct // host intentionally empty
+			email.SMTPConfig{
 				Port: "587",
 				From: "from@example.com",
 			},
@@ -105,7 +105,7 @@ func TestSMTPSender_SendWithoutAuth(t *testing.T) {
 		}
 
 		sender := email.NewSMTPSender(
-			email.SMTPConfig{ //nolint:exhaustruct // auth intentionally omitted
+			email.SMTPConfig{
 				Host: host,
 				Port: port,
 				From: "sudostream@localhost",

@@ -53,7 +53,7 @@ type DownmixValue = NonNullable<TranscodeSettings["downmixAlgorithm"]>;
 type ToneAlgoValue = NonNullable<TranscodeSettings["toneMappingAlgorithm"]>;
 
 const hwAccelOptions: HwAccelValue[] = ["off", "qsv", "vaapi", "nvenc", "rockchip"];
-const downmixOptions: DownmixValue[] = ["none", "ac4"];
+const downmixOptions: DownmixValue[] = ["none", "ac4", "dave750", "nightmodeDialogue", "rfc7845"];
 const toneAlgoOptions: ToneAlgoValue[] = ["bt2390", "hable", "reinhard", "mobius"];
 
 export default function AdminSettingsPage() {
@@ -80,6 +80,7 @@ export default function AdminSettingsPage() {
 
   const [hwAccel, setHwAccel] = useState<HwAccelValue>("off");
   const [downmixAlgorithm, setDownmixAlgorithm] = useState<DownmixValue>("ac4");
+  const [downmixBoost, setDownmixBoost] = useState("1");
   const [toneMappingEnabled, setToneMappingEnabled] = useState(true);
   const [toneMappingAlgorithm, setToneMappingAlgorithm] = useState<ToneAlgoValue>("bt2390");
   const [prevTranscode, setPrevTranscode] = useState(transcodeQuery.data);
@@ -103,6 +104,9 @@ export default function AdminSettingsPage() {
     }
     if (transcodeQuery.data?.downmixAlgorithm) {
       setDownmixAlgorithm(transcodeQuery.data.downmixAlgorithm);
+    }
+    if (typeof transcodeQuery.data?.downmixBoost === "number") {
+      setDownmixBoost(String(transcodeQuery.data.downmixBoost));
     }
     if (typeof transcodeQuery.data?.toneMappingEnabled === "boolean") {
       setToneMappingEnabled(transcodeQuery.data.toneMappingEnabled);
@@ -174,6 +178,9 @@ export default function AdminSettingsPage() {
       }
       if (data.downmixAlgorithm) {
         setDownmixAlgorithm(data.downmixAlgorithm);
+      }
+      if (typeof data.downmixBoost === "number") {
+        setDownmixBoost(String(data.downmixBoost));
       }
       if (typeof data.toneMappingEnabled === "boolean") {
         setToneMappingEnabled(data.toneMappingEnabled);
@@ -532,9 +539,11 @@ export default function AdminSettingsPage() {
             onSubmit={(event) => {
               event.preventDefault();
               saveTranscodeMutation.reset();
+              const boost = Number.parseFloat(downmixBoost);
               saveTranscodeMutation.mutate({
                 hwAccel,
                 downmixAlgorithm,
+                downmixBoost: Number.isFinite(boost) ? boost : undefined,
                 toneMappingEnabled,
                 toneMappingAlgorithm,
               });
@@ -630,9 +639,29 @@ export default function AdminSettingsPage() {
                   <SelectContent>
                     <SelectItem value="ac4">{t("admin.downmixAc4")}</SelectItem>
                     <SelectItem value="none">{t("admin.downmixNone")}</SelectItem>
+                    <SelectItem value="dave750">{t("admin.downmixDave750")}</SelectItem>
+                    <SelectItem value="nightmodeDialogue">
+                      {t("admin.downmixNightmodeDialogue")}
+                    </SelectItem>
+                    <SelectItem value="rfc7845">{t("admin.downmixRfc7845")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FieldDescription>{t("admin.downmixAlgorithmDescription")}</FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="downmixBoost">{t("admin.downmixBoost")}</FieldLabel>
+                <Input
+                  id="downmixBoost"
+                  type="number"
+                  min={0.5}
+                  max={3}
+                  step={0.1}
+                  className="max-w-md"
+                  value={downmixBoost}
+                  onChange={(event) => setDownmixBoost(event.target.value)}
+                />
+                <FieldDescription>{t("admin.downmixBoostDescription")}</FieldDescription>
               </Field>
 
               <Field orientation="horizontal">

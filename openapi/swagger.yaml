@@ -266,6 +266,14 @@ components:
           type: array
           uniqueItems: false
       type: object
+    internal_httpapi.PatchPlaybackPreferencesRequest:
+      properties:
+        audioLanguages:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
     internal_httpapi.PatchProviderSettingsRequest:
       properties:
         allowOverrideUserMetadata:
@@ -298,6 +306,14 @@ components:
           type: integer
         transcode:
           type: boolean
+      type: object
+    internal_httpapi.PlaybackPreferencesResponse:
+      properties:
+        audioLanguages:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
       type: object
     internal_httpapi.PlaybackResponse:
       properties:
@@ -1250,10 +1266,16 @@ components:
       enum:
       - none
       - ac4
+      - dave750
+      - nightmodeDialogue
+      - rfc7845
       type: string
       x-enum-varnames:
       - DownmixNone
       - DownmixAC4
+      - DownmixDave750
+      - DownmixNightmodeDialogue
+      - DownmixRFC7845
     sudoStream_internal_transcode.HwAccel:
       enum:
       - "off"
@@ -1309,6 +1331,8 @@ components:
       - ToneMappingMobius
     sudoStream_internal_transcode.TrackInfo:
       properties:
+        default:
+          type: boolean
         id:
           type: string
         label:
@@ -1318,6 +1342,8 @@ components:
       properties:
         downmixAlgorithm:
           $ref: '#/components/schemas/sudoStream_internal_transcode.DownmixAlgorithm'
+        downmixBoost:
+          type: number
         hwAccel:
           $ref: '#/components/schemas/sudoStream_internal_transcode.HwAccel'
         toneMappingAlgorithm:
@@ -3674,6 +3700,72 @@ paths:
       summary: List home favorites
       tags:
       - home
+  /api/me/playback-preferences:
+    get:
+      description: Returns ordered audio language codes for default track selection
+        (max 3).
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.PlaybackPreferencesResponse'
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Get playback preferences
+      tags:
+      - me
+    patch:
+      description: Sets ordered audio language codes for default track selection (max
+        3).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/internal_httpapi.PatchPlaybackPreferencesRequest'
+              description: Playback preferences
+              summary: body
+        description: Playback preferences
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.PlaybackPreferencesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Unauthorized
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+      summary: Update playback preferences
+      tags:
+      - me
   /api/me/stats:
     get:
       responses:

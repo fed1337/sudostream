@@ -43,7 +43,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, email string) error 
 		return fmt.Errorf("invalidate reset tokens: %w", err)
 	}
 
-	err = s.store.CreateAuthToken(ctx, Token{ //nolint:exhaustruct // partial insert row
+	err = s.store.CreateAuthToken(ctx, Token{
 		ID:        "",
 		UserID:    user.ID,
 		Email:     email,
@@ -300,7 +300,7 @@ func (s *Service) issueChangeEmailToken(
 
 	ttl := s.confirmEmailTTL()
 
-	err = s.store.CreateAuthToken(ctx, Token{ //nolint:exhaustruct // partial insert row
+	err = s.store.CreateAuthToken(ctx, Token{
 		ID:        "",
 		UserID:    userID,
 		Email:     newEmail,
@@ -419,7 +419,7 @@ func (s *Service) issueInviteToken(
 		return fmt.Errorf("invalidate invite tokens: %w", err)
 	}
 
-	err = s.store.CreateAuthToken(ctx, Token{ //nolint:exhaustruct // partial insert row
+	err = s.store.CreateAuthToken(ctx, Token{
 		ID:        "",
 		UserID:    userID,
 		Email:     email,
@@ -532,7 +532,7 @@ func (s *Service) loadOrCreateInviteUser(
 		err = s.store.UpdateUser(
 			ctx,
 			existing.ID,
-			UserPatch{Role: &role}, //nolint:exhaustruct // role-only
+			UserPatch{Role: &role},
 		)
 		if err != nil {
 			return nil, fmt.Errorf("set invited role: %w", err)
@@ -625,7 +625,7 @@ func (s *Service) sendConfirmEmail(
 
 	confirmTTL := s.confirmEmailTTL()
 
-	err = s.store.CreateAuthToken(ctx, Token{ //nolint:exhaustruct // partial insert row
+	err = s.store.CreateAuthToken(ctx, Token{
 		ID:        "",
 		UserID:    userID,
 		Email:     email,

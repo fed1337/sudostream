@@ -52,6 +52,8 @@ func apiRouteCatalog() []routeKey {
 		{http.MethodPost, "/api/auth/accept-invite"},
 		{http.MethodPost, "/api/auth/2fa/verify"},
 		{http.MethodGet, "/api/auth/me"},
+		{http.MethodGet, "/api/me/playback-preferences"},
+		{http.MethodPatch, "/api/me/playback-preferences"},
 		{http.MethodGet, "/api/me/continue"},
 		{http.MethodGet, "/api/me/favorites"},
 		{http.MethodGet, "/api/me/watched"},

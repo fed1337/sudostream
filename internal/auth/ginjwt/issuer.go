@@ -43,7 +43,7 @@ func New(store auth.Store, config auth.Config) (*Issuer, error) {
 
 	refreshStore := authpostgres.NewRefreshTokenStore(store)
 	jwtMiddleware, err := jwtmw.New(
-		&jwtmw.GinJWTMiddleware{ //nolint:exhaustruct // gin-jwt defaults
+		&jwtmw.GinJWTMiddleware{
 			Realm:               auth.JWTRealm,
 			Key:                 secret,
 			Timeout:             accessTTL,

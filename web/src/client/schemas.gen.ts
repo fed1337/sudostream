@@ -443,6 +443,19 @@ export const internal_httpapi_PatchMaintenanceRequestSchema = {
   type: 'object'
 } as const;
 
+export const internal_httpapi_PatchPlaybackPreferencesRequestSchema = {
+  properties: {
+    audioLanguages: {
+      items: {
+        type: 'string'
+      },
+      type: 'array',
+      uniqueItems: false
+    }
+  },
+  type: 'object'
+} as const;
+
 export const internal_httpapi_PatchProviderSettingsRequestSchema = {
   properties: {
     allowOverrideUserMetadata: {
@@ -488,6 +501,19 @@ export const internal_httpapi_PlaybackNegotiateRequestSchema = {
     },
     transcode: {
       type: 'boolean'
+    }
+  },
+  type: 'object'
+} as const;
+
+export const internal_httpapi_PlaybackPreferencesResponseSchema = {
+  properties: {
+    audioLanguages: {
+      items: {
+        type: 'string'
+      },
+      type: 'array',
+      uniqueItems: false
     }
   },
   type: 'object'
@@ -1981,12 +2007,18 @@ export const sudoStream_internal_transcode_ChapterInfoSchema = {
 export const sudoStream_internal_transcode_DownmixAlgorithmSchema = {
   enum: [
     'none',
-    'ac4'
+    'ac4',
+    'dave750',
+    'nightmodeDialogue',
+    'rfc7845'
   ],
   type: 'string',
   'x-enum-varnames': [
     'DownmixNone',
-    'DownmixAC4'
+    'DownmixAC4',
+    'DownmixDave750',
+    'DownmixNightmodeDialogue',
+    'DownmixRFC7845'
   ]
 } as const;
 
@@ -2066,6 +2098,9 @@ export const sudoStream_internal_transcode_ToneMappingAlgorithmSchema = {
 
 export const sudoStream_internal_transcode_TrackInfoSchema = {
   properties: {
+    default: {
+      type: 'boolean'
+    },
     id: {
       type: 'string'
     },
@@ -2080,6 +2115,9 @@ export const sudoStream_internal_transcode_TranscodeSettingsSchema = {
   properties: {
     downmixAlgorithm: {
       $ref: '#/components/schemas/sudoStream_internal_transcode.DownmixAlgorithm'
+    },
+    downmixBoost: {
+      type: 'number'
     },
     hwAccel: {
       $ref: '#/components/schemas/sudoStream_internal_transcode.HwAccel'

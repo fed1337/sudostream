@@ -7,40 +7,55 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-func TestStereoDownmixFilter_AC4Layouts(t *testing.T) {
+func TestStereoDownmixFilter_JellyfinLayouts(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(
-		t,
-		"AC-4 pan filters match Jellyfin DownMixAlgorithmsHelper",
-		func(a *allure.Context) {
-			t := a.T()
-			cases := []struct {
-				channels int
-				layout   string
-				want     string
-			}{
-				{channels: 2, layout: layoutStereo, want: ""},
-				{channels: 6, layout: "", want: ac4PanFilters[layout51]},
-				{channels: 8, layout: layout71, want: ac4PanFilters[layout71]},
-				{channels: 6, layout: layout51, want: ac4PanFilters[layout51]},
-				{channels: 3, layout: layout30, want: ac4PanFilters[layout30]},
-			}
+	allure.Test(t, "pan filters match Jellyfin DownMixAlgorithmsHelper", func(a *allure.Context) {
+		t := a.T()
 
-			for _, testCase := range cases {
-				got := StereoDownmixFilter(DownmixAC4, testCase.channels, testCase.layout)
-				if got != testCase.want {
-					t.Fatalf("channels=%d layout=%q: got %q want %q",
-						testCase.channels, testCase.layout, got, testCase.want)
-				}
-			}
+		cases := []struct {
+			algo     DownmixAlgorithm
+			channels int
+			layout   string
+			want     string
+		}{
+			{algo: DownmixAC4, channels: 2, layout: layoutStereo, want: ""},
+			{algo: DownmixAC4, channels: 6, layout: layout51, want: downmixPanFilters[downmixKey{DownmixAC4, layout51}]},
+			{algo: DownmixDave750, channels: 6, layout: layout51, want: downmixPanFilters[downmixKey{DownmixDave750, layout51}]},
+			{algo: DownmixRFC7845, channels: 4, layout: layoutQuad, want: downmixPanFilters[downmixKey{DownmixRFC7845, layoutQuad}]},
+			{algo: DownmixNone, channels: 6, layout: layout51, want: ""},
+		}
 
-			if StereoDownmixFilter(DownmixNone, 6, layout51) != "" {
-				t.Fatal("none must not emit a pan filter")
+		for _, testCase := range cases {
+			got := StereoDownmixFilter(testCase.algo, testCase.channels, testCase.layout)
+			if got != testCase.want {
+				t.Fatalf("algo=%s channels=%d layout=%q: got %q want %q",
+					testCase.algo, testCase.channels, testCase.layout, got, testCase.want)
 			}
-			if strings.Contains(StereoDownmixFilter(DownmixNone, 6, layout51), "volume=") {
-				t.Fatal("none must not boost volume")
-			}
-		},
-	)
+		}
+	})
+}
+
+func TestComposeAudioFilter_BoostAndPan(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "composeAudioFilter orders pan then volume", func(a *allure.Context) {
+		t := a.T()
+
+		filter := ComposeAudioFilter(DownmixAC4, 6, layout51, 1.5)
+		if !strings.Contains(filter, "pan=stereo") {
+			t.Fatalf("expected pan filter, got %q", filter)
+		}
+		if !strings.HasSuffix(filter, "volume=1.5") {
+			t.Fatalf("expected volume suffix, got %q", filter)
+		}
+
+		noneOnly := ComposeAudioFilter(DownmixNone, 6, layout51, 2)
+		if strings.Contains(noneOnly, "pan=") {
+			t.Fatalf("none must not emit pan: %q", noneOnly)
+		}
+		if noneOnly != "volume=2" {
+			t.Fatalf("none boost: got %q", noneOnly)
+		}
+	})
 }

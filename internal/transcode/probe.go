@@ -100,6 +100,7 @@ type AudioStream struct {
 	Language      string `json:"language,omitempty"`
 	Channels      int    `json:"channels,omitempty"`
 	ChannelLayout string `json:"channelLayout,omitempty"`
+	Commentary    bool   `json:"commentary,omitempty"`
 }
 
 // NeedsToneMap reports whether HDR/wide-gamut/10-bit video must be converted for SDR HLS.
@@ -299,6 +300,7 @@ func appendAudioStream(info *SourceInfo, stream probeStream, defaultAudioIndex *
 		Language:      strings.TrimSpace(stream.Tags["language"]),
 		Channels:      stream.Channels,
 		ChannelLayout: strings.TrimSpace(stream.ChannelLayout),
+		Commentary:    isCommentaryAudioStream(stream),
 	})
 }
 
@@ -315,6 +317,14 @@ func promoteDefaultAudioStream(info *SourceInfo, defaultAudioIndex int) {
 	def := streams[defaultAudioIndex]
 	streams = append(streams[:defaultAudioIndex], streams[defaultAudioIndex+1:]...)
 	info.AudioStreams = append([]AudioStream{def}, streams...)
+}
+
+func isCommentaryAudioStream(stream probeStream) bool {
+	if stream.Disposition == nil {
+		return false
+	}
+
+	return stream.Disposition["comment"] == 1 || stream.Disposition["description"] == 1
 }
 
 func audioLabel(stream probeStream) string {

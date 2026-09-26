@@ -48,6 +48,7 @@ type ErrorResponse struct {
 }
 
 type handler struct {
+	auth       *auth.Service
 	media      *mediafs.Service
 	access     *access.Service
 	metadata   *metadata.Service
@@ -107,6 +108,7 @@ func RegisterRoutes(
 	registerInventoryMetrics(transcodeSvc, accessService, metadataService, authService, cfg.Trash)
 
 	mediaHandler := &handler{
+		auth:       authService,
 		media:      media,
 		access:     accessService,
 		metadata:   metadataService,
@@ -201,6 +203,8 @@ func RegisterRoutes(
 		api.GET("/me/watched", mediaHandler.getHomeWatched)
 		api.GET("/me/unwatched", mediaHandler.getHomeUnwatched)
 		api.GET("/me/stats", mediaHandler.getHomeStats)
+		api.GET("/me/playback-preferences", mediaHandler.getPlaybackPreferences)
+		api.PATCH("/me/playback-preferences", mediaHandler.patchPlaybackPreferences)
 		api.POST("/auth/change-password", authRoutes.changePassword)
 		api.POST("/auth/change-email", authRoutes.changeEmail)
 		api.GET("/auth/sessions", authRoutes.listSessions)

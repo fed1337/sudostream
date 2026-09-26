@@ -200,3 +200,71 @@ func uniqueAuthStoreSchema() string {
 
 	return "auth_store_it_" + hex.EncodeToString(buf)
 }
+
+func TestStore_PlaybackPreferences(t *testing.T) {
+	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
+		t.Skip("SUDOSTREAM_DATABASE_URL not set")
+	}
+
+	allure.Test(t, "postgres store persists audio language prefs on user", func(a *allure.Context) {
+		t := a.T()
+		ctx := context.Background()
+		database := openAuthStoreDatabase(ctx, t)
+		store := authpostgres.NewStore(database.GORM)
+
+		err := store.CreateUser(ctx, auth.User{
+			Email:              "playback-prefs@example.com",
+			Role:               auth.RoleUser,
+			Enabled:            true,
+			MustChangePassword: false,
+		}, "hash")
+		if err != nil {
+			t.Fatalf("create user: %v", err)
+		}
+
+		user, _, err := store.GetUserByEmail(ctx, "playback-prefs@example.com")
+		if err != nil {
+			t.Fatalf("get user: %v", err)
+		}
+
+		empty, err := store.GetPlaybackPreferences(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("get empty prefs: %v", err)
+		}
+		if len(empty.AudioLanguages) != 0 {
+			t.Fatalf("expected empty prefs, got %v", empty.AudioLanguages)
+		}
+
+		want := auth.PlaybackPreferences{AudioLanguages: []string{"en", "ru"}}
+		err = store.SavePlaybackPreferences(ctx, user.ID, want)
+		if err != nil {
+			t.Fatalf("save prefs: %v", err)
+		}
+
+		got, err := store.GetPlaybackPreferences(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("reload prefs: %v", err)
+		}
+		if len(got.AudioLanguages) != 2 || got.AudioLanguages[1] != "ru" {
+			t.Fatalf("got %+v", got.AudioLanguages)
+		}
+
+		_, err = database.SQLDB().ExecContext(
+			ctx,
+			`UPDATE users SET audio_language_prefs = $1::jsonb WHERE id = $2`,
+			`{"not":"array"}`,
+			user.ID,
+		)
+		if err != nil {
+			t.Fatalf("corrupt prefs column: %v", err)
+		}
+
+		corrupt, err := store.GetPlaybackPreferences(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("get corrupt prefs: %v", err)
+		}
+		if len(corrupt.AudioLanguages) != 0 {
+			t.Fatalf("invalid JSON should yield empty prefs, got %v", corrupt.AudioLanguages)
+		}
+	})
+}

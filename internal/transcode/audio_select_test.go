@@ -34,4 +34,20 @@ func TestSelectDefaultAudioStreamIndex(t *testing.T) {
 			t.Fatalf("got %d want 1", got)
 		}
 	})
+
+	allure.Test(t, "matches eng preference to eng track language code", func(a *allure.Context) {
+		t := a.T()
+		got := SelectDefaultAudioStreamIndex(streams, []string{"en"})
+		if got != 1 {
+			t.Fatalf("got %d want 1", got)
+		}
+	})
+
+	allure.Test(t, "empty stream list returns -1", func(a *allure.Context) {
+		t := a.T()
+		got := SelectDefaultAudioStreamIndex(nil, []string{"en"})
+		if got != -1 {
+			t.Fatalf("got %d want -1", got)
+		}
+	})
 }

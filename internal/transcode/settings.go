@@ -127,16 +127,16 @@ func ParseHwAccel(raw string) (HwAccel, error) {
 
 // ParseDownmixAlgorithm validates and normalizes a downmixAlgorithm string.
 func ParseDownmixAlgorithm(raw string) (DownmixAlgorithm, error) {
-	switch DownmixAlgorithm(strings.ToLower(strings.TrimSpace(raw))) {
-	case DownmixNone:
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case string(DownmixNone):
 		return DownmixNone, nil
-	case DownmixAC4, "":
+	case string(DownmixAC4), "":
 		return DownmixAC4, nil
-	case DownmixDave750:
+	case string(DownmixDave750):
 		return DownmixDave750, nil
-	case DownmixNightmodeDialogue:
+	case strings.ToLower(string(DownmixNightmodeDialogue)):
 		return DownmixNightmodeDialogue, nil
-	case DownmixRFC7845:
+	case string(DownmixRFC7845):
 		return DownmixRFC7845, nil
 	default:
 		return "", ErrInvalidDownmix

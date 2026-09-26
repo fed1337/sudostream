@@ -90,6 +90,9 @@ export type InternalHttpapiGrantsResponse = {
 };
 
 export type InternalHttpapiHealthResponse = {
+  build?: string;
+  ref?: string;
+  revision?: string;
   status?: string;
   version?: string;
 };

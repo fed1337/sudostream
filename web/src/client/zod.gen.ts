@@ -74,6 +74,9 @@ export const zInternalHttpapiForgotPasswordRequest = z.object({
 });
 
 export const zInternalHttpapiHealthResponse = z.object({
+  build: z.string().optional(),
+  ref: z.string().optional(),
+  revision: z.string().optional(),
   status: z.string().optional(),
   version: z.string().optional()
 });

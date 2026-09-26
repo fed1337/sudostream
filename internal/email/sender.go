@@ -10,9 +10,11 @@ import (
 	"strings"
 )
 
-var errSMTPNotConfigured = errors.New("smtp host is not configured")
-var errInvalidEmailHeader = errors.New("email header contains invalid control characters")
-var errInvalidRecipient = errors.New("recipient contains invalid control characters")
+var (
+	errSMTPNotConfigured  = errors.New("smtp host is not configured")
+	errInvalidEmailHeader = errors.New("email header contains invalid control characters")
+	errInvalidRecipient   = errors.New("recipient contains invalid control characters")
+)
 
 // Sender delivers email messages.
 type Sender interface {

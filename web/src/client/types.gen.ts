@@ -218,7 +218,7 @@ export type InternalHttpapiPlaybackResponse = {
    */
   series?: InternalHttpapiPlaybackSeriesContext;
   /**
-   * SkipIntro is set when chapter metadata identifies an opening intro segment (E-23).
+   * SkipIntro is set when chapter metadata or offline audio detection finds an opening intro (E-23).
    */
   skipIntro?: SudoStreamInternalSkipsegmentIntro;
   status?: SudoStreamInternalTranscodeStatus;

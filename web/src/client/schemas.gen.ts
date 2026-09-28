@@ -574,7 +574,7 @@ export const internal_httpapi_PlaybackResponseSchema = {
     },
     skipIntro: {
       $ref: '#/components/schemas/sudoStream_internal_skipsegment.Intro',
-      description: 'SkipIntro is set when chapter metadata identifies an opening intro segment (E-23).'
+      description: 'SkipIntro is set when chapter metadata or offline audio detection finds an opening intro (E-23).'
     },
     status: {
       $ref: '#/components/schemas/sudoStream_internal_transcode.Status'

@@ -15,13 +15,13 @@ const (
 	ActionThumbnailsWarm     = "thumbnails.warm"
 	ActionPlaybackCachePurge = "playback.cache.purge"
 	ActionTrashPurge         = "trash.purge"
-	// ActionProvidersMetadata runs the FI-1 metadata provider task for a library (whole library, L20).
+	// ActionProvidersMetadata runs the metadata provider task for a library.
 	ActionProvidersMetadata = "providers.metadata"
-	// ActionProvidersPosters runs the FI-1 poster provider task for a library.
+	// ActionProvidersPosters runs the poster provider task for a library.
 	ActionProvidersPosters = "providers.posters"
-	// ActionProvidersSubtitles runs the FI-1 subtitle provider task for a library.
+	// ActionProvidersSubtitles runs the subtitle provider task for a library.
 	ActionProvidersSubtitles = "providers.subtitles"
-	// ActionPlaybackSkipDetect runs offline intro audio fingerprinting (E-23 v2).
+	// ActionPlaybackSkipDetect runs offline intro audio fingerprinting.
 	ActionPlaybackSkipDetect = "playback.skip.detect"
 )
 

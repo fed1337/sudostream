@@ -19,7 +19,7 @@ type FavoriteResponse struct {
 
 // FavoritePatchRequest updates favorite state for the current user.
 type FavoritePatchRequest struct {
-	Favorited bool `json:"favorited"`
+	Favorited *bool `json:"favorited"`
 }
 
 // getFavorite returns favorite status for the current user.
@@ -98,13 +98,14 @@ func (h *handler) patchFavorite(c *gin.Context) {
 
 	var body FavoritePatchRequest
 	err := c.ShouldBindJSON(&body)
-	if err != nil {
+	if err != nil || body.Favorited == nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: invalidRequestBody})
 
 		return
 	}
 
-	state, err := h.favorite.Set(c.Request.Context(), user.ID, pathParam, body.Favorited)
+	favorited := *body.Favorited
+	state, err := h.favorite.Set(c.Request.Context(), user.ID, pathParam, favorited)
 	if err != nil {
 		h.handleFavoriteError(c, pathParam, err)
 
@@ -115,7 +116,7 @@ func (h *handler) patchFavorite(c *gin.Context) {
 		c,
 		"media.favorite",
 		slog.String("path", pathParam),
-		slog.Bool("favorited", body.Favorited),
+		slog.Bool("favorited", favorited),
 	)
 
 	c.JSON(http.StatusOK, FavoriteResponse{Favorited: state.Favorited})

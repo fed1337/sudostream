@@ -378,6 +378,8 @@
     "metadataScanDescription": "Проб видеофайлов в этой библиотеке и обновление кэша метаданных.",
     "thumbnailsWarmTitle": "Прогрев превью",
     "thumbnailsWarmDescription": "Создать недостающие постеры видео для этой библиотеки.",
+    "skipIntroDetectTitle": "Определение Skip intro",
+    "skipIntroDetectDescription": "Офлайн-отпечатки аудио сезона для поиска общей заставки, если нет глав.",
     "librariesScanTitle": "Очистить реестр",
     "librariesScanDescription": "Удаляет из реестра папки, которых уже нет на диске. Новые библиотеки не создаёт.",
     "cachePurgeTitle": "Очистка кэша воспроизведения",

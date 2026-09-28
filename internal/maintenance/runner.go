@@ -16,8 +16,10 @@ var (
 	errPurgerUnavailable    = errors.New("cache purger unavailable")
 	errTrashUnavailable     = errors.New("trash service unavailable")
 	errProvidersUnavailable = errors.New("provider settings service unavailable")
+	errSkipIntroUnavailable = errors.New("skip intro detector unavailable")
 )
 
+//nolint:cyclop // dispatch table for all maintenance actions
 func (s *Service) runAction(
 	ctx context.Context,
 	action, libraryID string,
@@ -39,6 +41,8 @@ func (s *Service) runAction(
 		return s.runProviderTask(ctx, libraryID, provider.TaskPoster)
 	case ActionProvidersSubtitles:
 		return s.runProviderTask(ctx, libraryID, provider.TaskSubtitle)
+	case ActionPlaybackSkipDetect:
+		return s.runSkipIntroDetect(ctx, libraryID)
 	default:
 		return nil, ErrInvalidAction
 	}
@@ -157,4 +161,17 @@ func (s *Service) runProviderTask(
 	}
 
 	return summary.Map(), nil
+}
+
+func (s *Service) runSkipIntroDetect(ctx context.Context, libraryID string) (map[string]any, error) {
+	if s.deps.SkipIntro == nil {
+		return nil, errSkipIntroUnavailable
+	}
+
+	summary, err := s.deps.SkipIntro.DetectLibraryMap(ctx, libraryID)
+	if err != nil {
+		return summary, fmt.Errorf("skip intro detect: %w", err)
+	}
+
+	return summary, nil
 }

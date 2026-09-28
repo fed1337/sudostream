@@ -68,6 +68,7 @@ const THUMBS_ACTION = "thumbnails.warm";
 const PROVIDERS_METADATA_ACTION = "providers.metadata";
 const PROVIDERS_POSTERS_ACTION = "providers.posters";
 const PROVIDERS_SUBTITLES_ACTION = "providers.subtitles";
+const SKIP_INTRO_ACTION = "playback.skip.detect";
 const NONE_PROVIDER = "none";
 const PROVIDER_LIBRARY_TYPES: LibraryType[] = ["film", "series"];
 
@@ -109,6 +110,7 @@ export default function AdminLibraryDetailPage() {
   const [providersSubtitlesValidationError, setProvidersSubtitlesValidationError] = useState<
     string | null
   >(null);
+  const [skipIntroValidationError, setSkipIntroValidationError] = useState<string | null>(null);
 
   const librariesQuery = useQuery({
     ...getApiAdminLibrariesOptions(),
@@ -144,6 +146,8 @@ export default function AdminLibraryDetailPage() {
   const [providersPostersEnabled, setProvidersPostersEnabled] = useState(false);
   const [providersSubtitlesCron, setProvidersSubtitlesCron] = useState("");
   const [providersSubtitlesEnabled, setProvidersSubtitlesEnabled] = useState(false);
+  const [skipIntroCron, setSkipIntroCron] = useState("");
+  const [skipIntroEnabled, setSkipIntroEnabled] = useState(false);
 
   const [metadataProvider, setMetadataProvider] = useState(NONE_PROVIDER);
   const [posterProvider, setPosterProvider] = useState(NONE_PROVIDER);
@@ -174,6 +178,7 @@ export default function AdminLibraryDetailPage() {
     const providersSubtitles = actions.find(
       (action) => action.action === PROVIDERS_SUBTITLES_ACTION,
     );
+    const skipIntro = actions.find((action) => action.action === SKIP_INTRO_ACTION);
     setMetadataCron(metadata?.schedule?.cron ?? "");
     setMetadataEnabled(Boolean(metadata?.schedule?.enabled));
     setThumbsCron(thumbs?.schedule?.cron ?? "");
@@ -184,6 +189,8 @@ export default function AdminLibraryDetailPage() {
     setProvidersPostersEnabled(Boolean(providersPosters?.schedule?.enabled));
     setProvidersSubtitlesCron(providersSubtitles?.schedule?.cron ?? "");
     setProvidersSubtitlesEnabled(Boolean(providersSubtitles?.schedule?.enabled));
+    setSkipIntroCron(skipIntro?.schedule?.cron ?? "");
+    setSkipIntroEnabled(Boolean(skipIntro?.schedule?.enabled));
   }
 
   if (providersQuery.data && hydratedProvidersId !== id) {
@@ -387,6 +394,7 @@ export default function AdminLibraryDetailPage() {
   const providersSubtitlesStatus = actions.find(
     (action) => action.action === PROVIDERS_SUBTITLES_ACTION,
   );
+  const skipIntroStatus = actions.find((action) => action.action === SKIP_INTRO_ACTION);
   const available: ProviderAvailability = providersQuery.data?.available ?? {
     metadata: [],
     poster: [],
@@ -637,6 +645,35 @@ export default function AdminLibraryDetailPage() {
           runMutation.mutate(THUMBS_ACTION);
         }}
       />
+
+      {library?.type === "series" ? (
+        <MaintenanceActionCard
+          title={t("admin.skipIntroDetectTitle")}
+          description={t("admin.skipIntroDetectDescription")}
+          cron={skipIntroCron}
+          enabled={skipIntroEnabled}
+          status={skipIntroStatus}
+          saving={saving}
+          running={Boolean(skipIntroStatus?.running) || running}
+          validationError={skipIntroValidationError}
+          onCronChange={setSkipIntroCron}
+          onEnabledChange={setSkipIntroEnabled}
+          onSave={() => {
+            void saveMaintenance(
+              {
+                action: SKIP_INTRO_ACTION,
+                cron: skipIntroCron,
+                enabled: skipIntroEnabled,
+              },
+              setSkipIntroValidationError,
+              false,
+            );
+          }}
+          onRun={() => {
+            runMutation.mutate(SKIP_INTRO_ACTION);
+          }}
+        />
+      ) : null}
 
       {supportsProviders ? (
         <ProviderTaskCard

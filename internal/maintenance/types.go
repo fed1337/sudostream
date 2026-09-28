@@ -21,6 +21,8 @@ const (
 	ActionProvidersPosters = "providers.posters"
 	// ActionProvidersSubtitles runs the FI-1 subtitle provider task for a library.
 	ActionProvidersSubtitles = "providers.subtitles"
+	// ActionPlaybackSkipDetect runs offline intro audio fingerprinting (E-23 v2).
+	ActionPlaybackSkipDetect = "playback.skip.detect"
 )
 
 // Trigger identifies how a run was started.
@@ -117,7 +119,8 @@ func IsGlobalAction(action string) bool {
 func IsLibraryAction(action string) bool {
 	switch action {
 	case ActionMetadataScan, ActionThumbnailsWarm,
-		ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles:
+		ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles,
+		ActionPlaybackSkipDetect:
 		return true
 	default:
 		return false

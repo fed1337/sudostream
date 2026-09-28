@@ -57,6 +57,12 @@ type Deps struct {
 	Purger    CachePurger
 	Trash     TrashPurger
 	Providers ProviderTasks
+	SkipIntro SkipIntroDetector
+}
+
+// SkipIntroDetector runs offline intro detection for one library (E-23).
+type SkipIntroDetector interface {
+	DetectLibraryMap(ctx context.Context, libraryID string) (map[string]any, error)
 }
 
 // TrashPurger permanently deletes expired recycle-bin items.
@@ -220,6 +226,7 @@ func (s *Service) GetLibraryMaintenance(
 	return s.actionStatuses(ctx, []string{
 		ActionMetadataScan, ActionThumbnailsWarm,
 		ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles,
+		ActionPlaybackSkipDetect,
 	}, &libraryID)
 }
 

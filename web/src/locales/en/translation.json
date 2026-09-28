@@ -378,6 +378,8 @@
     "metadataScanDescription": "Probe video files in this library and refresh cached metadata.",
     "thumbnailsWarmTitle": "Warm thumbnails",
     "thumbnailsWarmDescription": "Generate missing video posters for this library.",
+    "skipIntroDetectTitle": "Detect skip intro",
+    "skipIntroDetectDescription": "Fingerprint season audio offline to find shared opening themes when chapters are missing.",
     "librariesScanTitle": "Prune libraries",
     "librariesScanDescription": "Remove registry folders whose directories are missing on disk. Does not create libraries.",
     "cachePurgeTitle": "Purge playback cache",

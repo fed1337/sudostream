@@ -22,6 +22,7 @@ import (
 	"sudoStream/internal/metadata"
 	"sudoStream/internal/observability"
 	"sudoStream/internal/playback"
+	"sudoStream/internal/skipsegment"
 	"sudoStream/internal/thumbnail"
 	"sudoStream/internal/transcode"
 	"sudoStream/internal/trash"
@@ -60,6 +61,7 @@ type handler struct {
 	transcode  *transcode.Service
 	trash      *trash.Service
 	usersub    *usersub.Service
+	skipIntro  *skipsegment.Service
 	posters    *posterCache
 	dbPing     func(context.Context) error
 }
@@ -119,6 +121,7 @@ func RegisterRoutes(
 		transcode:  transcodeSvc,
 		trash:      cfg.Trash,
 		usersub:    cfg.UserSubtitle,
+		skipIntro:  cfg.SkipIntro,
 		dbPing:     cfg.DBPing,
 	}
 	if mediaHandler.usersub == nil {

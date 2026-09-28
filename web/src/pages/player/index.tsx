@@ -173,34 +173,53 @@ export default function PlayerPage() {
     },
   });
 
-  const seasons = showQuery.data?.seasons ?? [];
+  const catalogSeasonNumbers = useMemo(() => {
+    const list = showQuery.data?.seasons ?? [];
+    return list.map((season) => season.season ?? 0);
+  }, [showQuery.data?.seasons]);
   const episodesQuery = useQuery({
     queryKey: [
       "player-series-episodes",
       series?.librarySlug,
       series?.showKey,
-      seasons.map((s) => s.season).join(","),
+      catalogSeasonNumbers.join(","),
     ],
-    enabled: Boolean(series?.librarySlug && series?.showKey && seasons.length > 0),
+    enabled: Boolean(series?.librarySlug && series?.showKey && catalogSeasonNumbers.length > 0),
     queryFn: async () => {
-      const pages = await Promise.all(
-        seasons.map(async (season) => {
+      const current = series!.season;
+      const ordered = [...catalogSeasonNumbers].sort((a, b) => {
+        if (a === current) {
+          return -1;
+        }
+        if (b === current) {
+          return 1;
+        }
+        return a - b;
+      });
+
+      // allSettled: one slow/failing season must not wipe the whole menu (Melrose = 7×~32).
+      const settled = await Promise.allSettled(
+        ordered.map(async (season) => {
           const response = await getApiCatalogByLibrarySlugShowsByShowKeySeasonsBySeasonEpisodes({
             path: {
               librarySlug: series!.librarySlug,
               showKey: series!.showKey,
-              season: season.season ?? 0,
+              season,
             },
           });
           if (response.error || !response.data) {
-            throw new Error("season episodes failed");
+            throw new Error(`season ${season} episodes failed`);
           }
           return response.data.episodes ?? [];
         }),
       );
+
       const options: SeriesEpisodeOption[] = [];
-      for (const page of pages) {
-        for (const ep of page) {
+      for (const result of settled) {
+        if (result.status !== "fulfilled") {
+          continue;
+        }
+        for (const ep of result.value) {
           if (!ep.path) {
             continue;
           }
@@ -242,10 +261,12 @@ export default function PlayerPage() {
       episode: series.episode,
       showName: series.showName,
       episodes: episodesQuery.data ?? [],
+      catalogSeasons: catalogSeasonNumbers,
       seasonsLoading: showQuery.isLoading || episodesQuery.isLoading,
       onSelectEpisode: selectEpisode,
     };
   }, [
+    catalogSeasonNumbers,
     episodesQuery.data,
     episodesQuery.isLoading,
     mediaPath,

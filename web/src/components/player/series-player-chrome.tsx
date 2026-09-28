@@ -6,7 +6,7 @@ import { usePlayerControlsVisible } from "@/components/player/use-player-control
 import {
   episodesForSeason,
   findNextEpisode,
-  uniqueSeasons,
+  seasonNumbersForMenu,
   type SeriesEpisodeOption,
 } from "@/lib/series-nav";
 import { SkipIntroAction } from "@/components/player/skip-intro-action";
@@ -19,6 +19,8 @@ type SeriesPlayerChromeProps = {
   currentEpisode: number;
   showName: string;
   episodes: SeriesEpisodeOption[];
+  /** Season numbers from show catalog (preferred over inferring from loaded episodes). */
+  catalogSeasons?: number[];
   seasonsLoading?: boolean;
   onSelectEpisode: (path: string) => void;
   onUploadSubtitle?: (file: File) => Promise<void>;
@@ -48,6 +50,7 @@ export function SeriesPlayerChrome({
   currentEpisode,
   showName,
   episodes,
+  catalogSeasons,
   seasonsLoading,
   onSelectEpisode,
   onUploadSubtitle,
@@ -62,7 +65,10 @@ export function SeriesPlayerChrome({
   const fileRef = useRef<HTMLInputElement>(null);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
-  const seasons = useMemo(() => uniqueSeasons(episodes), [episodes]);
+  const seasons = useMemo(
+    () => seasonNumbersForMenu(catalogSeasons, episodes),
+    [catalogSeasons, episodes],
+  );
   const seasonEpisodes = useMemo(
     () => episodesForSeason(episodes, currentSeason),
     [episodes, currentSeason],

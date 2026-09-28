@@ -3,25 +3,28 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePlayerControlsVisible } from "@/components/player/use-player-controls-visible";
-import {
-  episodesForSeason,
-  findNextEpisode,
-  seasonNumbersForMenu,
-  type SeriesEpisodeOption,
-} from "@/lib/series-nav";
+import { findNextEpisode, seasonNumbersForMenu, type SeriesEpisodeOption } from "@/lib/series-nav";
 import { SkipIntroAction } from "@/components/player/skip-intro-action";
 import { isInSkipIntroSegment, type SkipIntroSegment } from "@/lib/skip-intro";
 import { cn } from "@/lib/utils";
 
 type SeriesPlayerChromeProps = {
   mediaPath: string;
+  /** Playing episode identity (from playback.series). */
   currentSeason: number;
   currentEpisode: number;
   showName: string;
-  episodes: SeriesEpisodeOption[];
-  /** Season numbers from show catalog (preferred over inferring from loaded episodes). */
+  /** Season whose episode list is shown in the episode menu (browse, not play). */
+  menuSeason: number;
+  /** Episodes for `menuSeason` only. */
+  menuEpisodes: SeriesEpisodeOption[];
+  /** Playing season + next season (for Next / end-of-season dialog). */
+  navEpisodes: SeriesEpisodeOption[];
   catalogSeasons?: number[];
   seasonsLoading?: boolean;
+  /** Browse another season’s episode list — does not navigate. */
+  onBrowseSeason: (season: number) => void;
+  /** Navigate only when the user picks an episode. */
   onSelectEpisode: (path: string) => void;
   onUploadSubtitle?: (file: File) => Promise<void>;
   uploadBusy?: boolean;
@@ -49,9 +52,12 @@ export function SeriesPlayerChrome({
   currentSeason,
   currentEpisode,
   showName,
-  episodes,
+  menuSeason,
+  menuEpisodes,
+  navEpisodes,
   catalogSeasons,
   seasonsLoading,
+  onBrowseSeason,
   onSelectEpisode,
   onUploadSubtitle,
   uploadBusy,
@@ -66,14 +72,10 @@ export function SeriesPlayerChrome({
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
   const seasons = useMemo(
-    () => seasonNumbersForMenu(catalogSeasons, episodes),
-    [catalogSeasons, episodes],
+    () => seasonNumbersForMenu(catalogSeasons, navEpisodes),
+    [catalogSeasons, navEpisodes],
   );
-  const seasonEpisodes = useMemo(
-    () => episodesForSeason(episodes, currentSeason),
-    [episodes, currentSeason],
-  );
-  const nav = useMemo(() => findNextEpisode(episodes, mediaPath), [episodes, mediaPath]);
+  const nav = useMemo(() => findNextEpisode(navEpisodes, mediaPath), [navEpisodes, mediaPath]);
 
   const nearEnd = useMemo(() => {
     if (ended) {
@@ -103,8 +105,11 @@ export function SeriesPlayerChrome({
   const endKey = `${mediaPath}:${ended ? "1" : "0"}:${congratsKind ?? "none"}`;
   const congratsOpen = congratsKind !== null && dismissedKey !== endKey;
 
-  const seasonLabel = t("player.seasonValue", { number: currentSeason });
-  const episodeLabel = t("player.episodeValue", { number: currentEpisode });
+  const seasonLabel = t("player.seasonValue", { number: menuSeason });
+  const episodeLabel =
+    menuSeason === currentSeason
+      ? t("player.episodeValue", { number: currentEpisode })
+      : t("player.episodeMenu");
 
   return (
     <>
@@ -129,12 +134,11 @@ export function SeriesPlayerChrome({
                 <Menu.Content className="sudostream-series-chrome__menu-content">
                   <Menu.RadioGroup
                     className="sudostream-series-chrome__group"
-                    value={String(currentSeason)}
+                    value={String(menuSeason)}
                     onValueChange={(value) => {
                       const season = Number(value);
-                      const first = episodesForSeason(episodes, season)[0];
-                      if (first) {
-                        onSelectEpisode(first.path);
+                      if (Number.isFinite(season)) {
+                        onBrowseSeason(season);
                       }
                     }}
                   >
@@ -160,7 +164,7 @@ export function SeriesPlayerChrome({
               <Menu.Trigger
                 className="sudostream-series-chrome__trigger"
                 aria-label={t("player.episodeMenu")}
-                disabled={seasonsLoading || seasonEpisodes.length === 0}
+                disabled={seasonsLoading || menuEpisodes.length === 0}
                 render={<button type="button" />}
               >
                 {episodeLabel}
@@ -179,7 +183,7 @@ export function SeriesPlayerChrome({
                     <Menu.GroupLabel className="sudostream-series-chrome__label">
                       {t("player.episodeMenu")}
                     </Menu.GroupLabel>
-                    {seasonEpisodes.map((ep) => (
+                    {menuEpisodes.map((ep) => (
                       <Menu.RadioItem
                         key={ep.path}
                         className="sudostream-series-chrome__item"

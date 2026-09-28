@@ -274,7 +274,9 @@ type SeriesEpisodeIdentity struct {
 	Episode  int
 }
 
-// ResolveSeriesEpisode returns series position when the path resolves to S/E.
+// ResolveSeriesEpisode returns series position for a path in a series library.
+// When season/episode cannot be parsed (specials / extras), they default to 0 so
+// player chrome still mounts and can browse other seasons of the same show.
 func (s *Service) ResolveSeriesEpisode(
 	ctx context.Context,
 	libraryType access.LibraryType,
@@ -285,15 +287,23 @@ func (s *Service) ResolveSeriesEpisode(
 	}
 
 	resolved := s.resolveSeries(ctx, libraryType, relPath)
-	if resolved.showKey == "" || resolved.season == nil || resolved.episode == nil {
+	if resolved.showKey == "" {
 		return SeriesEpisodeIdentity{}, false
+	}
+
+	season, episode := 0, 0
+	if resolved.season != nil {
+		season = *resolved.season
+	}
+	if resolved.episode != nil {
+		episode = *resolved.episode
 	}
 
 	return SeriesEpisodeIdentity{
 		ShowKey:  resolved.showKey,
 		ShowName: resolved.show,
-		Season:   *resolved.season,
-		Episode:  *resolved.episode,
+		Season:   season,
+		Episode:  episode,
 	}, true
 }
 

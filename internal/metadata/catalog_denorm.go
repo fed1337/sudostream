@@ -61,11 +61,22 @@ func CatalogDenormFrom( //nolint:cyclop // film vs series identity branches
 			sortTitle = basename
 		}
 		episodeTitle := strings.TrimSpace(derefString(effective.EpisodeTitle))
+		season := effective.Season
+		episode := effective.Episode
+		// Match catalog season-0 bucket for specials with a show but no S/E parse.
+		if showKey != "" && season == nil {
+			zero := 0
+			season = &zero
+		}
+		if showKey != "" && episode == nil {
+			zero := 0
+			episode = &zero
+		}
 
 		return CatalogDenorm{
 			ShowKey:      showKey,
-			Season:       effective.Season,
-			Episode:      effective.Episode,
+			Season:       season,
+			Episode:      episode,
 			SortTitle:    sortTitle,
 			EpisodeTitle: episodeTitle,
 			DisplayName:  display,

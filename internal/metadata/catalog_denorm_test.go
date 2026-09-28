@@ -50,6 +50,25 @@ func TestCatalogDenormFrom_OverrideShowWins(t *testing.T) {
 	})
 }
 
+func TestCatalogDenormFrom_SeriesSpecialDefaultsSeasonZero(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "series special without S/E denorms to season 0 for catalog bucket", func(a *allure.Context) {
+		t := a.T()
+		path := "cartoons/Walter Lantz/Andy Panda/Andy Panda - Andy Panda's Pop.avi"
+		got := CatalogDenormFrom(access.LibraryTypeSeries, path, VideoFields{}, StoredOverride{})
+		if got.ShowKey != "andy-panda" {
+			t.Fatalf("showKey: got %q", got.ShowKey)
+		}
+		if got.Season == nil || *got.Season != 0 {
+			t.Fatalf("season: got %v", got.Season)
+		}
+		if got.Episode == nil || *got.Episode != 0 {
+			t.Fatalf("episode: got %v", got.Episode)
+		}
+	})
+}
+
 func TestCatalogDenormFrom_FilmTitleYear(t *testing.T) {
 	t.Parallel()
 

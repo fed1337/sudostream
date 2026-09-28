@@ -128,10 +128,13 @@ export function SeriesPlayerChrome({
   const endKey = `${mediaPath}:${ended ? "1" : "0"}:${congratsKind ?? "none"}`;
   const congratsOpen = congratsKind !== null && dismissedKey !== endKey;
 
-  const seasonLabel = t("player.seasonValue", { number: menuSeason });
+  const seasonLabel =
+    menuSeason === 0 ? t("catalog.seasonUnknown") : t("player.seasonValue", { number: menuSeason });
   const episodeLabel =
     menuSeason === currentSeason
-      ? t("player.episodeValue", { number: currentEpisode })
+      ? currentEpisode === 0
+        ? t("player.episodeMenu")
+        : t("player.episodeValue", { number: currentEpisode })
       : t("player.episodeMenu");
 
   return (
@@ -177,7 +180,9 @@ export function SeriesPlayerChrome({
                             value={String(season)}
                           >
                             <Menu.ItemIndicator className="sudostream-series-chrome__indicator" />
-                            {t("player.seasonValue", { number: season })}
+                            {season === 0
+                              ? t("catalog.seasonUnknown")
+                              : t("player.seasonValue", { number: season })}
                           </Menu.RadioItem>
                         ))}
                       </Menu.RadioGroup>
@@ -217,7 +222,9 @@ export function SeriesPlayerChrome({
                             value={ep.path}
                           >
                             <Menu.ItemIndicator className="sudostream-series-chrome__indicator" />
-                            {t("player.episodeValue", { number: ep.episode })}
+                            {ep.episode === 0
+                              ? ep.title || t("player.episodeMenu")
+                              : t("player.episodeValue", { number: ep.episode })}
                           </Menu.RadioItem>
                         ))}
                       </Menu.RadioGroup>

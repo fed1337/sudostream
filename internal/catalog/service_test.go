@@ -139,6 +139,18 @@ func TestService_SeriesGroupAndShow(t *testing.T) { //nolint:cyclop // multi-ass
 		if filmOK {
 			t.Fatal("film library must not resolve series identity")
 		}
+
+		special, specialOK := svc.ResolveSeriesEpisode(
+			context.Background(),
+			access.LibraryTypeSeries,
+			"series/Andy Panda/Andy Panda - Andy Panda's Pop [SATRip-Rus].avi",
+		)
+		if !specialOK || special.ShowKey == "" {
+			t.Fatalf("special without S/E must still resolve show: ok=%v %+v", specialOK, special)
+		}
+		if special.Season != 0 || special.Episode != 0 {
+			t.Fatalf("special without S/E should default to S0E0, got %+v", special)
+		}
 	})
 }
 

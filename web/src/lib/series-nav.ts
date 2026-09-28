@@ -11,6 +11,16 @@ export type SeriesNavResult = {
   seriesComplete: boolean;
 };
 
+/** Normalize media paths for equality (route params vs catalog JSON). */
+export function normalizeMediaPath(path: string): string {
+  const trimmed = path.replace(/^\/+/, "").replaceAll("\\", "/");
+  try {
+    return decodeURIComponent(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
 /** Flat list of episodes sorted by season then episode number. */
 export function sortEpisodes(episodes: SeriesEpisodeOption[]): SeriesEpisodeOption[] {
   return [...episodes].sort((a, b) => {
@@ -26,7 +36,8 @@ export function findNextEpisode(
   currentPath: string,
 ): SeriesNavResult {
   const sorted = sortEpisodes(episodes);
-  const index = sorted.findIndex((ep) => ep.path === currentPath);
+  const needle = normalizeMediaPath(currentPath);
+  const index = sorted.findIndex((ep) => normalizeMediaPath(ep.path) === needle);
   if (index < 0) {
     return { next: null, seasonComplete: false, seriesComplete: false };
   }
@@ -48,4 +59,16 @@ export function episodesForSeason(
 
 export function uniqueSeasons(episodes: SeriesEpisodeOption[]): number[] {
   return [...new Set(episodes.map((ep) => ep.season))].sort((a, b) => a - b);
+}
+
+/** Prefer catalog season headers; fall back to seasons inferred from loaded episodes. */
+export function seasonNumbersForMenu(
+  catalogSeasons: number[] | undefined,
+  episodes: SeriesEpisodeOption[],
+): number[] {
+  if (catalogSeasons && catalogSeasons.length > 0) {
+    return [...new Set(catalogSeasons)].sort((a, b) => a - b);
+  }
+
+  return uniqueSeasons(episodes);
 }

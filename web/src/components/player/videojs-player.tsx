@@ -37,6 +37,7 @@ type SeriesChrome = {
   episode: number;
   showName: string;
   episodes: SeriesEpisodeOption[];
+  catalogSeasons?: number[];
   seasonsLoading?: boolean;
   onSelectEpisode: (path: string) => void;
 };
@@ -190,6 +191,7 @@ export function VideoJSPlayer({
                 currentEpisode={seriesChrome.episode}
                 showName={seriesChrome.showName}
                 episodes={seriesChrome.episodes}
+                catalogSeasons={seriesChrome.catalogSeasons}
                 seasonsLoading={seriesChrome.seasonsLoading}
                 onSelectEpisode={seriesChrome.onSelectEpisode}
                 onUploadSubtitle={onUploadSubtitle}

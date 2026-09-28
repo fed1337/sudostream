@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"sudoStream/internal/access"
 	"sudoStream/internal/auth"
@@ -28,9 +27,28 @@ type MetadataReader interface {
 	Get(ctx context.Context, rawPath string) (metadata.MetadataResponse, error)
 }
 
-// IndexedPathLister lists indexed video paths for a library (DB only; no FS walk).
-type IndexedPathLister interface {
-	ListIndexedPaths(ctx context.Context, libraryID string) ([]string, error)
+// Index lists film/series catalog pages from denorm SQL columns (E-33).
+type Index interface {
+	ListCatalogMoviesPage(
+		ctx context.Context,
+		libraryID string,
+		limit, offset int,
+	) ([]metadata.CatalogMovieRow, int, error)
+	ListCatalogShowsPage(
+		ctx context.Context,
+		libraryID string,
+		limit, offset int,
+	) ([]metadata.CatalogShowRow, int, error)
+	GetCatalogShowAgg(
+		ctx context.Context,
+		libraryID, showKey string,
+	) (metadata.CatalogShowAgg, bool, error)
+	CatalogShowExists(ctx context.Context, libraryID, showKey string) (bool, error)
+	ListCatalogSeasonEpisodes(
+		ctx context.Context,
+		libraryID, showKey string,
+		season, limit, offset int,
+	) ([]metadata.CatalogEpisodeRow, int, error)
 }
 
 // AccessGateway resolves libraries and read ACL.
@@ -44,23 +62,23 @@ type PosterIndex interface {
 	PosterPaths(ctx context.Context, libraryID string) (map[string]struct{}, error)
 }
 
-// Service builds film/series catalogs from the metadata index (no request-time FS walks).
+// Service builds film/series catalogs from denorm metadata columns (no library-wide scans).
 type Service struct {
-	paths    IndexedPathLister
+	index    Index
 	access   AccessGateway
 	metadata MetadataReader
 	posters  PosterIndex
 }
 
 // NewService constructs a catalog service.
-// paths must list indexed media rows (typically metadata.Service.ListIndexedPaths).
+// index must implement denorm list/agg queries (typically metadata.Service).
 func NewService(
-	paths IndexedPathLister,
+	index Index,
 	accessService AccessGateway,
 	metadataService MetadataReader,
 ) *Service {
 	return &Service{
-		paths:    paths,
+		index:    index,
 		access:   accessService,
 		metadata: metadataService,
 	}
@@ -135,15 +153,39 @@ func (s *Service) GetShow(
 	if library.Type != access.LibraryTypeSeries {
 		return ShowDetail{}, ErrUnsupportedType
 	}
-
-	videos, err := s.listVideoPaths(ctx, library.ID)
-	if err != nil {
-		return ShowDetail{}, err
+	if s.index == nil {
+		return ShowDetail{}, ErrShowNotFound
 	}
 
-	detail, ok := s.aggregateShow(ctx, library, showKey, videos)
+	agg, ok, aggErr := s.index.GetCatalogShowAgg(ctx, library.ID, showKey)
+	if aggErr != nil {
+		return ShowDetail{}, fmt.Errorf("catalog show: %w", aggErr)
+	}
 	if !ok {
 		return ShowDetail{}, ErrShowNotFound
+	}
+
+	detail := ShowDetail{
+		ShowKey:      agg.ShowKey,
+		Name:         agg.Name,
+		PosterPath:   agg.PosterPath,
+		SeasonCount:  len(agg.Seasons),
+		EpisodeCount: 0,
+		Seasons:      make([]SeasonSummary, 0, len(agg.Seasons)),
+	}
+	if detail.Name == "" {
+		detail.Name = showKey
+	}
+	for _, season := range agg.Seasons {
+		detail.EpisodeCount += season.EpisodeCount
+		detail.Seasons = append(detail.Seasons, SeasonSummary{
+			Season:       season.Season,
+			EpisodeCount: season.EpisodeCount,
+		})
+	}
+	if agg.PosterPath != "" {
+		detail.Actions = videoActions(agg.PosterPath)
+		detail.PosterURL = providerPosterURL(s.posterPaths(ctx, library), agg.PosterPath)
 	}
 
 	return detail, nil
@@ -151,7 +193,7 @@ func (s *Service) GetShow(
 
 // ListSeasonEpisodes returns episodes for a show season.
 // When limit is unset (≤0), the full season is returned (accordion load).
-func (s *Service) ListSeasonEpisodes(
+func (s *Service) ListSeasonEpisodes( //nolint:cyclop // ACL + existence + page opts + row map
 	ctx context.Context,
 	user auth.PublicUser,
 	librarySlug, showKey string,
@@ -165,45 +207,63 @@ func (s *Service) ListSeasonEpisodes(
 	if library.Type != access.LibraryTypeSeries {
 		return SeasonEpisodes{}, ErrUnsupportedType
 	}
-
-	videos, err := s.listVideoPaths(ctx, library.ID)
-	if err != nil {
-		return SeasonEpisodes{}, err
-	}
-
-	matchedShow := false
-	episodes := make([]Episode, 0)
-	posters := s.posterPaths(ctx, library)
-	for _, relPath := range videos {
-		identity := s.resolveSeries(ctx, library.Type, relPath)
-		if identity.showKey != showKey {
-			continue
-		}
-		matchedShow = true
-		seasonNum := 0
-		if identity.season != nil {
-			seasonNum = *identity.season
-		}
-		if seasonNum != season {
-			continue
-		}
-		episodes = append(episodes, Episode{
-			Path:         relPath,
-			Title:        identity.display,
-			Season:       identity.season,
-			Episode:      identity.episode,
-			EpisodeTitle: identity.episodeTitle,
-			PosterURL:    providerPosterURL(posters, relPath),
-			Actions:      videoActions(relPath),
-		})
-	}
-	if !matchedShow {
+	if s.index == nil {
 		return SeasonEpisodes{}, ErrShowNotFound
 	}
 
-	sortEpisodes(episodes)
+	exists, existsErr := s.index.CatalogShowExists(ctx, library.ID, showKey)
+	if existsErr != nil {
+		return SeasonEpisodes{}, fmt.Errorf("catalog show exists: %w", existsErr)
+	}
+	if !exists {
+		return SeasonEpisodes{}, ErrShowNotFound
+	}
 
-	return pageSeasonEpisodes(season, episodes, opts), nil
+	limit, offset := 0, opts.Offset
+	if opts.Limit > 0 {
+		opts = mediafs.NormalizePageOpts(opts)
+		limit, offset = opts.Limit, opts.Offset
+	} else if offset < 0 {
+		offset = 0
+	}
+
+	rows, total, listErr := s.index.ListCatalogSeasonEpisodes(
+		ctx, library.ID, showKey, season, limit, offset,
+	)
+	if listErr != nil {
+		return SeasonEpisodes{}, fmt.Errorf("catalog season episodes: %w", listErr)
+	}
+
+	posters := s.posterPaths(ctx, library)
+	episodes := make([]Episode, 0, len(rows))
+	for _, row := range rows {
+		title := row.Title
+		if title == "" {
+			title = filepath.Base(row.RelPath)
+		}
+		episodes = append(episodes, Episode{
+			Path:         row.RelPath,
+			Title:        title,
+			Season:       row.Season,
+			Episode:      row.Episode,
+			EpisodeTitle: row.EpisodeTitle,
+			PosterURL:    providerPosterURL(posters, row.RelPath),
+			Actions:      videoActions(row.RelPath),
+		})
+	}
+
+	outLimit := limit
+	if outLimit <= 0 {
+		outLimit = total
+	}
+
+	return SeasonEpisodes{
+		Season:   season,
+		Episodes: episodes,
+		Total:    total,
+		Limit:    outLimit,
+		Offset:   offset,
+	}, nil
 }
 
 // SeriesEpisodeIdentity is show/season/episode for a path in a series library.
@@ -237,110 +297,6 @@ func (s *Service) ResolveSeriesEpisode(
 	}, true
 }
 
-func (s *Service) aggregateShow( //nolint:cyclop // season map + poster pick for one show
-	ctx context.Context,
-	library access.Library,
-	showKey string,
-	videos []string,
-) (ShowDetail, bool) {
-	detail := ShowDetail{ShowKey: showKey}
-	seasonCounts := map[int]int{}
-	posterPath := ""
-	for _, relPath := range videos {
-		identity := s.resolveSeries(ctx, library.Type, relPath)
-		if identity.showKey != showKey {
-			continue
-		}
-		if detail.Name == "" {
-			detail.Name = identity.show
-		}
-		if posterPath == "" || relPath < posterPath {
-			posterPath = relPath
-		}
-		seasonNum := 0
-		if identity.season != nil {
-			seasonNum = *identity.season
-		}
-		seasonCounts[seasonNum]++
-	}
-	if detail.Name == "" && len(seasonCounts) == 0 {
-		return ShowDetail{}, false
-	}
-	if detail.Name == "" {
-		detail.Name = showKey
-	}
-	fillShowSeasons(&detail, seasonCounts)
-	detail.PosterPath = posterPath
-	if posterPath != "" {
-		detail.Actions = videoActions(posterPath)
-		detail.PosterURL = providerPosterURL(s.posterPaths(ctx, library), posterPath)
-	}
-
-	return detail, true
-}
-
-func fillShowSeasons(detail *ShowDetail, seasonCounts map[int]int) {
-	seasonNums := make([]int, 0, len(seasonCounts))
-	episodeTotal := 0
-	for seasonNum, count := range seasonCounts {
-		seasonNums = append(seasonNums, seasonNum)
-		episodeTotal += count
-	}
-	sort.Ints(seasonNums)
-	for _, seasonNum := range seasonNums {
-		detail.Seasons = append(detail.Seasons, SeasonSummary{
-			Season:       seasonNum,
-			EpisodeCount: seasonCounts[seasonNum],
-		})
-	}
-	detail.SeasonCount = len(seasonNums)
-	detail.EpisodeCount = episodeTotal
-}
-
-func pageSeasonEpisodes(season int, episodes []Episode, opts mediafs.PageOpts) SeasonEpisodes {
-	if opts.Limit <= 0 {
-		if opts.Offset < 0 {
-			opts.Offset = 0
-		}
-
-		return SeasonEpisodes{
-			Season:   season,
-			Episodes: episodes,
-			Total:    len(episodes),
-			Limit:    len(episodes),
-			Offset:   opts.Offset,
-		}
-	}
-
-	opts = mediafs.NormalizePageOpts(opts)
-	page, meta := mediafs.SlicePage(episodes, opts)
-
-	return SeasonEpisodes{
-		Season:   season,
-		Episodes: page,
-		Total:    meta.Total,
-		Limit:    meta.Limit,
-		Offset:   meta.Offset,
-	}
-}
-
-func sortEpisodes(episodes []Episode) {
-	sort.Slice(episodes, func(left, right int) bool {
-		ei, ej := episodes[left].Episode, episodes[right].Episode
-		if ei != nil && ej != nil && *ei != *ej {
-			return *ei < *ej
-		}
-		if ei != nil && ej == nil {
-			return true
-		}
-		if ei == nil && ej != nil {
-			return false
-		}
-
-		return episodes[left].Path < episodes[right].Path
-	})
-}
-
 func (s *Service) libraryBySlug(
 	ctx context.Context,
 	user auth.PublicUser,
@@ -366,45 +322,37 @@ func (s *Service) libraryBySlug(
 	return access.Library{}, ErrLibraryNotFound
 }
 
-type slimMovie struct {
-	path  string
-	title string
-	year  *int
-}
-
 func (s *Service) listMoviesPage(
 	ctx context.Context,
 	library access.Library,
 	opts mediafs.PageOpts,
 ) ([]Movie, int, error) {
-	paths, err := s.listVideoPaths(ctx, library.ID)
+	if s.index == nil {
+		return nil, 0, nil
+	}
+
+	rows, total, err := s.index.ListCatalogMoviesPage(ctx, library.ID, opts.Limit, opts.Offset)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("list catalog movies: %w", err)
 	}
 
-	slim := make([]slimMovie, 0, len(paths))
-	for _, relPath := range paths {
-		title, year := s.resolveFilm(ctx, library.Type, relPath)
-		slim = append(slim, slimMovie{path: relPath, title: title, year: year})
-	}
-	sort.Slice(slim, func(i, j int) bool {
-		return strings.ToLower(slim[i].title) < strings.ToLower(slim[j].title)
-	})
-
-	pageSlim, meta := mediafs.SlicePage(slim, opts)
 	posters := s.posterPaths(ctx, library)
-	movies := make([]Movie, 0, len(pageSlim))
-	for _, entry := range pageSlim {
+	movies := make([]Movie, 0, len(rows))
+	for _, row := range rows {
+		title := row.Title
+		if title == "" {
+			title = filepath.Base(row.RelPath)
+		}
 		movies = append(movies, Movie{
-			Path:      entry.path,
-			Title:     entry.title,
-			Year:      entry.year,
-			PosterURL: providerPosterURL(posters, entry.path),
-			Actions:   videoActions(entry.path),
+			Path:      row.RelPath,
+			Title:     title,
+			Year:      row.Year,
+			PosterURL: providerPosterURL(posters, row.RelPath),
+			Actions:   videoActions(row.RelPath),
 		})
 	}
 
-	return movies, meta.Total, nil
+	return movies, total, nil
 }
 
 // posterPaths loads the library's cached provider posters in one query so cards can prefer
@@ -430,123 +378,35 @@ func providerPosterURL(posters map[string]struct{}, relPath string) string {
 	return "/api/provider-poster/" + mediafs.EscapePathSegments(relPath)
 }
 
-type slimShow struct {
-	key          string
-	name         string
-	seasonCount  int
-	episodeCount int
-	posterPath   string
-}
-
 func (s *Service) listShowsPage(
 	ctx context.Context,
 	library access.Library,
 	opts mediafs.PageOpts,
 ) ([]ShowSummary, int, error) {
-	paths, err := s.listVideoPaths(ctx, library.ID)
+	if s.index == nil {
+		return nil, 0, nil
+	}
+
+	rows, total, err := s.index.ListCatalogShowsPage(ctx, library.ID, opts.Limit, opts.Offset)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("list catalog shows: %w", err)
 	}
 
-	type agg struct {
-		name         string
-		seasons      map[int]struct{}
-		episodeCount int
-		posterPath   string
-	}
-	byKey := map[string]*agg{}
-	for _, relPath := range paths {
-		identity := s.resolveSeries(ctx, library.Type, relPath)
-		if identity.showKey == "" {
-			continue
-		}
-		entry, ok := byKey[identity.showKey]
-		if !ok {
-			entry = &agg{
-				name:       identity.show,
-				seasons:    map[int]struct{}{},
-				posterPath: relPath,
-			}
-			byKey[identity.showKey] = entry
-		}
-		entry.episodeCount++
-		if identity.season != nil {
-			entry.seasons[*identity.season] = struct{}{}
-		} else {
-			entry.seasons[0] = struct{}{}
-		}
-		if relPath < entry.posterPath {
-			entry.posterPath = relPath
-		}
-	}
-
-	slim := make([]slimShow, 0, len(byKey))
-	for key, entry := range byKey {
-		slim = append(slim, slimShow{
-			key:          key,
-			name:         entry.name,
-			seasonCount:  len(entry.seasons),
-			episodeCount: entry.episodeCount,
-			posterPath:   entry.posterPath,
-		})
-	}
-	sort.Slice(slim, func(i, j int) bool {
-		return strings.ToLower(slim[i].name) < strings.ToLower(slim[j].name)
-	})
-
-	pageSlim, meta := mediafs.SlicePage(slim, opts)
 	posters := s.posterPaths(ctx, library)
-	shows := make([]ShowSummary, 0, len(pageSlim))
-	for _, entry := range pageSlim {
+	shows := make([]ShowSummary, 0, len(rows))
+	for _, row := range rows {
 		shows = append(shows, ShowSummary{
-			ShowKey:      entry.key,
-			Name:         entry.name,
-			SeasonCount:  entry.seasonCount,
-			EpisodeCount: entry.episodeCount,
-			PosterPath:   entry.posterPath,
-			PosterURL:    providerPosterURL(posters, entry.posterPath),
-			Actions:      videoActions(entry.posterPath),
+			ShowKey:      row.ShowKey,
+			Name:         row.Name,
+			SeasonCount:  row.SeasonCount,
+			EpisodeCount: row.EpisodeCount,
+			PosterPath:   row.PosterPath,
+			PosterURL:    providerPosterURL(posters, row.PosterPath),
+			Actions:      videoActions(row.PosterPath),
 		})
 	}
 
-	return shows, meta.Total, nil
-}
-
-func (s *Service) listVideoPaths(ctx context.Context, libraryID string) ([]string, error) {
-	if s == nil || s.paths == nil || libraryID == "" {
-		return nil, nil
-	}
-
-	paths, err := s.paths.ListIndexedPaths(ctx, libraryID)
-	if err != nil {
-		return nil, fmt.Errorf("list indexed library videos: %w", err)
-	}
-
-	return paths, nil
-}
-
-func (s *Service) resolveFilm(
-	ctx context.Context,
-	libraryType access.LibraryType,
-	relPath string,
-) (string, *int) {
-	if s.metadata != nil {
-		response, err := s.metadata.Get(ctx, relPath)
-		if err == nil {
-			title := response.DisplayName
-			if response.Effective.Title != nil &&
-				strings.TrimSpace(*response.Effective.Title) != "" {
-				title = strings.TrimSpace(*response.Effective.Title)
-			}
-
-			return title, response.Effective.Year
-		}
-	}
-
-	identity := metadata.ParseFilmIdentity(relPath)
-	_ = libraryType
-
-	return identity.Title, identity.Year
+	return shows, total, nil
 }
 
 type seriesResolved struct {
@@ -570,8 +430,6 @@ func (s *Service) resolveSeries(
 	}
 
 	parsed := metadata.ParseSeriesIdentity(relPath)
-	// Effective already merges file tags + path heuristics; fall back to path then Original
-	// so embedded tags still surface when the filename cannot be parsed.
 	show := firstNonEmptyString(
 		trimPtr(response.Effective.Show),
 		parsed.Show,

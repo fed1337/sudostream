@@ -347,6 +347,92 @@ func TestStore_Search_SceneRelease( //nolint:cyclop,paralleltest // integration 
 	)
 }
 
+func TestStore_CatalogDenormQueries( //nolint:cyclop,funlen,paralleltest // integration denorm list/agg
+	t *testing.T,
+) {
+	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
+		t.Skip("SUDOSTREAM_DATABASE_URL not set")
+	}
+
+	allure.Test(
+		t,
+		"catalog denorm columns support film page and series season episode queries",
+		func(a *allure.Context) {
+			t := a.T()
+			ctx := context.Background()
+			database := setupMetadataTestDatabase(ctx, t)
+			accessStore := accesspostgres.NewStore(database.GORM)
+			store := NewStore(database.GORM)
+			now := time.Now().UTC()
+
+			films, err := accessStore.UpsertLibrary(ctx, access.Library{
+				Slug: "films-denorm", RelPath: "films-denorm", Name: "Films",
+				Type: access.LibraryTypeFilm,
+			})
+			if err != nil {
+				t.Fatalf("upsert films: %v", err)
+			}
+			series, err := accessStore.UpsertLibrary(ctx, access.Library{
+				Slug: "series-denorm", RelPath: "series-denorm", Name: "Series",
+				Type: access.LibraryTypeSeries,
+			})
+			if err != nil {
+				t.Fatalf("upsert series: %v", err)
+			}
+
+			err = store.UpsertOriginal(
+				ctx, films.ID, "films-denorm/Blow.2001.mkv",
+				metadata.VideoFields{}, now, 10, now,
+			)
+			if err != nil {
+				t.Fatalf("upsert film: %v", err)
+			}
+			movies, total, err := store.ListCatalogMoviesPage(ctx, films.ID, 20, 0)
+			if err != nil || total != 1 || len(movies) != 1 {
+				t.Fatalf("movies=%+v total=%d err=%v", movies, total, err)
+			}
+			if movies[0].Title == "" {
+				t.Fatal("expected denorm film title")
+			}
+
+			ep1 := "series-denorm/Melrose Place/Melrose Place 1х01.mkv"
+			ep2 := "series-denorm/Melrose Place/Melrose Place 1х02.mkv"
+			for _, rel := range []string{ep1, ep2} {
+				err = store.UpsertOriginal(ctx, series.ID, rel, metadata.VideoFields{}, now, 10, now)
+				if err != nil {
+					t.Fatalf("upsert episode %s: %v", rel, err)
+				}
+			}
+
+			shows, showTotal, err := store.ListCatalogShowsPage(ctx, series.ID, 20, 0)
+			if err != nil || showTotal != 1 || len(shows) != 1 {
+				t.Fatalf("shows=%+v total=%d err=%v", shows, showTotal, err)
+			}
+			showKey := shows[0].ShowKey
+			if showKey == "" {
+				t.Fatal("expected show key")
+			}
+
+			agg, ok, err := store.GetCatalogShowAgg(ctx, series.ID, showKey)
+			if err != nil || !ok || len(agg.Seasons) != 1 {
+				t.Fatalf("agg=%+v ok=%v err=%v", agg, ok, err)
+			}
+
+			exists, err := store.CatalogShowExists(ctx, series.ID, showKey)
+			if err != nil || !exists {
+				t.Fatalf("exists=%v err=%v", exists, err)
+			}
+
+			episodes, epTotal, err := store.ListCatalogSeasonEpisodes(
+				ctx, series.ID, showKey, 1, 0, 0,
+			)
+			if err != nil || epTotal != 2 || len(episodes) != 2 {
+				t.Fatalf("episodes=%+v total=%d err=%v", episodes, epTotal, err)
+			}
+		},
+	)
+}
+
 // setupMetadataTestDatabase provisions an isolated Postgres schema per test.
 func setupMetadataTestDatabase(ctx context.Context, t *testing.T) *db.Database {
 	t.Helper()

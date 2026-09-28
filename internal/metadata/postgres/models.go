@@ -9,16 +9,23 @@ import (
 )
 
 type metadataModel struct {
-	LibraryID      string         `gorm:"column:library_id;primaryKey;type:uuid"`
-	RelPath        string         `gorm:"column:rel_path;primaryKey"`
-	OriginalRaw    datatypes.JSON `gorm:"column:original_fields"`
-	OverrideRaw    datatypes.JSON `gorm:"column:override_fields"`
-	FileMtime      *time.Time     `gorm:"column:file_mtime"`
-	FileSize       *int64         `gorm:"column:file_size"`
-	ProbedAt       *time.Time     `gorm:"column:probed_at"`
-	OverrideAt     *time.Time     `gorm:"column:override_updated_at"`
-	OverriddenBy   *string        `gorm:"column:overridden_by"`
-	SearchDocument string         `gorm:"column:search_document"`
+	LibraryID           string         `gorm:"column:library_id;primaryKey;type:uuid"`
+	RelPath             string         `gorm:"column:rel_path;primaryKey"`
+	OriginalRaw         datatypes.JSON `gorm:"column:original_fields"`
+	OverrideRaw         datatypes.JSON `gorm:"column:override_fields"`
+	FileMtime           *time.Time     `gorm:"column:file_mtime"`
+	FileSize            *int64         `gorm:"column:file_size"`
+	ProbedAt            *time.Time     `gorm:"column:probed_at"`
+	OverrideAt          *time.Time     `gorm:"column:override_updated_at"`
+	OverriddenBy        *string        `gorm:"column:overridden_by"`
+	SearchDocument      string         `gorm:"column:search_document"`
+	CatalogShowKey      string         `gorm:"column:catalog_show_key"`
+	CatalogSeason       *int           `gorm:"column:catalog_season"`
+	CatalogEpisode      *int           `gorm:"column:catalog_episode"`
+	CatalogSortTitle    string         `gorm:"column:catalog_sort_title"`
+	CatalogYear         *int           `gorm:"column:catalog_year"`
+	CatalogEpisodeTitle string         `gorm:"column:catalog_episode_title"`
+	CatalogDisplayName  string         `gorm:"column:catalog_display_name"`
 }
 
 func (metadataModel) TableName() string {

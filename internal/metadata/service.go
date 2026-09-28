@@ -559,6 +559,30 @@ type Repository interface {
 	ListActiveIndexedPaths(ctx context.Context, libraryID string) ([]string, error)
 }
 
+// catalogStore is implemented by the Postgres metadata store for E-33 denorm queries.
+type catalogStore interface {
+	ListCatalogMoviesPage(
+		ctx context.Context,
+		libraryID string,
+		limit, offset int,
+	) ([]CatalogMovieRow, int, error)
+	ListCatalogShowsPage(
+		ctx context.Context,
+		libraryID string,
+		limit, offset int,
+	) ([]CatalogShowRow, int, error)
+	GetCatalogShowAgg(
+		ctx context.Context,
+		libraryID, showKey string,
+	) (CatalogShowAgg, bool, error)
+	CatalogShowExists(ctx context.Context, libraryID, showKey string) (bool, error)
+	ListCatalogSeasonEpisodes(
+		ctx context.Context,
+		libraryID, showKey string,
+		season, limit, offset int,
+	) ([]CatalogEpisodeRow, int, error)
+}
+
 // NewService constructs a metadata service.
 func NewService(
 	media *mediafs.Service,
@@ -596,6 +620,116 @@ func (s *Service) ListIndexedPaths(ctx context.Context, libraryID string) ([]str
 	}
 
 	return paths, nil
+}
+
+// ListCatalogMoviesPage returns one film catalog page from denorm columns (E-33).
+func (s *Service) ListCatalogMoviesPage(
+	ctx context.Context,
+	libraryID string,
+	limit, offset int,
+) ([]CatalogMovieRow, int, error) {
+	if s == nil || s.store == nil || libraryID == "" {
+		return nil, 0, nil
+	}
+	store, ok := s.store.(catalogStore)
+	if !ok {
+		return nil, 0, nil
+	}
+
+	rows, total, err := store.ListCatalogMoviesPage(ctx, libraryID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list catalog movies: %w", err)
+	}
+
+	return rows, total, nil
+}
+
+// ListCatalogShowsPage returns one series catalog page from denorm columns (E-33).
+func (s *Service) ListCatalogShowsPage(
+	ctx context.Context,
+	libraryID string,
+	limit, offset int,
+) ([]CatalogShowRow, int, error) {
+	if s == nil || s.store == nil || libraryID == "" {
+		return nil, 0, nil
+	}
+	store, ok := s.store.(catalogStore)
+	if !ok {
+		return nil, 0, nil
+	}
+
+	rows, total, err := store.ListCatalogShowsPage(ctx, libraryID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list catalog shows: %w", err)
+	}
+
+	return rows, total, nil
+}
+
+// GetCatalogShowAgg returns season aggregates for one show_key (E-33).
+func (s *Service) GetCatalogShowAgg(
+	ctx context.Context,
+	libraryID, showKey string,
+) (CatalogShowAgg, bool, error) {
+	if s == nil || s.store == nil || libraryID == "" {
+		return CatalogShowAgg{}, false, nil
+	}
+	store, ok := s.store.(catalogStore)
+	if !ok {
+		return CatalogShowAgg{}, false, nil
+	}
+
+	agg, found, err := store.GetCatalogShowAgg(ctx, libraryID, showKey)
+	if err != nil {
+		return CatalogShowAgg{}, false, fmt.Errorf("get catalog show: %w", err)
+	}
+
+	return agg, found, nil
+}
+
+// CatalogShowExists reports whether an active indexed show_key exists (E-33).
+func (s *Service) CatalogShowExists(
+	ctx context.Context,
+	libraryID, showKey string,
+) (bool, error) {
+	if s == nil || s.store == nil || libraryID == "" {
+		return false, nil
+	}
+	store, ok := s.store.(catalogStore)
+	if !ok {
+		return false, nil
+	}
+
+	found, err := store.CatalogShowExists(ctx, libraryID, showKey)
+	if err != nil {
+		return false, fmt.Errorf("catalog show exists: %w", err)
+	}
+
+	return found, nil
+}
+
+// ListCatalogSeasonEpisodes returns episodes for one show season from denorm (E-33).
+func (s *Service) ListCatalogSeasonEpisodes(
+	ctx context.Context,
+	libraryID, showKey string,
+	season, limit, offset int,
+) ([]CatalogEpisodeRow, int, error) {
+	if s == nil || s.store == nil || libraryID == "" {
+		return nil, 0, nil
+	}
+	store, ok := s.store.(catalogStore)
+	if !ok {
+		return nil, 0, nil
+	}
+
+	rows, total, err := store.ListCatalogSeasonEpisodes(
+		ctx, libraryID, showKey, season, limit, offset,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list catalog season episodes: %w", err)
+	}
+
+	return rows, total, nil
 }
 
 // DeleteForPath removes cached metadata for a media path.

@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"path/filepath"
 	"sudoStream/internal/access"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/mediafs"
@@ -31,32 +30,6 @@ type stubMetadata struct{}
 
 func (stubMetadata) Get(_ context.Context, _ string) (metadata.MetadataResponse, error) {
 	return metadata.MetadataResponse{}, metadata.ErrNotFound
-}
-
-// stubPaths returns fixed indexed paths per library ID (no FS).
-type stubPaths struct {
-	byLibrary map[string][]string
-	err       error
-}
-
-func (s stubPaths) ListIndexedPaths(_ context.Context, libraryID string) ([]string, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	if s.byLibrary == nil {
-		return nil, nil
-	}
-
-	return append([]string(nil), s.byLibrary[libraryID]...), nil
-}
-
-func indexedFilmPaths(slug string, names ...string) stubPaths {
-	paths := make([]string, 0, len(names))
-	for _, name := range names {
-		paths = append(paths, filepath.ToSlash(filepath.Join(slug, name)))
-	}
-
-	return stubPaths{byLibrary: map[string][]string{"1": paths}}
 }
 
 func TestService_ListMovies(t *testing.T) {
@@ -100,13 +73,11 @@ func TestService_SeriesGroupAndShow(t *testing.T) { //nolint:cyclop // multi-ass
 
 	allure.Test(t, "groups season folders into one show from indexed paths", func(a *allure.Context) {
 		t := a.T()
-		paths := stubPaths{byLibrary: map[string][]string{
-			"1": {
-				"series/90210 2008 Season 1 Complete/90210 S01E01 Pilot.mkv",
-				"series/90210 2008 Season 2 Complete/90210 S02E01 Return.mkv",
-			},
-		}}
-		svc := NewService(paths, stubAccess{libraries: []access.Library{{
+		index := indexedSeriesPaths(
+			"series/90210 2008 Season 1 Complete/90210 S01E01 Pilot.mkv",
+			"series/90210 2008 Season 2 Complete/90210 S02E01 Return.mkv",
+		)
+		svc := NewService(index, stubAccess{libraries: []access.Library{{
 			ID: "1", Slug: "series", RelPath: "series", Type: access.LibraryTypeSeries,
 		}}}, stubMetadata{})
 
@@ -210,7 +181,10 @@ func TestService_EmptyUntilIndexed(t *testing.T) {
 	allure.Test(t, "catalog is empty when index has no rows", func(a *allure.Context) {
 		t := a.T()
 		svc := NewService(
-			stubPaths{byLibrary: map[string][]string{"1": {}}},
+			PathCatalogIndex{
+				LibraryType: access.LibraryTypeFilm,
+				ByLibrary:   map[string][]string{"1": {}},
+			},
 			stubAccess{libraries: []access.Library{{
 				ID: "1", Slug: catalogMoviesSlug, RelPath: catalogMoviesSlug, Type: access.LibraryTypeFilm,
 			}}},
@@ -237,9 +211,12 @@ func TestService_ListMoviesFromAllRoots(t *testing.T) {
 	allure.Test(t, "film catalog includes indexed videos from every library root", func(a *allure.Context) {
 		t := a.T()
 		svc := NewService(
-			stubPaths{byLibrary: map[string][]string{
-				"1": {"movies/One.mkv", "extra/Two.mkv"},
-			}},
+			PathCatalogIndex{
+				LibraryType: access.LibraryTypeFilm,
+				ByLibrary: map[string][]string{
+					"1": {"movies/One.mkv", "extra/Two.mkv"},
+				},
+			},
 			stubAccess{libraries: []access.Library{
 				{
 					ID:    "1",

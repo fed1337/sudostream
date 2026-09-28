@@ -40,7 +40,10 @@ func newPosterCatalog(t *testing.T, libraryType access.LibraryType, files []stri
 	}
 
 	return NewService(
-		stubPaths{byLibrary: map[string][]string{"lib-1": indexed}},
+		PathCatalogIndex{
+			LibraryType: libraryType,
+			ByLibrary:   map[string][]string{"lib-1": indexed},
+		},
 		stubAccess{libraries: []access.Library{
 			{ID: "lib-1", Slug: slug, RelPath: slug, Type: libraryType},
 		}},

@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sudoStream/internal/access"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/mediafs"
@@ -63,13 +64,92 @@ func (m metaStub) Get(_ context.Context, rawPath string) (metadata.MetadataRespo
 	return metadata.MetadataResponse{}, metadata.ErrNotFound
 }
 
+// fixedCatalogIndex returns predetermined denorm rows (simulates write-time override identity).
+type fixedCatalogIndex struct {
+	movies   []metadata.CatalogMovieRow
+	shows    []metadata.CatalogShowRow
+	showAggs map[string]metadata.CatalogShowAgg
+	episodes map[string][]metadata.CatalogEpisodeRow
+}
+
+func (f fixedCatalogIndex) ListCatalogMoviesPage(
+	_ context.Context,
+	_ string,
+	limit, offset int,
+) ([]metadata.CatalogMovieRow, int, error) {
+	total := len(f.movies)
+	if offset > total {
+		return nil, total, nil
+	}
+	end := total
+	if limit > 0 {
+		end = min(offset+limit, total)
+	}
+
+	return f.movies[offset:end], total, nil
+}
+
+func (f fixedCatalogIndex) ListCatalogShowsPage(
+	_ context.Context,
+	_ string,
+	limit, offset int,
+) ([]metadata.CatalogShowRow, int, error) {
+	total := len(f.shows)
+	if offset > total {
+		return nil, total, nil
+	}
+	end := total
+	if limit > 0 {
+		end = min(offset+limit, total)
+	}
+
+	return f.shows[offset:end], total, nil
+}
+
+func (f fixedCatalogIndex) GetCatalogShowAgg(
+	_ context.Context,
+	_, showKey string,
+) (metadata.CatalogShowAgg, bool, error) {
+	agg, ok := f.showAggs[showKey]
+
+	return agg, ok, nil
+}
+
+func (f fixedCatalogIndex) CatalogShowExists(
+	_ context.Context,
+	_, showKey string,
+) (bool, error) {
+	_, ok := f.showAggs[showKey]
+
+	return ok, nil
+}
+
+func (f fixedCatalogIndex) ListCatalogSeasonEpisodes(
+	_ context.Context,
+	_, showKey string,
+	season, limit, offset int,
+) ([]metadata.CatalogEpisodeRow, int, error) {
+	key := showKey + "|" + strconv.Itoa(season)
+	rows := f.episodes[key]
+	total := len(rows)
+	if offset > total {
+		return nil, total, nil
+	}
+	end := total
+	if limit > 0 {
+		end = min(offset+limit, total)
+	}
+
+	return rows[offset:end], total, nil
+}
+
 //nolint:gocognit,cyclop,funlen,maintidx // multi-scenario catalog service coverage
 func TestService_ErrorAndMetadataPaths(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(t, "unsupported library type and missing slug", func(a *allure.Context) {
 		t := a.T()
-		svc := NewService(stubPaths{}, stubAccess{libraries: []access.Library{{
+		svc := NewService(PathCatalogIndex{}, stubAccess{libraries: []access.Library{{
 			ID: "1", Slug: "photos", RelPath: "photos", Type: access.LibraryTypePhotos,
 		}}}, stubMetadata{})
 
@@ -84,7 +164,7 @@ func TestService_ErrorAndMetadataPaths(t *testing.T) {
 			t.Fatalf("want ErrLibraryNotFound, got %v", err)
 		}
 
-		_, err = NewService(stubPaths{}, nil, nil).GetLibraryCatalog(
+		_, err = NewService(nil, nil, nil).GetLibraryCatalog(
 			context.Background(),
 			user,
 			"x",
@@ -97,7 +177,7 @@ func TestService_ErrorAndMetadataPaths(t *testing.T) {
 
 	allure.Test(t, "non-admin without can_read is not found", func(a *allure.Context) {
 		t := a.T()
-		svc := NewService(stubPaths{}, denyAccess{libraries: []access.Library{
+		svc := NewService(PathCatalogIndex{}, denyAccess{libraries: []access.Library{
 			{
 				ID:      "1",
 				Slug:    catalogMoviesSlug,
@@ -119,7 +199,7 @@ func TestService_ErrorAndMetadataPaths(t *testing.T) {
 
 	allure.Test(t, "list libraries error wraps", func(a *allure.Context) {
 		t := a.T()
-		svc := NewService(stubPaths{}, failListAccess{}, stubMetadata{})
+		svc := NewService(PathCatalogIndex{}, failListAccess{}, stubMetadata{})
 		_, err := svc.GetLibraryCatalog(
 			context.Background(),
 			auth.PublicUser{Role: auth.RoleAdmin},
@@ -131,13 +211,15 @@ func TestService_ErrorAndMetadataPaths(t *testing.T) {
 		}
 	})
 
-	allure.Test(t, "film metadata title and year preferred", func(a *allure.Context) {
+	allure.Test(t, "film denorm title and year preferred", func(a *allure.Context) {
 		t := a.T()
 		rel := catalogMoviesSlug + "/opaque.mkv"
 		title := "Casino"
 		year := 1995
 		svc := NewService(
-			stubPaths{byLibrary: map[string][]string{"1": {rel}}},
+			fixedCatalogIndex{movies: []metadata.CatalogMovieRow{{
+				RelPath: rel, Title: title, Year: &year,
+			}}},
 			stubAccess{libraries: []access.Library{
 				{
 					ID:      "1",
@@ -146,15 +228,7 @@ func TestService_ErrorAndMetadataPaths(t *testing.T) {
 					Type:    access.LibraryTypeFilm,
 				},
 			}},
-			metaStub{byPath: map[string]metadata.MetadataResponse{
-				rel: {
-					DisplayName: title,
-					Effective: metadata.VideoFields{
-						Title: &title,
-						Year:  &year,
-					},
-				},
-			}},
+			stubMetadata{},
 		)
 
 		catalog, err := svc.GetLibraryCatalog(
@@ -176,15 +250,32 @@ func TestService_ErrorAndMetadataPaths(t *testing.T) {
 
 	allure.Test(
 		t,
-		"series metadata fills show fields; GetShow missing key",
+		"series denorm fills show fields; GetShow missing key",
 		func(a *allure.Context) {
 			t := a.T()
 			rel := catalogSeriesSlug + "/show/ep.mkv"
 			show := "Melrose Place"
+			showKey := metadata.NormalizeShowKey(show)
 			epTitle := "Pilot"
 			season, episode := 1, 1
 			svc := NewService(
-				stubPaths{byLibrary: map[string][]string{"1": {rel}}},
+				fixedCatalogIndex{
+					shows: []metadata.CatalogShowRow{{
+						ShowKey: showKey, Name: show, SeasonCount: 1, EpisodeCount: 1, PosterPath: rel,
+					}},
+					showAggs: map[string]metadata.CatalogShowAgg{
+						showKey: {
+							ShowKey: showKey, Name: show, PosterPath: rel,
+							Seasons: []metadata.CatalogSeasonCount{{Season: 1, EpisodeCount: 1}},
+						},
+					},
+					episodes: map[string][]metadata.CatalogEpisodeRow{
+						showKey + "|1": {{
+							RelPath: rel, Title: "S01E01", Season: &season, Episode: &episode,
+							EpisodeTitle: epTitle,
+						}},
+					},
+				},
 				stubAccess{libraries: []access.Library{
 					{
 						ID:      "1",
@@ -256,9 +347,12 @@ func TestService_ErrorAndMetadataPaths(t *testing.T) {
 	allure.Test(t, "catalog only sees indexed paths (not unindexed disk files)", func(a *allure.Context) {
 		t := a.T()
 		svc := NewService(
-			stubPaths{byLibrary: map[string][]string{
-				"1": {catalogMoviesSlug + "/Keep.mkv"},
-			}},
+			PathCatalogIndex{
+				LibraryType: access.LibraryTypeFilm,
+				ByLibrary: map[string][]string{
+					"1": {catalogMoviesSlug + "/Keep.mkv"},
+				},
+			},
 			stubAccess{libraries: []access.Library{
 				{
 					ID:      "1",

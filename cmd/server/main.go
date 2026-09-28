@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -233,6 +234,12 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 	authStore := authpostgres.NewStore(pool.GORM)
 	accessStore := accesspostgres.NewStore(pool.GORM)
 	metadataStore := metadatapostgres.NewStore(pool.GORM)
+	backfilled, backfillErr := metadataStore.BackfillCatalogDenorm(context.Background())
+	if backfillErr != nil {
+		slog.Warn("catalog denorm backfill failed", "err", backfillErr)
+	} else if backfilled > 0 {
+		slog.Info("catalog denorm backfill complete", "rows", backfilled)
+	}
 	watchStore := watchpostgres.NewStore(pool.GORM)
 	favoriteStore := favoritepostgres.NewStore(pool.GORM)
 	mail := email.NewSenderFromEnv(

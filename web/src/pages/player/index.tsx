@@ -271,6 +271,7 @@ export default function PlayerPage() {
       navEpisodes,
       catalogSeasons: catalogSeasonNumbers,
       seasonsLoading: menuEpisodesLoading,
+      catalogSeasonsLoading: showQuery.isLoading || showQuery.isFetching,
       onBrowseSeason,
       onSelectEpisode: selectEpisode,
     };
@@ -284,6 +285,8 @@ export default function PlayerPage() {
     onBrowseSeason,
     selectEpisode,
     series,
+    showQuery.isFetching,
+    showQuery.isLoading,
   ]);
 
   if (!mediaPath) {

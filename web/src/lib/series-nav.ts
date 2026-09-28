@@ -72,3 +72,25 @@ export function seasonNumbersForMenu(
 
   return uniqueSeasons(episodes);
 }
+
+/**
+ * Which S/E menus to show for series chrome.
+ * Multi-season shows keep both menus even when the browsed season has one episode
+ * (S1 with 1 ep can still open Season → S2). Single-season one-offs hide both.
+ * Films never reach this — no playback.series.
+ * While catalog seasons are still loading, keep chrome visible so multi-season S1 is not hidden.
+ */
+export function seriesPickerVisibility(
+  seasonCount: number,
+  menuEpisodeCount: number,
+  catalogPending = false,
+): { showSeason: boolean; showEpisode: boolean } {
+  if (catalogPending) {
+    return { showSeason: true, showEpisode: true };
+  }
+  const multiSeason = seasonCount > 1;
+  return {
+    showSeason: multiSeason,
+    showEpisode: multiSeason || menuEpisodeCount > 1,
+  };
+}

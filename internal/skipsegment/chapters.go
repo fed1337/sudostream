@@ -11,7 +11,22 @@ const (
 	maxIntroSec         = 150
 	maxScanWindowSec    = 600 // 10 minutes
 	maxScanRuntimeRatio = 0.30
+	maxStartSkewSec     = 180 // ±3 minutes across episodes
+	minSeasonAgreement  = 0.50
 	msPerSecond         = 1000
+
+	// Chromaprint hop for ffmpeg -algorithm 1 (AcoustID default / TEST2).
+	// frame 4096 with 2/3 overlap at 11025 Hz.
+	chromaprintFrameSamples    = 4096.0
+	chromaprintOverlapDiv      = 3.0
+	chromaprintSampleHz        = 11025.0
+	chromaprintItemDurationSec = chromaprintFrameSamples / (chromaprintOverlapDiv * chromaprintSampleHz)
+
+	// bitMatchThreshold is the minimum local bit-agreement for a match run.
+	// Random unrelated uint32 pairs average ~0.5; keep clear margin above that.
+	bitMatchThreshold = 0.70
+	// localWindowItems smooths per-item scores before run detection.
+	localWindowItems = 5
 )
 
 var (
@@ -73,13 +88,21 @@ func IntroFromChapters(chapters []ChapterCue, durationSeconds float64) *Intro {
 	return nil
 }
 
-func introScanWindowSec(durationSeconds float64) float64 {
+// IntroScanWindowSec returns the audio/chapter scan cap for one episode.
+func IntroScanWindowSec(durationSeconds float64) float64 {
+	if durationSeconds <= 0 {
+		return 0
+	}
 	windowSec := durationSeconds * maxScanRuntimeRatio
 	if windowSec > maxScanWindowSec {
 		windowSec = maxScanWindowSec
 	}
 
 	return windowSec
+}
+
+func introScanWindowSec(durationSeconds float64) float64 {
+	return IntroScanWindowSec(durationSeconds)
 }
 
 func titleMatchesIntro(title string) bool {

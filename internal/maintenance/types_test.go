@@ -40,6 +40,7 @@ func TestLockKeyAndActionHelpers(t *testing.T) {
 		}
 		for _, action := range []string{
 			ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles,
+			ActionPlaybackSkipDetect,
 		} {
 			if !IsLibraryAction(action) || IsGlobalAction(action) {
 				t.Fatalf("%s scope", action)

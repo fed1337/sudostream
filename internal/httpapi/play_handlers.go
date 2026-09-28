@@ -45,7 +45,7 @@ type PlaybackResponse struct {
 	UserSubtitle *UserSubtitleTrack `json:"userSubtitle,omitempty"`
 	// Chapters are container chapter atoms on any video file (not limited to film/series).
 	Chapters []transcode.ChapterInfo `json:"chapters,omitempty"`
-	// SkipIntro is set when chapter metadata identifies an opening intro segment (E-23).
+	// SkipIntro is set when chapter metadata or offline audio detection finds an opening intro (E-23).
 	SkipIntro *skipsegment.Intro `json:"skipIntro,omitempty"`
 	// Series is set only for paths in a series library with resolvable S/E identity.
 	Series *PlaybackSeriesContext `json:"series,omitempty"`
@@ -479,7 +479,7 @@ func (h *handler) respondHLSPlayback(
 		ProviderSubtitleTracks: h.providerSubtitleTracks(c.Request.Context(), mediaPath),
 		UserSubtitle:           h.userSubtitleTrack(c, mediaPath),
 		Chapters:               chapters,
-		SkipIntro:              skipIntroFromChapters(chapters, playbackInfo.DurationSeconds),
+		SkipIntro:              h.resolveSkipIntro(c, mediaPath, chapters, playbackInfo.DurationSeconds),
 		Series:                 h.playbackSeriesContext(c, mediaPath),
 	})
 }
@@ -540,9 +540,28 @@ func (h *handler) respondDirectPlay(
 		ProviderSubtitleTracks: h.providerSubtitleTracks(c.Request.Context(), mediaPath),
 		UserSubtitle:           h.userSubtitleTrack(c, mediaPath),
 		Chapters:               chapters,
-		SkipIntro:              skipIntroFromChapters(chapters, caps.DurationSeconds),
+		SkipIntro:              h.resolveSkipIntro(c, mediaPath, chapters, caps.DurationSeconds),
 		Series:                 h.playbackSeriesContext(c, mediaPath),
 	})
+}
+
+func (h *handler) resolveSkipIntro(
+	c *gin.Context,
+	mediaPath string,
+	chapters []transcode.ChapterInfo,
+	durationSeconds float64,
+) *skipsegment.Intro {
+	chapterIntro := skipIntroFromChapters(chapters, durationSeconds)
+	var stored *skipsegment.Intro
+	if h.skipIntro != nil && h.access != nil {
+		library, matched, err := h.access.LibraryForRelPath(c.Request.Context(), mediaPath)
+		if err == nil && matched {
+			intro := h.skipIntro.LookupIntro(c.Request.Context(), library.ID, mediaPath)
+			stored = intro
+		}
+	}
+
+	return skipsegment.ResolveIntro(chapterIntro, stored)
 }
 
 func skipIntroFromChapters(chapters []transcode.ChapterInfo, durationSeconds float64) *skipsegment.Intro {

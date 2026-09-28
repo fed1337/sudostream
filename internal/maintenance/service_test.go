@@ -304,7 +304,7 @@ func TestService_PatchAndStatus(
 			if err != nil {
 				t.Fatalf("library status: %v", err)
 			}
-			if len(libStatus) != 5 {
+			if len(libStatus) != 6 {
 				t.Fatalf("library actions=%d", len(libStatus))
 			}
 

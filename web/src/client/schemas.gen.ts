@@ -1418,6 +1418,9 @@ export const sudoStream_internal_maintenance_RunSchema = {
     libraryId: {
       type: 'string'
     },
+    libraryName: {
+      type: 'string'
+    },
     startedAt: {
       type: 'string'
     },

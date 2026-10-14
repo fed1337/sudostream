@@ -387,6 +387,7 @@ export const zSudoStreamInternalMaintenanceRun = z.object({
   finishedAt: z.string().optional(),
   id: z.string().optional(),
   libraryId: z.string().optional(),
+  libraryName: z.string().optional(),
   startedAt: z.string().optional(),
   status: z.string().optional(),
   summary: z.record(z.string(), z.unknown()).optional(),
@@ -977,13 +978,23 @@ export const zPatchApiAdminMaintenanceBody = zInternalHttpapiPatchMaintenanceReq
 export const zPatchApiAdminMaintenanceResponse = zInternalHttpapiMaintenanceStatusResponse;
 
 export const zGetApiAdminMaintenanceRunsQuery = z.object({
-  limit: z.int().optional()
+  limit: z.int().optional(),
+  status: z.string().optional()
 });
 
 /**
  * OK
  */
 export const zGetApiAdminMaintenanceRunsResponse = zInternalHttpapiMaintenanceRunsResponse;
+
+export const zPostApiAdminMaintenanceRunsByIdCancelPath = z.object({
+  id: z.string()
+});
+
+/**
+ * canceled
+ */
+export const zPostApiAdminMaintenanceRunsByIdCancelResponse = z.string();
 
 export const zPostApiAdminMaintenanceByActionRunPath = z.object({
   action: z.string()

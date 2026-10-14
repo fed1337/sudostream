@@ -528,6 +528,7 @@ export type SudoStreamInternalMaintenanceRun = {
   finishedAt?: string;
   id?: string;
   libraryId?: string;
+  libraryName?: string;
   startedAt?: string;
   status?: string;
   summary?: {
@@ -1507,9 +1508,22 @@ export type GetApiAdminMaintenanceRunsData = {
      * Max rows (default 50)
      */
     limit?: number;
+    /**
+     * Filter by status (e.g. running)
+     */
+    status?: string;
   };
   url: '/api/admin/maintenance/runs';
 };
+
+export type GetApiAdminMaintenanceRunsErrors = {
+  /**
+   * Bad Request
+   */
+  400: InternalHttpapiErrorResponse;
+};
+
+export type GetApiAdminMaintenanceRunsError = GetApiAdminMaintenanceRunsErrors[keyof GetApiAdminMaintenanceRunsErrors];
 
 export type GetApiAdminMaintenanceRunsResponses = {
   /**
@@ -1519,6 +1533,44 @@ export type GetApiAdminMaintenanceRunsResponses = {
 };
 
 export type GetApiAdminMaintenanceRunsResponse = GetApiAdminMaintenanceRunsResponses[keyof GetApiAdminMaintenanceRunsResponses];
+
+export type PostApiAdminMaintenanceRunsByIdCancelData = {
+  body?: never;
+  path: {
+    /**
+     * Run ID
+     */
+    id: string;
+  };
+  query?: never;
+  url: '/api/admin/maintenance/runs/{id}/cancel';
+};
+
+export type PostApiAdminMaintenanceRunsByIdCancelErrors = {
+  /**
+   * Not Found
+   */
+  404: InternalHttpapiErrorResponse;
+  /**
+   * Conflict
+   */
+  409: InternalHttpapiErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: InternalHttpapiErrorResponse;
+};
+
+export type PostApiAdminMaintenanceRunsByIdCancelError = PostApiAdminMaintenanceRunsByIdCancelErrors[keyof PostApiAdminMaintenanceRunsByIdCancelErrors];
+
+export type PostApiAdminMaintenanceRunsByIdCancelResponses = {
+  /**
+   * canceled
+   */
+  204: string;
+};
+
+export type PostApiAdminMaintenanceRunsByIdCancelResponse = PostApiAdminMaintenanceRunsByIdCancelResponses[keyof PostApiAdminMaintenanceRunsByIdCancelResponses];
 
 export type PostApiAdminMaintenanceByActionRunData = {
   body?: never;

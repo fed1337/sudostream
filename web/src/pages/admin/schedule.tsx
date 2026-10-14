@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { HistoryIcon } from "lucide-react";
 
 import type { SudoStreamInternalMaintenanceScheduleInput } from "@/client/types.gen";
 import {
@@ -15,6 +16,13 @@ import {
 } from "@/client/sdk.gen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -25,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaintenanceActionCard } from "@/pages/admin/libraries/maintenance-cards";
 import { formatFileSize } from "@/lib/media-item";
 
@@ -166,147 +175,173 @@ export default function AdminSchedulePage() {
         <p className="text-muted-foreground">{t("admin.scheduleDescription")}</p>
       </div>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold">{t("admin.maintenanceRunsTitle")}</h2>
+      <Tabs defaultValue="global">
+        <TabsList variant="line">
+          <TabsTrigger value="global">{t("admin.scheduleTabGlobal")}</TabsTrigger>
+          <TabsTrigger value="history">{t("admin.scheduleTabHistory")}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="global" className="flex flex-col gap-6 pt-4">
+          <MaintenanceActionCard
+            title={t("admin.librariesScanTitle")}
+            description={t("admin.librariesScanDescription")}
+            cron={scanCron}
+            enabled={scanEnabled}
+            status={scanStatus}
+            saving={saveMutation.isPending}
+            running={Boolean(scanStatus?.running) || runMutation.isPending}
+            canceling={cancelMutation.isPending}
+            onCronChange={setScanCron}
+            onEnabledChange={setScanEnabled}
+            onSave={() => {
+              saveMutation.mutate([{ action: SCAN_ACTION, cron: scanCron, enabled: scanEnabled }]);
+            }}
+            onRun={() => {
+              runMutation.mutate(SCAN_ACTION);
+            }}
+            onCancel={cancelForStatus(scanStatus)}
+          />
+
+          <MaintenanceActionCard
+            title={t("admin.cachePurgeTitle")}
+            description={purgeDescription}
+            cron={purgeCron}
+            enabled={purgeEnabled}
+            status={purgeStatus}
+            saving={saveMutation.isPending}
+            running={Boolean(purgeStatus?.running) || runMutation.isPending}
+            canceling={cancelMutation.isPending}
+            onCronChange={setPurgeCron}
+            onEnabledChange={setPurgeEnabled}
+            onSave={() => {
+              saveMutation.mutate([
+                {
+                  action: PURGE_ACTION,
+                  cron: purgeCron,
+                  enabled: purgeEnabled,
+                },
+              ]);
+            }}
+            onRun={() => {
+              runMutation.mutate(PURGE_ACTION);
+            }}
+            onCancel={cancelForStatus(purgeStatus)}
+          />
+
+          <MaintenanceActionCard
+            title={t("admin.trashPurgeTitle")}
+            description={t("admin.trashPurgeDescription")}
+            cron={trashCron}
+            enabled={trashEnabled}
+            status={trashStatus}
+            saving={saveMutation.isPending}
+            running={Boolean(trashStatus?.running) || runMutation.isPending}
+            canceling={cancelMutation.isPending}
+            onCronChange={setTrashCron}
+            onEnabledChange={setTrashEnabled}
+            onSave={() => {
+              saveMutation.mutate([
+                {
+                  action: TRASH_PURGE_ACTION,
+                  cron: trashCron,
+                  enabled: trashEnabled,
+                },
+              ]);
+            }}
+            onRun={() => {
+              runMutation.mutate(TRASH_PURGE_ACTION);
+            }}
+            onCancel={cancelForStatus(trashStatus)}
+          />
+
+          {saveMutation.isError || runMutation.isError || cancelMutation.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t("common.error")}</AlertTitle>
+              <AlertDescription>
+                {(saveMutation.error ?? runMutation.error ?? cancelMutation.error) instanceof Error
+                  ? ((saveMutation.error ?? runMutation.error ?? cancelMutation.error) as Error)
+                      .message
+                  : t("common.error")}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </TabsContent>
+
+        <TabsContent value="history" className="flex flex-col gap-4 pt-4">
           <p className="text-sm text-muted-foreground">{t("admin.maintenanceRunsDescription")}</p>
-        </div>
-        {runsQuery.isLoading ? (
-          <Skeleton className="h-40 w-full rounded-xl" />
-        ) : runs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("admin.maintenanceRunsEmpty")}</p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("admin.maintenanceRunsAction")}</TableHead>
-                  <TableHead>{t("admin.maintenanceRunsLibrary")}</TableHead>
-                  <TableHead>{t("admin.maintenanceRunsStatus")}</TableHead>
-                  <TableHead>{t("admin.maintenanceRunsStarted")}</TableHead>
-                  <TableHead>{t("admin.maintenanceRunsFinished")}</TableHead>
-                  <TableHead className="w-[1%]">{t("admin.maintenanceRunsActions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {runs.map((run) => (
-                  <TableRow key={run.id}>
-                    <TableCell className="font-mono text-sm">{run.action}</TableCell>
-                    <TableCell>
-                      {run.libraryName ||
-                        (run.libraryId ? run.libraryId : t("admin.maintenanceRunsSystem"))}
-                    </TableCell>
-                    <TableCell>{run.status}</TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {run.startedAt ?? "—"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {run.finishedAt ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {run.status === "running" && run.id ? (
-                        <Button
-                          variant="destructive"
-                          disabled={cancelMutation.isPending}
-                          onClick={() => {
-                            cancelMutation.mutate(run.id!);
-                          }}
-                        >
-                          {cancelingId === run.id ? <Spinner data-icon="inline-start" /> : null}
-                          {t("admin.maintenanceCancel")}
-                        </Button>
-                      ) : null}
-                    </TableCell>
+          {runsQuery.isLoading ? (
+            <Skeleton className="h-40 w-full rounded-xl" />
+          ) : runs.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <HistoryIcon />
+                </EmptyMedia>
+                <EmptyTitle>{t("admin.maintenanceRunsEmptyTitle")}</EmptyTitle>
+                <EmptyDescription>{t("admin.maintenanceRunsEmpty")}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="overflow-hidden rounded-xl border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("admin.maintenanceRunsAction")}</TableHead>
+                    <TableHead>{t("admin.maintenanceRunsLibrary")}</TableHead>
+                    <TableHead>{t("admin.maintenanceRunsStatus")}</TableHead>
+                    <TableHead>{t("admin.maintenanceRunsStarted")}</TableHead>
+                    <TableHead>{t("admin.maintenanceRunsFinished")}</TableHead>
+                    <TableHead className="w-[1%]">{t("admin.maintenanceRunsActions")}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </section>
+                </TableHeader>
+                <TableBody>
+                  {runs.map((run) => (
+                    <TableRow key={run.id}>
+                      <TableCell className="font-mono text-sm">{run.action}</TableCell>
+                      <TableCell>
+                        {run.libraryName ||
+                          (run.libraryId ? run.libraryId : t("admin.maintenanceRunsSystem"))}
+                      </TableCell>
+                      <TableCell>{run.status}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {run.startedAt ?? "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {run.finishedAt ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        {run.status === "running" && run.id ? (
+                          <Button
+                            variant="destructive"
+                            disabled={cancelMutation.isPending}
+                            onClick={() => {
+                              cancelMutation.mutate(run.id!);
+                            }}
+                          >
+                            {cancelingId === run.id ? <Spinner data-icon="inline-start" /> : null}
+                            {t("admin.maintenanceCancel")}
+                          </Button>
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
-      <MaintenanceActionCard
-        title={t("admin.librariesScanTitle")}
-        description={t("admin.librariesScanDescription")}
-        cron={scanCron}
-        enabled={scanEnabled}
-        status={scanStatus}
-        saving={saveMutation.isPending}
-        running={Boolean(scanStatus?.running) || runMutation.isPending}
-        canceling={cancelMutation.isPending}
-        onCronChange={setScanCron}
-        onEnabledChange={setScanEnabled}
-        onSave={() => {
-          saveMutation.mutate([{ action: SCAN_ACTION, cron: scanCron, enabled: scanEnabled }]);
-        }}
-        onRun={() => {
-          runMutation.mutate(SCAN_ACTION);
-        }}
-        onCancel={cancelForStatus(scanStatus)}
-      />
-
-      <MaintenanceActionCard
-        title={t("admin.cachePurgeTitle")}
-        description={purgeDescription}
-        cron={purgeCron}
-        enabled={purgeEnabled}
-        status={purgeStatus}
-        saving={saveMutation.isPending}
-        running={Boolean(purgeStatus?.running) || runMutation.isPending}
-        canceling={cancelMutation.isPending}
-        onCronChange={setPurgeCron}
-        onEnabledChange={setPurgeEnabled}
-        onSave={() => {
-          saveMutation.mutate([
-            {
-              action: PURGE_ACTION,
-              cron: purgeCron,
-              enabled: purgeEnabled,
-            },
-          ]);
-        }}
-        onRun={() => {
-          runMutation.mutate(PURGE_ACTION);
-        }}
-        onCancel={cancelForStatus(purgeStatus)}
-      />
-
-      <MaintenanceActionCard
-        title={t("admin.trashPurgeTitle")}
-        description={t("admin.trashPurgeDescription")}
-        cron={trashCron}
-        enabled={trashEnabled}
-        status={trashStatus}
-        saving={saveMutation.isPending}
-        running={Boolean(trashStatus?.running) || runMutation.isPending}
-        canceling={cancelMutation.isPending}
-        onCronChange={setTrashCron}
-        onEnabledChange={setTrashEnabled}
-        onSave={() => {
-          saveMutation.mutate([
-            {
-              action: TRASH_PURGE_ACTION,
-              cron: trashCron,
-              enabled: trashEnabled,
-            },
-          ]);
-        }}
-        onRun={() => {
-          runMutation.mutate(TRASH_PURGE_ACTION);
-        }}
-        onCancel={cancelForStatus(trashStatus)}
-      />
-
-      {saveMutation.isError || runMutation.isError || cancelMutation.isError ? (
-        <Alert variant="destructive">
-          <AlertTitle>{t("common.error")}</AlertTitle>
-          <AlertDescription>
-            {(saveMutation.error ?? runMutation.error ?? cancelMutation.error) instanceof Error
-              ? ((saveMutation.error ?? runMutation.error ?? cancelMutation.error) as Error).message
-              : t("common.error")}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+          {cancelMutation.isError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t("common.error")}</AlertTitle>
+              <AlertDescription>
+                {cancelMutation.error instanceof Error
+                  ? cancelMutation.error.message
+                  : t("common.error")}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

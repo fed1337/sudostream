@@ -21,6 +21,9 @@ type PlaybackResumeLoaderProps = {
 /**
  * Seeks to the saved resume position once HLS reports a duration. Renditions share one absolute
  * timeline, so this runs on load only — quality and audio switches keep the current position.
+ *
+ * Applies at most once per `resumeKey`: progress saves refetch the watch state and feed the
+ * just-saved (already stale) position back in, which must not seek the playhead backwards.
  */
 export function PlaybackResumeLoader({
   resumeAtSeconds,
@@ -55,7 +58,7 @@ export function PlaybackResumeLoader({
       return;
     }
 
-    if (appliedRef.current === resumeAtSeconds) {
+    if (appliedRef.current !== undefined) {
       return;
     }
 
@@ -102,7 +105,11 @@ export function PlaybackResumeLoader({
         window.setTimeout(() => {
           void applyResume();
         }, 250);
+
+        return;
       }
+
+      finish();
     };
 
     void applyResume();

@@ -12,7 +12,7 @@ const (
 // Version is the application release version (single source of truth; bumped by commitizen).
 //
 //nolint:gochecknoglobals // compile-time semver baked into the binary from this var.
-var Version = "0.1.0"
+var Version = "0.2.0"
 
 // Build identifies the CI/build channel (e.g. dev or release semver from BUILD_VERSION).
 //

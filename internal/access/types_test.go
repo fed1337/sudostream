@@ -49,7 +49,7 @@ func TestService_ListReadableLibraries_FiltersByReadGrant(t *testing.T) {
 			},
 		}
 		service := access.NewService(store)
-		user := auth.PublicUser{ //nolint:exhaustruct // test fixture
+		user := auth.PublicUser{
 			ID:   testUserOne,
 			Role: auth.RoleUser,
 		}

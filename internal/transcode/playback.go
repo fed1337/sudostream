@@ -8,8 +8,9 @@ import (
 
 // TrackInfo describes an audio or subtitle rendition exposed to clients.
 type TrackInfo struct {
-	ID    string `json:"id"`
-	Label string `json:"label"`
+	ID      string `json:"id"`
+	Label   string `json:"label"`
+	Default bool   `json:"default,omitempty"`
 }
 
 // QualityInfo describes one HLS video variant.
@@ -48,6 +49,16 @@ func BuildPlaybackInfoWithSettings(
 	jobStatus JobStatus,
 	settings TranscodeSettings,
 ) PlaybackInfo {
+	return BuildPlaybackInfoWithUserPrefs(outDir, masterURL, jobStatus, settings, nil)
+}
+
+// BuildPlaybackInfoWithUserPrefs applies optional user audio language priority to track defaults.
+func BuildPlaybackInfoWithUserPrefs(
+	outDir, masterURL string,
+	jobStatus JobStatus,
+	settings TranscodeSettings,
+	userLanguages []string,
+) PlaybackInfo {
 	info := PlaybackInfo{Status: jobStatus.Status, Error: jobStatus.Error}
 	if jobStatus.Status == StatusReady {
 		info.MasterURL = masterURL
@@ -65,7 +76,8 @@ func BuildPlaybackInfoWithSettings(
 	info.DurationSeconds = meta.DurationSeconds
 	info.PackagingMode = meta.PackagingMode
 	info.Qualities = meta.Qualities()
-	info.AudioTracks = meta.AudioTracks()
+	defaultAudio := SelectDefaultAudioStreamIndex(meta.AudioStreams, userLanguages)
+	info.AudioTracks = meta.AudioTracksWithDefault(defaultAudio)
 	info.SubtitleTracks = packagedSubtitleTrackInfos(outDir)
 	info.ToneMapped = meta.NeedsToneMap() && settings.ToneMappingEnabled
 	if meta.Chapters != nil {

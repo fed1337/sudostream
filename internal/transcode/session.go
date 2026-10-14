@@ -281,19 +281,19 @@ func (s *Service) startSession(
 		meta.NeedsToneMap() && settings.ToneMappingEnabled,
 	)
 	args := buildSegmentArgs(segmentRun{
-		mediaPath:  mediaPath,
-		variantDir: variantDir,
-		meta:       meta,
-		variant:    variant,
-		startIndex: index,
-		encoder:    encoder,
-		render:     render,
-		toneMap:    toneMap,
-		toneAlgo:   settings.ToneMappingAlgorithm,
-		downmix:    settings.DownmixAlgorithm,
+		mediaPath:    mediaPath,
+		variantDir:   variantDir,
+		meta:         meta,
+		variant:      variant,
+		startIndex:   index,
+		encoder:      encoder,
+		render:       render,
+		toneMap:      toneMap,
+		toneAlgo:     settings.ToneMappingAlgorithm,
+		downmix:      settings.DownmixAlgorithm,
+		downmixBoost: settings.DownmixBoost,
 	})
 
-	//nolint:gosec // mediaPath resolved via mediafs; args built internally
 	cmd := exec.CommandContext(sessionCtx, "ffmpeg", args...)
 
 	stderr := &tailBuffer{limit: stderrTailLimit}

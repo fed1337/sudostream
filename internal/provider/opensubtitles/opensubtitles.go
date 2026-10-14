@@ -30,7 +30,6 @@ const (
 	truncateBodyLen    = 200
 )
 
-// Env keys (FI-1 L13 — own app key; do not embed Jellyfin's).
 const (
 	//nolint:gosec // G101: env var *names*, not secrets
 	EnvAPIKey = "SUDOSTREAM_OPENSUBTITLES_API_KEY"

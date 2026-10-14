@@ -74,6 +74,9 @@ export const zInternalHttpapiForgotPasswordRequest = z.object({
 });
 
 export const zInternalHttpapiHealthResponse = z.object({
+  build: z.string().optional(),
+  ref: z.string().optional(),
+  revision: z.string().optional(),
   status: z.string().optional(),
   version: z.string().optional()
 });
@@ -101,6 +104,10 @@ export const zInternalHttpapiPatchLibraryRequest = z.object({
   type: z.string().optional()
 });
 
+export const zInternalHttpapiPatchPlaybackPreferencesRequest = z.object({
+  audioLanguages: z.array(z.string()).optional()
+});
+
 export const zInternalHttpapiPatchProviderSettingsRequest = z.object({
   allowOverrideUserMetadata: z.boolean().optional(),
   metadataApplyMode: z.string().optional(),
@@ -111,9 +118,10 @@ export const zInternalHttpapiPatchProviderSettingsRequest = z.object({
   subtitleProvider: z.string().optional()
 });
 
-/**
- * Series is set only for paths in a series library with resolvable S/E identity.
- */
+export const zInternalHttpapiPlaybackPreferencesResponse = z.object({
+  audioLanguages: z.array(z.string()).optional()
+});
+
 export const zInternalHttpapiPlaybackSeriesContext = z.object({
   episode: z.int().optional(),
   librarySlug: z.string().optional(),
@@ -166,9 +174,6 @@ export const zInternalHttpapiUpdateUserRequest = z.object({
   role: z.string().optional()
 });
 
-/**
- * UserSubtitle is the current user's uploaded caption when present (TTL 1d).
- */
 export const zInternalHttpapiUserSubtitleTrack = z.object({
   label: z.string().optional(),
   lang: z.string().optional(),
@@ -382,6 +387,7 @@ export const zSudoStreamInternalMaintenanceRun = z.object({
   finishedAt: z.string().optional(),
   id: z.string().optional(),
   libraryId: z.string().optional(),
+  libraryName: z.string().optional(),
   startedAt: z.string().optional(),
   status: z.string().optional(),
   summary: z.record(z.string(), z.unknown()).optional(),
@@ -669,13 +675,25 @@ export const zInternalHttpapiProviderSettingsResponse = z.object({
   settings: zSudoStreamInternalProviderSettings.optional()
 });
 
+export const zSudoStreamInternalSkipsegmentIntro = z.object({
+  endMs: z.int().optional(),
+  source: z.string().optional(),
+  startMs: z.int().optional()
+});
+
 export const zSudoStreamInternalTranscodeChapterInfo = z.object({
   endSeconds: z.number().optional(),
   startSeconds: z.number().optional(),
   title: z.string().optional()
 });
 
-export const zSudoStreamInternalTranscodeDownmixAlgorithm = z.enum(['none', 'ac4']);
+export const zSudoStreamInternalTranscodeDownmixAlgorithm = z.enum([
+  'none',
+  'ac4',
+  'dave750',
+  'nightmodeDialogue',
+  'rfc7845'
+]);
 
 export const zSudoStreamInternalTranscodeHwAccel = z.enum([
   'off',
@@ -707,6 +725,7 @@ export const zSudoStreamInternalTranscodeToneMappingAlgorithm = z.enum([
 ]);
 
 export const zSudoStreamInternalTranscodeTrackInfo = z.object({
+  default: z.boolean().optional(),
   id: z.string().optional(),
   label: z.string().optional()
 });
@@ -723,6 +742,7 @@ export const zInternalHttpapiPlaybackResponse = z.object({
   providerSubtitleTracks: z.array(zInternalHttpapiProviderSubtitleTrack).optional(),
   qualities: z.array(zSudoStreamInternalTranscodeQualityInfo).optional(),
   series: zInternalHttpapiPlaybackSeriesContext.optional(),
+  skipIntro: zSudoStreamInternalSkipsegmentIntro.optional(),
   status: zSudoStreamInternalTranscodeStatus.optional(),
   streamUrl: z.string().optional(),
   subtitleTracks: z.array(zSudoStreamInternalTranscodeTrackInfo).optional(),
@@ -732,6 +752,7 @@ export const zInternalHttpapiPlaybackResponse = z.object({
 
 export const zSudoStreamInternalTranscodeTranscodeSettings = z.object({
   downmixAlgorithm: zSudoStreamInternalTranscodeDownmixAlgorithm.optional(),
+  downmixBoost: z.number().optional(),
   hwAccel: zSudoStreamInternalTranscodeHwAccel.optional(),
   toneMappingAlgorithm: zSudoStreamInternalTranscodeToneMappingAlgorithm.optional(),
   toneMappingEnabled: z.boolean().optional()
@@ -758,10 +779,7 @@ export const zGetApiAdminDlnaSettingsResponse = zSudoStreamInternalDlnaSettings;
 /**
  * DLNA settings
  */
-export const zPatchApiAdminDlnaSettingsBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zSudoStreamInternalDlnaSettings
-]);
+export const zPatchApiAdminDlnaSettingsBody = zSudoStreamInternalDlnaSettings;
 
 /**
  * OK
@@ -789,10 +807,7 @@ export const zGetApiAdminInvitesResponse = zInternalHttpapiInvitesResponse;
 /**
  * Invite
  */
-export const zPostApiAdminInvitesBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiCreateInviteRequest
-]);
+export const zPostApiAdminInvitesBody = zInternalHttpapiCreateInviteRequest;
 
 /**
  * No Content
@@ -811,10 +826,7 @@ export const zDeleteApiAdminInvitesByIdResponse = z.void();
 /**
  * Optional TTL override
  */
-export const zPostApiAdminInvitesByIdResendBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiResendInviteRequest
-]);
+export const zPostApiAdminInvitesByIdResendBody = zInternalHttpapiResendInviteRequest;
 
 export const zPostApiAdminInvitesByIdResendPath = z.object({
   id: z.string()
@@ -833,10 +845,7 @@ export const zGetApiAdminLibrariesResponse = zInternalHttpapiLibrariesResponse;
 /**
  * Library fields
  */
-export const zPostApiAdminLibrariesBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiCreateLibraryRequest
-]);
+export const zPostApiAdminLibrariesBody = zInternalHttpapiCreateLibraryRequest;
 
 /**
  * Created
@@ -860,10 +869,7 @@ export const zDeleteApiAdminLibrariesByIdResponse = z.void();
 /**
  * Library fields
  */
-export const zPatchApiAdminLibrariesByIdBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiPatchLibraryRequest
-]);
+export const zPatchApiAdminLibrariesByIdBody = zInternalHttpapiPatchLibraryRequest;
 
 export const zPatchApiAdminLibrariesByIdPath = z.object({
   id: z.string()
@@ -886,10 +892,7 @@ export const zGetApiAdminLibrariesByIdMaintenanceResponse = zInternalHttpapiMain
 /**
  * Schedules
  */
-export const zPatchApiAdminLibrariesByIdMaintenanceBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiPatchMaintenanceRequest
-]);
+export const zPatchApiAdminLibrariesByIdMaintenanceBody = zInternalHttpapiPatchMaintenanceRequest;
 
 export const zPatchApiAdminLibrariesByIdMaintenancePath = z.object({
   id: z.string()
@@ -912,10 +915,7 @@ export const zGetApiAdminLibrariesByIdProvidersResponse = zInternalHttpapiProvid
 /**
  * Provider settings
  */
-export const zPatchApiAdminLibrariesByIdProvidersBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiPatchProviderSettingsRequest
-]);
+export const zPatchApiAdminLibrariesByIdProvidersBody = zInternalHttpapiPatchProviderSettingsRequest;
 
 export const zPatchApiAdminLibrariesByIdProvidersPath = z.object({
   id: z.string()
@@ -942,10 +942,7 @@ export const zDeleteApiAdminLibrariesByIdRootsResponse = z.union([
 /**
  * Folder
  */
-export const zPostApiAdminLibrariesByIdRootsBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiAddLibraryRootRequest
-]);
+export const zPostApiAdminLibrariesByIdRootsBody = zInternalHttpapiAddLibraryRootRequest;
 
 export const zPostApiAdminLibrariesByIdRootsPath = z.object({
   id: z.string()
@@ -973,10 +970,7 @@ export const zGetApiAdminMaintenanceResponse = zInternalHttpapiMaintenanceStatus
 /**
  * Schedules
  */
-export const zPatchApiAdminMaintenanceBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiPatchMaintenanceRequest
-]);
+export const zPatchApiAdminMaintenanceBody = zInternalHttpapiPatchMaintenanceRequest;
 
 /**
  * OK
@@ -984,13 +978,23 @@ export const zPatchApiAdminMaintenanceBody = z.union([
 export const zPatchApiAdminMaintenanceResponse = zInternalHttpapiMaintenanceStatusResponse;
 
 export const zGetApiAdminMaintenanceRunsQuery = z.object({
-  limit: z.int().optional()
+  limit: z.int().optional(),
+  status: z.string().optional()
 });
 
 /**
  * OK
  */
 export const zGetApiAdminMaintenanceRunsResponse = zInternalHttpapiMaintenanceRunsResponse;
+
+export const zPostApiAdminMaintenanceRunsByIdCancelPath = z.object({
+  id: z.string()
+});
+
+/**
+ * canceled
+ */
+export const zPostApiAdminMaintenanceRunsByIdCancelResponse = z.string();
 
 export const zPostApiAdminMaintenanceByActionRunPath = z.object({
   action: z.string()
@@ -1013,10 +1017,7 @@ export const zGetApiAdminNetworkSettingsResponse = zSudoStreamInternalNetworkSet
 /**
  * Network settings
  */
-export const zPatchApiAdminNetworkSettingsBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zSudoStreamInternalNetworkSettings
-]);
+export const zPatchApiAdminNetworkSettingsBody = zSudoStreamInternalNetworkSettings;
 
 /**
  * OK
@@ -1026,10 +1027,7 @@ export const zPatchApiAdminNetworkSettingsResponse = zSudoStreamInternalNetworkS
 /**
  * Draft network settings
  */
-export const zPostApiAdminNetworkSettingsTestBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zSudoStreamInternalNetworkSettings
-]);
+export const zPostApiAdminNetworkSettingsTestBody = zSudoStreamInternalNetworkSettings;
 
 /**
  * OK
@@ -1053,10 +1051,7 @@ export const zGetApiAdminSettingsResponse = zSudoStreamInternalAuthSettings;
 /**
  * Settings
  */
-export const zPatchApiAdminSettingsBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zSudoStreamInternalAuthSettings
-]);
+export const zPatchApiAdminSettingsBody = zSudoStreamInternalAuthSettings;
 
 /**
  * OK
@@ -1071,10 +1066,7 @@ export const zGetApiAdminTranscodeSettingsResponse = zSudoStreamInternalTranscod
 /**
  * Transcode settings
  */
-export const zPatchApiAdminTranscodeSettingsBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zSudoStreamInternalTranscodeTranscodeSettings
-]);
+export const zPatchApiAdminTranscodeSettingsBody = zSudoStreamInternalTranscodeTranscodeSettings;
 
 /**
  * OK
@@ -1099,10 +1091,7 @@ export const zGetApiAdminTrashSettingsResponse = zInternalHttpapiTrashSettingsRe
 /**
  * Recycle bin settings
  */
-export const zPatchApiAdminTrashSettingsBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiTrashSettingsResponse
-]);
+export const zPatchApiAdminTrashSettingsBody = zInternalHttpapiTrashSettingsResponse;
 
 /**
  * OK
@@ -1135,10 +1124,7 @@ export const zGetApiAdminUsersResponse = zInternalHttpapiUsersResponse;
 /**
  * New user
  */
-export const zPostApiAdminUsersBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiCreateUserRequest
-]);
+export const zPostApiAdminUsersBody = zInternalHttpapiCreateUserRequest;
 
 /**
  * Created
@@ -1157,10 +1143,7 @@ export const zDeleteApiAdminUsersByIdResponse = z.void();
 /**
  * User patch
  */
-export const zPatchApiAdminUsersByIdBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiUpdateUserRequest
-]);
+export const zPatchApiAdminUsersByIdBody = zInternalHttpapiUpdateUserRequest;
 
 export const zPatchApiAdminUsersByIdPath = z.object({
   id: z.string()
@@ -1192,10 +1175,7 @@ export const zGetApiAdminUsersByIdLibrariesResponse = zInternalHttpapiGrantsResp
 /**
  * Grant list
  */
-export const zPutApiAdminUsersByIdLibrariesBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiPutGrantsRequest
-]);
+export const zPutApiAdminUsersByIdLibrariesBody = zInternalHttpapiPutGrantsRequest;
 
 export const zPutApiAdminUsersByIdLibrariesPath = z.object({
   id: z.string()
@@ -1236,10 +1216,7 @@ export const zPostApiAdminUsersByIdSessionsRevokeAllResponse = z.void();
 /**
  * Password and TOTP code
  */
-export const zDeleteApiAuth2FaBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiDisableTwoFactorRequest
-]);
+export const zDeleteApiAuth2FaBody = zInternalHttpapiDisableTwoFactorRequest;
 
 /**
  * No Content
@@ -1249,10 +1226,7 @@ export const zDeleteApiAuth2FaResponse = z.void();
 /**
  * TOTP code
  */
-export const zPostApiAuth2FaConfirmBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiTwoFactorConfirmRequest
-]);
+export const zPostApiAuth2FaConfirmBody = zInternalHttpapiTwoFactorConfirmRequest;
 
 /**
  * OK
@@ -1262,10 +1236,7 @@ export const zPostApiAuth2FaConfirmResponse = zSudoStreamInternalAuthTwoFactorCo
 /**
  * Optional pending token
  */
-export const zPostApiAuth2FaSetupBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiTwoFactorSetupRequest
-]);
+export const zPostApiAuth2FaSetupBody = zInternalHttpapiTwoFactorSetupRequest;
 
 /**
  * OK
@@ -1275,10 +1246,7 @@ export const zPostApiAuth2FaSetupResponse = zSudoStreamInternalAuthTwoFactorSetu
 /**
  * Pending token and code
  */
-export const zPostApiAuth2FaVerifyBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiVerifyTwoFactorRequest
-]);
+export const zPostApiAuth2FaVerifyBody = zInternalHttpapiVerifyTwoFactorRequest;
 
 /**
  * OK
@@ -1288,10 +1256,7 @@ export const zPostApiAuth2FaVerifyResponse = zInternalHttpapiAuthTokensResponse;
 /**
  * Invite token
  */
-export const zPostApiAuthAcceptInviteBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiAcceptInviteRequest
-]);
+export const zPostApiAuthAcceptInviteBody = zInternalHttpapiAcceptInviteRequest;
 
 /**
  * No Content
@@ -1301,10 +1266,7 @@ export const zPostApiAuthAcceptInviteResponse = z.void();
 /**
  * Email change
  */
-export const zPostApiAuthChangeEmailBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiChangeEmailRequest
-]);
+export const zPostApiAuthChangeEmailBody = zInternalHttpapiChangeEmailRequest;
 
 /**
  * No Content
@@ -1314,10 +1276,7 @@ export const zPostApiAuthChangeEmailResponse = z.void();
 /**
  * Password change
  */
-export const zPostApiAuthChangePasswordBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiChangePasswordRequest
-]);
+export const zPostApiAuthChangePasswordBody = zInternalHttpapiChangePasswordRequest;
 
 /**
  * OK
@@ -1336,10 +1295,7 @@ export const zGetApiAuthConfirmEmailResponse = zInternalHttpapiStatusResponse;
 /**
  * Email
  */
-export const zPostApiAuthForgotPasswordBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiForgotPasswordRequest
-]);
+export const zPostApiAuthForgotPasswordBody = zInternalHttpapiForgotPasswordRequest;
 
 /**
  * No Content
@@ -1349,10 +1305,7 @@ export const zPostApiAuthForgotPasswordResponse = z.void();
 /**
  * Credentials
  */
-export const zPostApiAuthLoginBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiLoginRequest
-]);
+export const zPostApiAuthLoginBody = zInternalHttpapiLoginRequest;
 
 /**
  * OK
@@ -1377,10 +1330,7 @@ export const zPostApiAuthRefreshResponse = zInternalHttpapiRefreshResponse;
 /**
  * Reset token
  */
-export const zPostApiAuthResetPasswordBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiResetPasswordRequest
-]);
+export const zPostApiAuthResetPasswordBody = zInternalHttpapiResetPasswordRequest;
 
 /**
  * No Content
@@ -1491,10 +1441,7 @@ export const zGetApiFavoriteByPathResponse = zInternalHttpapiFavoriteResponse;
 /**
  * Favorite flag
  */
-export const zPatchApiFavoriteByPathBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiFavoritePatchRequest
-]);
+export const zPatchApiFavoriteByPathBody = zInternalHttpapiFavoritePatchRequest;
 
 export const zPatchApiFavoriteByPathPath = z.object({
   path: z.string()
@@ -1534,6 +1481,21 @@ export const zGetApiMeFavoritesQuery = z.object({
  * OK
  */
 export const zGetApiMeFavoritesResponse = zInternalHttpapiHomeItemsResponse;
+
+/**
+ * OK
+ */
+export const zGetApiMePlaybackPreferencesResponse = zInternalHttpapiPlaybackPreferencesResponse;
+
+/**
+ * Playback preferences
+ */
+export const zPatchApiMePlaybackPreferencesBody = zInternalHttpapiPatchPlaybackPreferencesRequest;
+
+/**
+ * OK
+ */
+export const zPatchApiMePlaybackPreferencesResponse = zInternalHttpapiPlaybackPreferencesResponse;
 
 /**
  * OK
@@ -1585,10 +1547,7 @@ export const zGetApiMetadataByPathResponse = zSudoStreamInternalMetadataMetadata
 /**
  * Metadata patch
  */
-export const zPatchApiMetadataByPathBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zSudoStreamInternalMetadataPatchRequest
-]);
+export const zPatchApiMetadataByPathBody = zSudoStreamInternalMetadataPatchRequest;
 
 export const zPatchApiMetadataByPathPath = z.object({
   path: z.string()
@@ -1599,7 +1558,7 @@ export const zPatchApiMetadataByPathPath = z.object({
  */
 export const zPatchApiMetadataByPathResponse = zSudoStreamInternalMetadataMetadataResponse;
 
-export const zPostApiOauthTokenBody = z.string();
+export const zPostApiOauthTokenBody = z.record(z.string(), z.unknown());
 
 /**
  * OK
@@ -1632,10 +1591,7 @@ export const zGetApiPlaybackByPathResponse = zInternalHttpapiPlaybackResponse;
 /**
  * Device profile and quality selection
  */
-export const zPostApiPlaybackByPathBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiPlaybackNegotiateRequest
-]);
+export const zPostApiPlaybackByPathBody = zInternalHttpapiPlaybackNegotiateRequest;
 
 export const zPostApiPlaybackByPathPath = z.object({
   path: z.string()
@@ -1721,12 +1677,13 @@ export const zGetApiUserSubtitleByPathPath = z.object({
 export const zGetApiUserSubtitleByPathResponse = z.string();
 
 /**
- * ISO 639-1 language code | Display label | Subtitle file (.vtt or .srt)
+ * ISO 639-1 language code
  */
-export const zPutApiUserSubtitleByPathBody = z.union([
-  z.string(),
-  z.unknown()
-]);
+export const zPutApiUserSubtitleByPathBody = z.object({
+  file: z.string(),
+  label: z.string().optional(),
+  lang: z.string().optional()
+});
 
 export const zPutApiUserSubtitleByPathPath = z.object({
   path: z.string()
@@ -1749,10 +1706,7 @@ export const zGetApiWatchByPathResponse = zInternalHttpapiWatchResponse;
 /**
  * Watched flag and optional progress
  */
-export const zPatchApiWatchByPathBody = z.union([
-  z.record(z.string(), z.unknown()),
-  zInternalHttpapiWatchPatchRequest
-]);
+export const zPatchApiWatchByPathBody = zInternalHttpapiWatchPatchRequest;
 
 export const zPatchApiWatchByPathPath = z.object({
   path: z.string()

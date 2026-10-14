@@ -13,6 +13,7 @@ import {
   getApiAdminLibrariesByIdMaintenanceOptions,
   getApiAdminLibrariesByIdProvidersOptions,
   getApiAdminLibrariesOptions,
+  getApiAdminMaintenanceRunsQueryKey,
 } from "@/client/@tanstack/react-query.gen";
 import {
   deleteApiAdminLibrariesById,
@@ -22,6 +23,7 @@ import {
   patchApiAdminLibrariesByIdProviders,
   postApiAdminLibrariesByIdRoots,
   postApiAdminMaintenanceByActionRun,
+  postApiAdminMaintenanceRunsByIdCancel,
 } from "@/client/sdk.gen";
 import type { LibraryType } from "@/api/media";
 import { libraryRoots } from "@/api/media";
@@ -68,6 +70,7 @@ const THUMBS_ACTION = "thumbnails.warm";
 const PROVIDERS_METADATA_ACTION = "providers.metadata";
 const PROVIDERS_POSTERS_ACTION = "providers.posters";
 const PROVIDERS_SUBTITLES_ACTION = "providers.subtitles";
+const SKIP_INTRO_ACTION = "playback.skip.detect";
 const NONE_PROVIDER = "none";
 const PROVIDER_LIBRARY_TYPES: LibraryType[] = ["film", "series"];
 
@@ -109,6 +112,7 @@ export default function AdminLibraryDetailPage() {
   const [providersSubtitlesValidationError, setProvidersSubtitlesValidationError] = useState<
     string | null
   >(null);
+  const [skipIntroValidationError, setSkipIntroValidationError] = useState<string | null>(null);
 
   const librariesQuery = useQuery({
     ...getApiAdminLibrariesOptions(),
@@ -144,6 +148,8 @@ export default function AdminLibraryDetailPage() {
   const [providersPostersEnabled, setProvidersPostersEnabled] = useState(false);
   const [providersSubtitlesCron, setProvidersSubtitlesCron] = useState("");
   const [providersSubtitlesEnabled, setProvidersSubtitlesEnabled] = useState(false);
+  const [skipIntroCron, setSkipIntroCron] = useState("");
+  const [skipIntroEnabled, setSkipIntroEnabled] = useState(false);
 
   const [metadataProvider, setMetadataProvider] = useState(NONE_PROVIDER);
   const [posterProvider, setPosterProvider] = useState(NONE_PROVIDER);
@@ -174,6 +180,7 @@ export default function AdminLibraryDetailPage() {
     const providersSubtitles = actions.find(
       (action) => action.action === PROVIDERS_SUBTITLES_ACTION,
     );
+    const skipIntro = actions.find((action) => action.action === SKIP_INTRO_ACTION);
     setMetadataCron(metadata?.schedule?.cron ?? "");
     setMetadataEnabled(Boolean(metadata?.schedule?.enabled));
     setThumbsCron(thumbs?.schedule?.cron ?? "");
@@ -184,6 +191,8 @@ export default function AdminLibraryDetailPage() {
     setProvidersPostersEnabled(Boolean(providersPosters?.schedule?.enabled));
     setProvidersSubtitlesCron(providersSubtitles?.schedule?.cron ?? "");
     setProvidersSubtitlesEnabled(Boolean(providersSubtitles?.schedule?.enabled));
+    setSkipIntroCron(skipIntro?.schedule?.cron ?? "");
+    setSkipIntroEnabled(Boolean(skipIntro?.schedule?.enabled));
   }
 
   if (providersQuery.data && hydratedProvidersId !== id) {
@@ -269,8 +278,35 @@ export default function AdminLibraryDetailPage() {
     },
     onSuccess: () => {
       void maintenanceQuery.refetch();
+      void queryClient.invalidateQueries({ queryKey: getApiAdminMaintenanceRunsQueryKey() });
     },
   });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (runId: string) => {
+      const response = await postApiAdminMaintenanceRunsByIdCancel({
+        path: { id: runId },
+      });
+      if (response.error) {
+        throw new Error(t("admin.maintenanceCancelFailed"));
+      }
+    },
+    onSuccess: () => {
+      void maintenanceQuery.refetch();
+      void queryClient.invalidateQueries({ queryKey: getApiAdminMaintenanceRunsQueryKey() });
+    },
+  });
+
+  const cancelForStatus = (status?: { running?: boolean; latestRun?: { id?: string } }) => {
+    const runId = status?.running ? status.latestRun?.id : undefined;
+    if (!runId) {
+      return undefined;
+    }
+
+    return () => {
+      cancelMutation.mutate(runId);
+    };
+  };
 
   const addRootMutation = useMutation({
     mutationFn: async (relPaths: string[]) => {
@@ -387,6 +423,7 @@ export default function AdminLibraryDetailPage() {
   const providersSubtitlesStatus = actions.find(
     (action) => action.action === PROVIDERS_SUBTITLES_ACTION,
   );
+  const skipIntroStatus = actions.find((action) => action.action === SKIP_INTRO_ACTION);
   const available: ProviderAvailability = providersQuery.data?.available ?? {
     metadata: [],
     poster: [],
@@ -609,6 +646,8 @@ export default function AdminLibraryDetailPage() {
         onRun={() => {
           runMutation.mutate(METADATA_ACTION);
         }}
+        canceling={cancelMutation.isPending}
+        onCancel={cancelForStatus(metadataStatus)}
       />
 
       <MaintenanceActionCard
@@ -636,7 +675,40 @@ export default function AdminLibraryDetailPage() {
         onRun={() => {
           runMutation.mutate(THUMBS_ACTION);
         }}
+        canceling={cancelMutation.isPending}
+        onCancel={cancelForStatus(thumbsStatus)}
       />
+
+      {library?.type === "series" ? (
+        <MaintenanceActionCard
+          title={t("admin.skipIntroDetectTitle")}
+          description={t("admin.skipIntroDetectDescription")}
+          cron={skipIntroCron}
+          enabled={skipIntroEnabled}
+          status={skipIntroStatus}
+          saving={saving}
+          running={Boolean(skipIntroStatus?.running) || running}
+          validationError={skipIntroValidationError}
+          onCronChange={setSkipIntroCron}
+          onEnabledChange={setSkipIntroEnabled}
+          onSave={() => {
+            void saveMaintenance(
+              {
+                action: SKIP_INTRO_ACTION,
+                cron: skipIntroCron,
+                enabled: skipIntroEnabled,
+              },
+              setSkipIntroValidationError,
+              false,
+            );
+          }}
+          onRun={() => {
+            runMutation.mutate(SKIP_INTRO_ACTION);
+          }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(skipIntroStatus)}
+        />
+      ) : null}
 
       {supportsProviders ? (
         <ProviderTaskCard
@@ -675,6 +747,8 @@ export default function AdminLibraryDetailPage() {
           onRun={() => {
             runMutation.mutate(PROVIDERS_METADATA_ACTION);
           }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(providersMetadataStatus)}
         />
       ) : null}
 
@@ -709,6 +783,8 @@ export default function AdminLibraryDetailPage() {
           onRun={() => {
             runMutation.mutate(PROVIDERS_POSTERS_ACTION);
           }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(providersPostersStatus)}
         />
       ) : null}
 
@@ -750,15 +826,19 @@ export default function AdminLibraryDetailPage() {
           onRun={() => {
             runMutation.mutate(PROVIDERS_SUBTITLES_ACTION);
           }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(providersSubtitlesStatus)}
         />
       ) : null}
 
-      {saveScheduleMutation.isError || runMutation.isError ? (
+      {saveScheduleMutation.isError || runMutation.isError || cancelMutation.isError ? (
         <Alert variant="destructive">
           <AlertTitle>{t("common.error")}</AlertTitle>
           <AlertDescription>
-            {(saveScheduleMutation.error ?? runMutation.error) instanceof Error
-              ? ((saveScheduleMutation.error ?? runMutation.error) as Error).message
+            {(saveScheduleMutation.error ?? runMutation.error ?? cancelMutation.error) instanceof
+            Error
+              ? ((saveScheduleMutation.error ?? runMutation.error ?? cancelMutation.error) as Error)
+                  .message
               : t("common.error")}
           </AlertDescription>
         </Alert>

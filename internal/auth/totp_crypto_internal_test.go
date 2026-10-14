@@ -77,7 +77,7 @@ func TestValidateTOTPCode_LeewayClampAndRejection(t *testing.T) {
 
 	allure.Test(t, "leeway clamps to bounds and invalid codes fail", func(a *allure.Context) {
 		t := a.T()
-		service := &Service{} //nolint:exhaustruct // validateTOTPCode reads no service fields
+		service := &Service{}
 
 		code, err := totp.GenerateCode(testTOTPSecret, time.Now())
 		if err != nil {

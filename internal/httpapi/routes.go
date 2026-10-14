@@ -22,6 +22,7 @@ import (
 	"sudoStream/internal/metadata"
 	"sudoStream/internal/observability"
 	"sudoStream/internal/playback"
+	"sudoStream/internal/skipsegment"
 	"sudoStream/internal/thumbnail"
 	"sudoStream/internal/transcode"
 	"sudoStream/internal/trash"
@@ -48,6 +49,7 @@ type ErrorResponse struct {
 }
 
 type handler struct {
+	auth       *auth.Service
 	media      *mediafs.Service
 	access     *access.Service
 	metadata   *metadata.Service
@@ -59,6 +61,7 @@ type handler struct {
 	transcode  *transcode.Service
 	trash      *trash.Service
 	usersub    *usersub.Service
+	skipIntro  *skipsegment.Service
 	posters    *posterCache
 	dbPing     func(context.Context) error
 }
@@ -107,6 +110,7 @@ func RegisterRoutes(
 	registerInventoryMetrics(transcodeSvc, accessService, metadataService, authService, cfg.Trash)
 
 	mediaHandler := &handler{
+		auth:       authService,
 		media:      media,
 		access:     accessService,
 		metadata:   metadataService,
@@ -117,6 +121,7 @@ func RegisterRoutes(
 		transcode:  transcodeSvc,
 		trash:      cfg.Trash,
 		usersub:    cfg.UserSubtitle,
+		skipIntro:  cfg.SkipIntro,
 		dbPing:     cfg.DBPing,
 	}
 	if mediaHandler.usersub == nil {
@@ -201,6 +206,8 @@ func RegisterRoutes(
 		api.GET("/me/watched", mediaHandler.getHomeWatched)
 		api.GET("/me/unwatched", mediaHandler.getHomeUnwatched)
 		api.GET("/me/stats", mediaHandler.getHomeStats)
+		api.GET("/me/playback-preferences", mediaHandler.getPlaybackPreferences)
+		api.PATCH("/me/playback-preferences", mediaHandler.patchPlaybackPreferences)
 		api.POST("/auth/change-password", authRoutes.changePassword)
 		api.POST("/auth/change-email", authRoutes.changeEmail)
 		api.GET("/auth/sessions", authRoutes.listSessions)
@@ -284,6 +291,7 @@ func registerAdminRoutes(api *gin.RouterGroup, adminRoutes *adminHandler) { //no
 		admin.GET("/maintenance", adminRoutes.getMaintenance)
 		admin.PATCH("/maintenance", adminRoutes.patchMaintenance)
 		admin.GET("/maintenance/runs", adminRoutes.listMaintenanceRuns)
+		admin.POST("/maintenance/runs/:id/cancel", adminRoutes.cancelMaintenanceRun)
 		admin.POST("/maintenance/:action/run", adminRoutes.runMaintenance)
 		registerAdminTrashRoutes(admin, adminRoutes)
 		admin.GET("/users/:id/libraries", adminRoutes.getUserLibraries)

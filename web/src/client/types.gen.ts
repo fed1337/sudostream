@@ -90,6 +90,9 @@ export type InternalHttpapiGrantsResponse = {
 };
 
 export type InternalHttpapiHealthResponse = {
+  build?: string;
+  ref?: string;
+  revision?: string;
   status?: string;
   version?: string;
 };
@@ -168,6 +171,10 @@ export type InternalHttpapiPatchMaintenanceRequest = {
   schedules?: Array<SudoStreamInternalMaintenanceScheduleInput>;
 };
 
+export type InternalHttpapiPatchPlaybackPreferencesRequest = {
+  audioLanguages?: Array<string>;
+};
+
 export type InternalHttpapiPatchProviderSettingsRequest = {
   allowOverrideUserMetadata?: boolean;
   metadataApplyMode?: string;
@@ -188,6 +195,10 @@ export type InternalHttpapiPlaybackNegotiateRequest = {
   transcode?: boolean;
 };
 
+export type InternalHttpapiPlaybackPreferencesResponse = {
+  audioLanguages?: Array<string>;
+};
+
 export type InternalHttpapiPlaybackResponse = {
   audioTracks?: Array<SudoStreamInternalTranscodeTrackInfo>;
   /**
@@ -202,17 +213,24 @@ export type InternalHttpapiPlaybackResponse = {
   playMethod?: SudoStreamInternalPlaybackPlayMethod;
   providerSubtitleTracks?: Array<InternalHttpapiProviderSubtitleTrack>;
   qualities?: Array<SudoStreamInternalTranscodeQualityInfo>;
+  /**
+   * Series is set only for paths in a series library with resolvable S/E identity.
+   */
   series?: InternalHttpapiPlaybackSeriesContext;
+  /**
+   * SkipIntro is set when chapter metadata or offline audio detection finds an opening intro (E-23).
+   */
+  skipIntro?: SudoStreamInternalSkipsegmentIntro;
   status?: SudoStreamInternalTranscodeStatus;
   streamUrl?: string;
   subtitleTracks?: Array<SudoStreamInternalTranscodeTrackInfo>;
   toneMapped?: boolean;
+  /**
+   * UserSubtitle is the current user's uploaded caption when present (TTL 1d).
+   */
   userSubtitle?: InternalHttpapiUserSubtitleTrack;
 };
 
-/**
- * Series is set only for paths in a series library with resolvable S/E identity.
- */
 export type InternalHttpapiPlaybackSeriesContext = {
   episode?: number;
   librarySlug?: string;
@@ -298,9 +316,6 @@ export type InternalHttpapiUserResponse = {
   user?: SudoStreamInternalAuthPublicUser;
 };
 
-/**
- * UserSubtitle is the current user's uploaded caption when present (TTL 1d).
- */
 export type InternalHttpapiUserSubtitleTrack = {
   label?: string;
   lang?: string;
@@ -513,6 +528,7 @@ export type SudoStreamInternalMaintenanceRun = {
   finishedAt?: string;
   id?: string;
   libraryId?: string;
+  libraryName?: string;
   startedAt?: string;
   status?: string;
   summary?: {
@@ -712,13 +728,19 @@ export type SudoStreamInternalProviderSettings = {
   updatedAt?: string;
 };
 
+export type SudoStreamInternalSkipsegmentIntro = {
+  endMs?: number;
+  source?: string;
+  startMs?: number;
+};
+
 export type SudoStreamInternalTranscodeChapterInfo = {
   endSeconds?: number;
   startSeconds?: number;
   title?: string;
 };
 
-export type SudoStreamInternalTranscodeDownmixAlgorithm = 'none' | 'ac4';
+export type SudoStreamInternalTranscodeDownmixAlgorithm = 'none' | 'ac4' | 'dave750' | 'nightmodeDialogue' | 'rfc7845';
 
 export type SudoStreamInternalTranscodeHwAccel = 'off' | 'qsv' | 'vaapi' | 'nvenc' | 'rockchip';
 
@@ -734,12 +756,14 @@ export type SudoStreamInternalTranscodeStatus = 'idle' | 'ready' | 'processing' 
 export type SudoStreamInternalTranscodeToneMappingAlgorithm = 'bt2390' | 'hable' | 'reinhard' | 'mobius';
 
 export type SudoStreamInternalTranscodeTrackInfo = {
+  default?: boolean;
   id?: string;
   label?: string;
 };
 
 export type SudoStreamInternalTranscodeTranscodeSettings = {
   downmixAlgorithm?: SudoStreamInternalTranscodeDownmixAlgorithm;
+  downmixBoost?: number;
   hwAccel?: SudoStreamInternalTranscodeHwAccel;
   toneMappingAlgorithm?: SudoStreamInternalTranscodeToneMappingAlgorithm;
   toneMappingEnabled?: boolean;
@@ -783,9 +807,7 @@ export type PatchApiAdminDlnaSettingsData = {
   /**
    * DLNA settings
    */
-  body: {
-    [key: string]: unknown;
-  } | SudoStreamInternalDlnaSettings;
+  body: SudoStreamInternalDlnaSettings;
   path?: never;
   query?: never;
   url: '/api/admin/dlna/settings';
@@ -881,9 +903,7 @@ export type PostApiAdminInvitesData = {
   /**
    * Invite
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiCreateInviteRequest;
+  body: InternalHttpapiCreateInviteRequest;
   path?: never;
   query?: never;
   url: '/api/admin/invites';
@@ -953,9 +973,7 @@ export type PostApiAdminInvitesByIdResendData = {
   /**
    * Optional TTL override
    */
-  body?: {
-    [key: string]: unknown;
-  } | InternalHttpapiResendInviteRequest;
+  body?: InternalHttpapiResendInviteRequest;
   path: {
     /**
      * Invite ID
@@ -1021,9 +1039,7 @@ export type PostApiAdminLibrariesData = {
   /**
    * Library fields
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiCreateLibraryRequest;
+  body: InternalHttpapiCreateLibraryRequest;
   path?: never;
   query?: never;
   url: '/api/admin/libraries';
@@ -1114,9 +1130,7 @@ export type PatchApiAdminLibrariesByIdData = {
   /**
    * Library fields
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiPatchLibraryRequest;
+  body: InternalHttpapiPatchLibraryRequest;
   path: {
     /**
      * Library ID
@@ -1191,9 +1205,7 @@ export type PatchApiAdminLibrariesByIdMaintenanceData = {
   /**
    * Schedules
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiPatchMaintenanceRequest;
+  body: InternalHttpapiPatchMaintenanceRequest;
   path: {
     /**
      * Library ID
@@ -1268,9 +1280,7 @@ export type PatchApiAdminLibrariesByIdProvidersData = {
   /**
    * Provider settings
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiPatchProviderSettingsRequest;
+  body: InternalHttpapiPatchProviderSettingsRequest;
   path: {
     /**
      * Library ID
@@ -1358,9 +1368,7 @@ export type PostApiAdminLibrariesByIdRootsData = {
   /**
    * Folder
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiAddLibraryRootRequest;
+  body: InternalHttpapiAddLibraryRootRequest;
   path: {
     /**
      * Library ID
@@ -1464,9 +1472,7 @@ export type PatchApiAdminMaintenanceData = {
   /**
    * Schedules
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiPatchMaintenanceRequest;
+  body: InternalHttpapiPatchMaintenanceRequest;
   path?: never;
   query?: never;
   url: '/api/admin/maintenance';
@@ -1502,9 +1508,22 @@ export type GetApiAdminMaintenanceRunsData = {
      * Max rows (default 50)
      */
     limit?: number;
+    /**
+     * Filter by status (e.g. running)
+     */
+    status?: string;
   };
   url: '/api/admin/maintenance/runs';
 };
+
+export type GetApiAdminMaintenanceRunsErrors = {
+  /**
+   * Bad Request
+   */
+  400: InternalHttpapiErrorResponse;
+};
+
+export type GetApiAdminMaintenanceRunsError = GetApiAdminMaintenanceRunsErrors[keyof GetApiAdminMaintenanceRunsErrors];
 
 export type GetApiAdminMaintenanceRunsResponses = {
   /**
@@ -1514,6 +1533,44 @@ export type GetApiAdminMaintenanceRunsResponses = {
 };
 
 export type GetApiAdminMaintenanceRunsResponse = GetApiAdminMaintenanceRunsResponses[keyof GetApiAdminMaintenanceRunsResponses];
+
+export type PostApiAdminMaintenanceRunsByIdCancelData = {
+  body?: never;
+  path: {
+    /**
+     * Run ID
+     */
+    id: string;
+  };
+  query?: never;
+  url: '/api/admin/maintenance/runs/{id}/cancel';
+};
+
+export type PostApiAdminMaintenanceRunsByIdCancelErrors = {
+  /**
+   * Not Found
+   */
+  404: InternalHttpapiErrorResponse;
+  /**
+   * Conflict
+   */
+  409: InternalHttpapiErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: InternalHttpapiErrorResponse;
+};
+
+export type PostApiAdminMaintenanceRunsByIdCancelError = PostApiAdminMaintenanceRunsByIdCancelErrors[keyof PostApiAdminMaintenanceRunsByIdCancelErrors];
+
+export type PostApiAdminMaintenanceRunsByIdCancelResponses = {
+  /**
+   * canceled
+   */
+  204: string;
+};
+
+export type PostApiAdminMaintenanceRunsByIdCancelResponse = PostApiAdminMaintenanceRunsByIdCancelResponses[keyof PostApiAdminMaintenanceRunsByIdCancelResponses];
 
 export type PostApiAdminMaintenanceByActionRunData = {
   body?: never;
@@ -1583,9 +1640,7 @@ export type PatchApiAdminNetworkSettingsData = {
   /**
    * Network settings
    */
-  body: {
-    [key: string]: unknown;
-  } | SudoStreamInternalNetworkSettings;
+  body: SudoStreamInternalNetworkSettings;
   path?: never;
   query?: never;
   url: '/api/admin/network/settings';
@@ -1617,9 +1672,7 @@ export type PostApiAdminNetworkSettingsTestData = {
   /**
    * Draft network settings
    */
-  body: {
-    [key: string]: unknown;
-  } | SudoStreamInternalNetworkSettings;
+  body: SudoStreamInternalNetworkSettings;
   path?: never;
   query?: never;
   url: '/api/admin/network/settings/test';
@@ -1706,9 +1759,7 @@ export type PatchApiAdminSettingsData = {
   /**
    * Settings
    */
-  body: {
-    [key: string]: unknown;
-  } | SudoStreamInternalAuthSettings;
+  body: SudoStreamInternalAuthSettings;
   path?: never;
   query?: never;
   url: '/api/admin/settings';
@@ -1765,9 +1816,7 @@ export type PatchApiAdminTranscodeSettingsData = {
   /**
    * Transcode settings
    */
-  body: {
-    [key: string]: unknown;
-  } | SudoStreamInternalTranscodeTranscodeSettings;
+  body: SudoStreamInternalTranscodeTranscodeSettings;
   path?: never;
   query?: never;
   url: '/api/admin/transcode/settings';
@@ -1869,9 +1918,7 @@ export type PatchApiAdminTrashSettingsData = {
   /**
    * Recycle bin settings
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiTrashSettingsResponse;
+  body: InternalHttpapiTrashSettingsResponse;
   path?: never;
   query?: never;
   url: '/api/admin/trash/settings';
@@ -1988,9 +2035,7 @@ export type PostApiAdminUsersData = {
   /**
    * New user
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiCreateUserRequest;
+  body: InternalHttpapiCreateUserRequest;
   path?: never;
   query?: never;
   url: '/api/admin/users';
@@ -2068,9 +2113,7 @@ export type PatchApiAdminUsersByIdData = {
   /**
    * User patch
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiUpdateUserRequest;
+  body: InternalHttpapiUpdateUserRequest;
   path: {
     /**
      * User ID
@@ -2171,9 +2214,7 @@ export type PutApiAdminUsersByIdLibrariesData = {
   /**
    * Grant list
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiPutGrantsRequest;
+  body: InternalHttpapiPutGrantsRequest;
   path: {
     /**
      * User ID
@@ -2308,9 +2349,7 @@ export type DeleteApiAuth2FaData = {
   /**
    * Password and TOTP code
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiDisableTwoFactorRequest;
+  body: InternalHttpapiDisableTwoFactorRequest;
   path?: never;
   query?: never;
   url: '/api/auth/2fa';
@@ -2342,9 +2381,7 @@ export type PostApiAuth2FaConfirmData = {
   /**
    * TOTP code
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiTwoFactorConfirmRequest;
+  body: InternalHttpapiTwoFactorConfirmRequest;
   path?: never;
   query?: never;
   url: '/api/auth/2fa/confirm';
@@ -2376,9 +2413,7 @@ export type PostApiAuth2FaSetupData = {
   /**
    * Optional pending token
    */
-  body?: {
-    [key: string]: unknown;
-  } | InternalHttpapiTwoFactorSetupRequest;
+  body?: InternalHttpapiTwoFactorSetupRequest;
   path?: never;
   query?: never;
   url: '/api/auth/2fa/setup';
@@ -2414,9 +2449,7 @@ export type PostApiAuth2FaVerifyData = {
   /**
    * Pending token and code
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiVerifyTwoFactorRequest;
+  body: InternalHttpapiVerifyTwoFactorRequest;
   path?: never;
   query?: never;
   url: '/api/auth/2fa/verify';
@@ -2448,9 +2481,7 @@ export type PostApiAuthAcceptInviteData = {
   /**
    * Invite token
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiAcceptInviteRequest;
+  body: InternalHttpapiAcceptInviteRequest;
   path?: never;
   query?: never;
   url: '/api/auth/accept-invite';
@@ -2482,9 +2513,7 @@ export type PostApiAuthChangeEmailData = {
   /**
    * Email change
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiChangeEmailRequest;
+  body: InternalHttpapiChangeEmailRequest;
   path?: never;
   query?: never;
   url: '/api/auth/change-email';
@@ -2524,9 +2553,7 @@ export type PostApiAuthChangePasswordData = {
   /**
    * Password change
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiChangePasswordRequest;
+  body: InternalHttpapiChangePasswordRequest;
   path?: never;
   query?: never;
   url: '/api/auth/change-password';
@@ -2592,9 +2619,7 @@ export type PostApiAuthForgotPasswordData = {
   /**
    * Email
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiForgotPasswordRequest;
+  body: InternalHttpapiForgotPasswordRequest;
   path?: never;
   query?: never;
   url: '/api/auth/forgot-password';
@@ -2622,9 +2647,7 @@ export type PostApiAuthLoginData = {
   /**
    * Credentials
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiLoginRequest;
+  body: InternalHttpapiLoginRequest;
   path?: never;
   query?: never;
   url: '/api/auth/login';
@@ -2739,9 +2762,7 @@ export type PostApiAuthResetPasswordData = {
   /**
    * Reset token
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiResetPasswordRequest;
+  body: InternalHttpapiResetPasswordRequest;
   path?: never;
   query?: never;
   url: '/api/auth/reset-password';
@@ -3158,9 +3179,7 @@ export type PatchApiFavoriteByPathData = {
   /**
    * Favorite flag
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiFavoritePatchRequest;
+  body: InternalHttpapiFavoritePatchRequest;
   path: {
     /**
      * Media file path
@@ -3322,6 +3341,71 @@ export type GetApiMeFavoritesResponses = {
 };
 
 export type GetApiMeFavoritesResponse = GetApiMeFavoritesResponses[keyof GetApiMeFavoritesResponses];
+
+export type GetApiMePlaybackPreferencesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/me/playback-preferences';
+};
+
+export type GetApiMePlaybackPreferencesErrors = {
+  /**
+   * Unauthorized
+   */
+  401: InternalHttpapiErrorResponse;
+  /**
+   * Internal Server Error
+   */
+  500: InternalHttpapiErrorResponse;
+};
+
+export type GetApiMePlaybackPreferencesError = GetApiMePlaybackPreferencesErrors[keyof GetApiMePlaybackPreferencesErrors];
+
+export type GetApiMePlaybackPreferencesResponses = {
+  /**
+   * OK
+   */
+  200: InternalHttpapiPlaybackPreferencesResponse;
+};
+
+export type GetApiMePlaybackPreferencesResponse = GetApiMePlaybackPreferencesResponses[keyof GetApiMePlaybackPreferencesResponses];
+
+export type PatchApiMePlaybackPreferencesData = {
+  /**
+   * Playback preferences
+   */
+  body: InternalHttpapiPatchPlaybackPreferencesRequest;
+  path?: never;
+  query?: never;
+  url: '/api/me/playback-preferences';
+};
+
+export type PatchApiMePlaybackPreferencesErrors = {
+  /**
+   * Bad Request
+   */
+  400: InternalHttpapiErrorResponse;
+  /**
+   * Unauthorized
+   */
+  401: InternalHttpapiErrorResponse;
+  /**
+   * Internal Server Error
+   */
+  500: InternalHttpapiErrorResponse;
+};
+
+export type PatchApiMePlaybackPreferencesError = PatchApiMePlaybackPreferencesErrors[keyof PatchApiMePlaybackPreferencesErrors];
+
+export type PatchApiMePlaybackPreferencesResponses = {
+  /**
+   * OK
+   */
+  200: InternalHttpapiPlaybackPreferencesResponse;
+};
+
+export type PatchApiMePlaybackPreferencesResponse = PatchApiMePlaybackPreferencesResponses[keyof PatchApiMePlaybackPreferencesResponses];
 
 export type GetApiMeStatsData = {
   body?: never;
@@ -3525,9 +3609,7 @@ export type PatchApiMetadataByPathData = {
   /**
    * Metadata patch
    */
-  body: {
-    [key: string]: unknown;
-  } | SudoStreamInternalMetadataPatchRequest;
+  body: SudoStreamInternalMetadataPatchRequest;
   path: {
     /**
      * Path under media root
@@ -3573,7 +3655,9 @@ export type PatchApiMetadataByPathResponses = {
 export type PatchApiMetadataByPathResponse = PatchApiMetadataByPathResponses[keyof PatchApiMetadataByPathResponses];
 
 export type PostApiOauthTokenData = {
-  body?: string;
+  body?: {
+    [key: string]: unknown;
+  };
   path?: never;
   query?: never;
   url: '/api/oauth/token';
@@ -3702,9 +3786,7 @@ export type PostApiPlaybackByPathData = {
   /**
    * Device profile and quality selection
    */
-  body?: {
-    [key: string]: unknown;
-  } | InternalHttpapiPlaybackNegotiateRequest;
+  body?: InternalHttpapiPlaybackNegotiateRequest;
   path: {
     /**
      * Media file path
@@ -4027,9 +4109,22 @@ export type GetApiUserSubtitleByPathResponse = GetApiUserSubtitleByPathResponses
 
 export type PutApiUserSubtitleByPathData = {
   /**
-   * ISO 639-1 language code | Display label | Subtitle file (.vtt or .srt)
+   * ISO 639-1 language code
    */
-  body: string | unknown;
+  body: {
+    /**
+     * Subtitle file (.vtt or .srt)
+     */
+    file: Blob | File;
+    /**
+     * Display label
+     */
+    label?: string;
+    /**
+     * ISO 639-1 language code
+     */
+    lang?: string;
+  };
   path: {
     /**
      * Path under media root
@@ -4116,9 +4211,7 @@ export type PatchApiWatchByPathData = {
   /**
    * Watched flag and optional progress
    */
-  body: {
-    [key: string]: unknown;
-  } | InternalHttpapiWatchPatchRequest;
+  body: InternalHttpapiWatchPatchRequest;
   path: {
     /**
      * Media file path

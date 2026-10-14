@@ -14,16 +14,17 @@ const maxRunSegments = 12
 
 // segmentRun describes one on-demand ffmpeg invocation producing a contiguous run of segments.
 type segmentRun struct {
-	mediaPath  string
-	variantDir string
-	meta       SourceMeta
-	variant    Variant
-	startIndex int
-	encoder    VideoEncoder
-	render     string
-	toneMap    ToneMapMode
-	toneAlgo   ToneMappingAlgorithm
-	downmix    DownmixAlgorithm
+	mediaPath    string
+	variantDir   string
+	meta         SourceMeta
+	variant      Variant
+	startIndex   int
+	encoder      VideoEncoder
+	render       string
+	toneMap      ToneMapMode
+	toneAlgo     ToneMappingAlgorithm
+	downmix      DownmixAlgorithm
+	downmixBoost float64
 }
 
 // startSeconds is the timeline offset of the first segment this run produces.
@@ -151,8 +152,13 @@ func appendAudioRenditionArgs(args []string, run segmentRun) []string {
 		"-vn", "-sn", "-dn",
 	)
 
-	if pan := StereoDownmixFilter(run.downmix, stream.Channels, stream.ChannelLayout); pan != "" {
-		args = append(args, "-af", pan)
+	if filter := ComposeAudioFilter(
+		run.downmix,
+		stream.Channels,
+		stream.ChannelLayout,
+		run.downmixBoost,
+	); filter != "" {
+		args = append(args, "-af", filter)
 	}
 
 	return append(args,

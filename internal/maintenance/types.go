@@ -15,12 +15,14 @@ const (
 	ActionThumbnailsWarm     = "thumbnails.warm"
 	ActionPlaybackCachePurge = "playback.cache.purge"
 	ActionTrashPurge         = "trash.purge"
-	// ActionProvidersMetadata runs the FI-1 metadata provider task for a library (whole library, L20).
+	// ActionProvidersMetadata runs the metadata provider task for a library.
 	ActionProvidersMetadata = "providers.metadata"
-	// ActionProvidersPosters runs the FI-1 poster provider task for a library.
+	// ActionProvidersPosters runs the poster provider task for a library.
 	ActionProvidersPosters = "providers.posters"
-	// ActionProvidersSubtitles runs the FI-1 subtitle provider task for a library.
+	// ActionProvidersSubtitles runs the subtitle provider task for a library.
 	ActionProvidersSubtitles = "providers.subtitles"
+	// ActionPlaybackSkipDetect runs offline intro audio fingerprinting.
+	ActionPlaybackSkipDetect = "playback.skip.detect"
 )
 
 // Trigger identifies how a run was started.
@@ -31,10 +33,11 @@ const (
 
 // Run status values.
 const (
-	StatusRunning = "running"
-	StatusSuccess = "success"
-	StatusFailed  = "failed"
-	StatusSkipped = "skipped"
+	StatusRunning  = "running"
+	StatusSuccess  = "success"
+	StatusFailed   = "failed"
+	StatusSkipped  = "skipped"
+	StatusCanceled = "canceled"
 )
 
 // PurgeRetentionHours is how old an HLS cache dir must be before purge deletes it.
@@ -56,6 +59,8 @@ var (
 	ErrInvalidAction = errors.New("invalid maintenance action")
 	// ErrNotFound is returned when a schedule or run is missing.
 	ErrNotFound = errors.New("maintenance record not found")
+	// ErrNotRunning is returned when Cancel targets a finished or non-running run.
+	ErrNotRunning = errors.New("maintenance run is not running")
 )
 
 // Schedule is a persisted cron schedule for one action (optionally per library).
@@ -80,14 +85,15 @@ type ScheduleInput struct {
 
 // Run is one execution of a maintenance action.
 type Run struct {
-	ID         string         `json:"id"`
-	Action     string         `json:"action"`
-	LibraryID  *string        `json:"libraryId,omitempty"`
-	Trigger    string         `json:"trigger"`
-	Status     string         `json:"status"`
-	StartedAt  time.Time      `json:"startedAt"`
-	FinishedAt *time.Time     `json:"finishedAt,omitempty"`
-	Summary    map[string]any `json:"summary,omitempty"`
+	ID          string         `json:"id"`
+	Action      string         `json:"action"`
+	LibraryID   *string        `json:"libraryId,omitempty"`
+	LibraryName string         `json:"libraryName,omitempty"`
+	Trigger     string         `json:"trigger"`
+	Status      string         `json:"status"`
+	StartedAt   time.Time      `json:"startedAt"`
+	FinishedAt  *time.Time     `json:"finishedAt,omitempty"`
+	Summary     map[string]any `json:"summary,omitempty"`
 }
 
 // ActionStatus combines schedule + latest run for API responses.
@@ -117,7 +123,8 @@ func IsGlobalAction(action string) bool {
 func IsLibraryAction(action string) bool {
 	switch action {
 	case ActionMetadataScan, ActionThumbnailsWarm,
-		ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles:
+		ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles,
+		ActionPlaybackSkipDetect:
 		return true
 	default:
 		return false

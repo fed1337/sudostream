@@ -10,7 +10,11 @@ import (
 	"strings"
 )
 
-var errSMTPNotConfigured = errors.New("smtp host is not configured")
+var (
+	errSMTPNotConfigured  = errors.New("smtp host is not configured")
+	errInvalidEmailHeader = errors.New("email header contains invalid control characters")
+	errInvalidRecipient   = errors.New("recipient contains invalid control characters")
+)
 
 // Sender delivers email messages.
 type Sender interface {
@@ -53,6 +57,15 @@ func (s *SMTPSender) Send(_ context.Context, recipient, subject, body string) er
 		return fmt.Errorf("smtp host is not configured: %w", errSMTPNotConfigured)
 	}
 
+	recipient = strings.TrimSpace(recipient)
+	if hasHeaderControlChars(recipient) {
+		return fmt.Errorf("invalid recipient: %w", errInvalidRecipient)
+	}
+	if hasHeaderControlChars(subject) {
+		return fmt.Errorf("invalid subject: %w", errInvalidEmailHeader)
+	}
+	body = sanitizePlainTextBody(body)
+
 	fromAddr := strings.TrimSpace(s.config.From)
 	if fromAddr == "" {
 		fromAddr = strings.TrimSpace(s.config.User)
@@ -82,10 +95,24 @@ func (s *SMTPSender) Send(_ context.Context, recipient, subject, body string) er
 	return nil
 }
 
+func hasHeaderControlChars(value string) bool {
+	return strings.ContainsAny(value, "\r\n")
+}
+
+func sanitizePlainTextBody(body string) string {
+	body = strings.ReplaceAll(body, "\r\n", "\n")
+	body = strings.ReplaceAll(body, "\r", "\n")
+
+	return body
+}
+
 func formatFromHeader(name, address string) string {
 	name = strings.TrimSpace(name)
 	address = strings.TrimSpace(address)
 	if name == "" {
+		return address
+	}
+	if hasHeaderControlChars(name) || hasHeaderControlChars(address) {
 		return address
 	}
 

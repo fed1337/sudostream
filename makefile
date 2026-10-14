@@ -57,7 +57,7 @@ test: test-db-up
 	go tool cover -html=coverage.txt -o coverage.html
 
 openapi:
-	go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc5 init \
+	go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc6 init \
 	  --v3.1 --parseDependency --parseInternal \
 	  --outputTypes json,yaml \
 	  --output ./openapi -g cmd/server/main.go
@@ -83,7 +83,11 @@ frontend-build:
 	cp -r web/dist internal/frontend/dist
 
 docker-build:
-	DOCKER_BUILDKIT=1 docker build --build-arg DISTROLESS_TAG=nonroot -t sudostream:local .
+	DOCKER_BUILDKIT=1 docker build --build-arg DISTROLESS_TAG=nonroot \
+	  --build-arg BUILD_VERSION=dev \
+	  --build-arg BUILD_REVISION=$$(git rev-parse HEAD 2>/dev/null || echo unknown) \
+	  --build-arg IMAGE_REF_NAME=$$(git branch --show-current 2>/dev/null || echo local) \
+	  -t sudostream:local .
 
 dev-up:
 	$(COMPOSE_DEV) up -d --build
@@ -97,15 +101,8 @@ prod-up:
 prod-down:
 	$(COMPOSE_PROD) down
 
-build:
-	CGO_ENABLED=0 GOOS=linux GOARCH="amd64" go build -tags="embed nomsgpack sonic avx" \
-		-trimpath \
-		-ldflags="-s -w" \
-		-o out/sudostream \
-		./cmd/server
-
 docs:
 	uv run mkdocs serve
 
 .PHONY: help check fix test test-db-up test-db-down openapi frontend-install frontend-typegen \
-	frontend-check frontend-fix frontend-dev frontend-build docker-build dev-up dev-down prod-up prod-down build docs
+	frontend-check frontend-fix frontend-dev frontend-build docker-build dev-up dev-down prod-up prod-down docs

@@ -14,10 +14,7 @@ import { ArrowLeftIcon, DownloadIcon } from "lucide-react";
 
 import { fetchPlayback, isHlsPlaybackReady, uploadUserSubtitle } from "@/api/playback";
 import { fetchWatchState, patchWatchState } from "@/api/watch";
-import {
-  getApiCatalogByLibrarySlugShowsByShowKey,
-  getApiCatalogByLibrarySlugShowsByShowKeySeasonsBySeasonEpisodes,
-} from "@/client";
+import { getApiCatalogByLibrarySlugShowsByShowKey } from "@/client";
 import {
   getApiMeContinueQueryKey,
   getApiMeStatsQueryKey,
@@ -42,6 +39,7 @@ import { SubtitleStyleMenu } from "@/components/player/subtitle-style-menu";
 import { VideoJSPlayer } from "@/components/player/videojs-player";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { metadataDisplayName, useMetadata } from "@/hooks/use-metadata";
+import { nextCatalogSeason, useShowSeasonEpisodeOptions } from "@/lib/catalog-show-episodes";
 import { buildDeviceProfile } from "@/lib/device-profile";
 import {
   absoluteApiUrl,
@@ -49,7 +47,6 @@ import {
   mediaActionsForPath,
   playerPath,
 } from "@/lib/media-urls";
-import type { SeriesEpisodeOption } from "@/lib/series-nav";
 import { isPlaybackComplete, shouldSaveProgress } from "@/lib/watch-progress";
 
 export default function PlayerPage() {
@@ -173,49 +170,67 @@ export default function PlayerPage() {
     },
   });
 
-  const seasons = showQuery.data?.seasons ?? [];
-  const episodesQuery = useQuery({
-    queryKey: [
-      "player-series-episodes",
-      series?.librarySlug,
-      series?.showKey,
-      seasons.map((s) => s.season).join(","),
-    ],
-    enabled: Boolean(series?.librarySlug && series?.showKey && seasons.length > 0),
-    queryFn: async () => {
-      const pages = await Promise.all(
-        seasons.map(async (season) => {
-          const response = await getApiCatalogByLibrarySlugShowsByShowKeySeasonsBySeasonEpisodes({
-            path: {
-              librarySlug: series!.librarySlug,
-              showKey: series!.showKey,
-              season: season.season ?? 0,
-            },
-          });
-          if (response.error || !response.data) {
-            throw new Error("season episodes failed");
-          }
-          return response.data.episodes ?? [];
-        }),
-      );
-      const options: SeriesEpisodeOption[] = [];
-      for (const page of pages) {
-        for (const ep of page) {
-          if (!ep.path) {
-            continue;
-          }
-          options.push({
-            path: ep.path,
-            season: ep.season ?? 0,
-            episode: ep.episode ?? 0,
-            title:
-              ep.episodeTitle || ep.title || t("player.episodeValue", { number: ep.episode ?? 0 }),
-          });
-        }
-      }
-      return options;
-    },
-  });
+  const catalogSeasonNumbers = useMemo(() => {
+    const list = showQuery.data?.seasons ?? [];
+    return list.map((season) => season.season ?? 0);
+  }, [showQuery.data?.seasons]);
+
+  // Season picked in the menu for browsing episodes — does not change playback.
+  // Scoped to mediaPath so changing episodes resets browse without an effect.
+  const [browseSeason, setBrowseSeason] = useState<{
+    mediaPath: string;
+    season: number;
+  } | null>(null);
+  const playingSeason = series?.season ?? 0;
+  const menuSeason =
+    browseSeason && mediaPath && browseSeason.mediaPath === mediaPath
+      ? browseSeason.season
+      : playingSeason;
+  const followingSeason = useMemo(
+    () => nextCatalogSeason(catalogSeasonNumbers, playingSeason),
+    [catalogSeasonNumbers, playingSeason],
+  );
+
+  const episodeLabel = useCallback((n: number) => t("player.episodeValue", { number: n }), [t]);
+
+  const playingSeasonQuery = useShowSeasonEpisodeOptions(
+    series?.librarySlug,
+    series?.showKey,
+    playingSeason,
+    Boolean(series?.librarySlug && series?.showKey),
+    episodeLabel,
+  );
+
+  const nextSeasonQuery = useShowSeasonEpisodeOptions(
+    series?.librarySlug,
+    series?.showKey,
+    followingSeason,
+    Boolean(series?.librarySlug && series?.showKey && followingSeason !== undefined),
+    episodeLabel,
+  );
+
+  const browseSeasonQuery = useShowSeasonEpisodeOptions(
+    series?.librarySlug,
+    series?.showKey,
+    menuSeason,
+    Boolean(series?.librarySlug && series?.showKey && menuSeason !== playingSeason),
+    episodeLabel,
+  );
+
+  const menuEpisodes = useMemo(() => {
+    if (menuSeason === playingSeason) {
+      return playingSeasonQuery.data ?? [];
+    }
+    return browseSeasonQuery.data ?? [];
+  }, [browseSeasonQuery.data, menuSeason, playingSeason, playingSeasonQuery.data]);
+
+  /** Current + next season for cross-season Next button. */
+  const navEpisodes = useMemo(() => {
+    return [...(playingSeasonQuery.data ?? []), ...(nextSeasonQuery.data ?? [])];
+  }, [nextSeasonQuery.data, playingSeasonQuery.data]);
+
+  const menuEpisodesLoading =
+    menuSeason === playingSeason ? playingSeasonQuery.isLoading : browseSeasonQuery.isLoading;
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadUserSubtitle(mediaPath!, file),
@@ -232,6 +247,16 @@ export default function PlayerPage() {
     [navigate, returnTo],
   );
 
+  const onBrowseSeason = useCallback(
+    (season: number) => {
+      if (!mediaPath) {
+        return;
+      }
+      setBrowseSeason({ mediaPath, season });
+    },
+    [mediaPath],
+  );
+
   const seriesChrome = useMemo(() => {
     if (!mediaPath || !series) {
       return null;
@@ -241,16 +266,26 @@ export default function PlayerPage() {
       season: series.season,
       episode: series.episode,
       showName: series.showName,
-      episodes: episodesQuery.data ?? [],
-      seasonsLoading: showQuery.isLoading || episodesQuery.isLoading,
+      menuSeason,
+      menuEpisodes,
+      navEpisodes,
+      catalogSeasons: catalogSeasonNumbers,
+      seasonsLoading: menuEpisodesLoading,
+      catalogSeasonsLoading: showQuery.isLoading || showQuery.isFetching,
+      onBrowseSeason,
       onSelectEpisode: selectEpisode,
     };
   }, [
-    episodesQuery.data,
-    episodesQuery.isLoading,
+    catalogSeasonNumbers,
     mediaPath,
+    menuEpisodes,
+    menuEpisodesLoading,
+    menuSeason,
+    navEpisodes,
+    onBrowseSeason,
     selectEpisode,
     series,
+    showQuery.isFetching,
     showQuery.isLoading,
   ]);
 
@@ -347,6 +382,7 @@ export default function PlayerPage() {
               : null
           }
           chapters={playback?.chapters}
+          skipIntro={playback?.skipIntro}
           seriesChrome={seriesChrome}
           onUploadSubtitle={async (file) => {
             await uploadMutation.mutateAsync(file);

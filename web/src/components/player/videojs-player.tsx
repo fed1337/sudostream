@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SeriesPlayerChrome } from "@/components/player/series-player-chrome";
+import { SkipIntroAction } from "@/components/player/skip-intro-action";
 import { usePlayerControlsVisible } from "@/components/player/use-player-controls-visible";
 import { PlaybackResumeLoader } from "@/components/player/playback-resume-loader";
 import { PlaybackProgressSaver } from "@/components/player/playback-progress-saver";
@@ -17,6 +18,7 @@ import { localeCode } from "@/lib/i18n";
 import { chaptersToWebVTT } from "@/lib/chapters-vtt";
 import { withAccessToken } from "@/lib/media-urls";
 import type { SeriesEpisodeOption } from "@/lib/series-nav";
+import type { SkipIntroSegment } from "@/lib/skip-intro";
 import { cn } from "@/lib/utils";
 
 import "./videojs-player.css";
@@ -34,8 +36,13 @@ type SeriesChrome = {
   season: number;
   episode: number;
   showName: string;
-  episodes: SeriesEpisodeOption[];
+  menuSeason: number;
+  menuEpisodes: SeriesEpisodeOption[];
+  navEpisodes: SeriesEpisodeOption[];
+  catalogSeasons?: number[];
   seasonsLoading?: boolean;
+  catalogSeasonsLoading?: boolean;
+  onBrowseSeason: (season: number) => void;
   onSelectEpisode: (path: string) => void;
 };
 
@@ -52,6 +59,7 @@ type VideoJSPlayerProps = {
   providerSubtitleTracks?: Array<{ lang: string; label: string; url: string }>;
   userSubtitleTrack?: { lang: string; label: string; url: string } | null;
   chapters?: ChapterCue[];
+  skipIntro?: SkipIntroSegment | null;
   seriesChrome?: SeriesChrome | null;
   onUploadSubtitle?: (file: File) => Promise<void>;
   uploadBusy?: boolean;
@@ -73,6 +81,7 @@ export function VideoJSPlayer({
   providerSubtitleTracks,
   userSubtitleTrack,
   chapters,
+  skipIntro,
   seriesChrome,
   onUploadSubtitle,
   uploadBusy,
@@ -185,12 +194,23 @@ export function VideoJSPlayer({
                 currentSeason={seriesChrome.season}
                 currentEpisode={seriesChrome.episode}
                 showName={seriesChrome.showName}
-                episodes={seriesChrome.episodes}
+                menuSeason={seriesChrome.menuSeason}
+                menuEpisodes={seriesChrome.menuEpisodes}
+                navEpisodes={seriesChrome.navEpisodes}
+                catalogSeasons={seriesChrome.catalogSeasons}
                 seasonsLoading={seriesChrome.seasonsLoading}
+                catalogSeasonsLoading={seriesChrome.catalogSeasonsLoading}
+                onBrowseSeason={seriesChrome.onBrowseSeason}
                 onSelectEpisode={seriesChrome.onSelectEpisode}
                 onUploadSubtitle={onUploadSubtitle}
                 uploadBusy={uploadBusy}
+                skipIntro={skipIntro}
               />
+            ) : null}
+            {skipIntro && !seriesChrome ? (
+              <div className="sudostream-series-chrome__actions">
+                <SkipIntroAction segment={skipIntro} />
+              </div>
             ) : null}
             {showStandaloneUpload ? (
               <StandaloneSubtitleUpload

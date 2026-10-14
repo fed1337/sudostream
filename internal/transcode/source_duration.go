@@ -32,7 +32,6 @@ func ReadSourceDuration(outDir string) (float64, bool) {
 		return 0, false
 	}
 
-	//nolint:gosec // outDir is under the transcode cache root
 	raw, err := os.ReadFile(filepath.Join(outDir, sourceDurationMarker))
 	if err != nil {
 		return 0, false

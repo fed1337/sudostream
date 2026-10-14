@@ -13,11 +13,9 @@ import {
   PlayIcon,
 } from "lucide-react";
 
-import {
-  getApiCatalogByLibrarySlugShowsByShowKey,
-  getApiCatalogByLibrarySlugShowsByShowKeySeasonsBySeasonEpisodes,
-} from "@/client/sdk.gen";
+import { getApiCatalogByLibrarySlugShowsByShowKey } from "@/client/sdk.gen";
 import type { SudoStreamInternalCatalogEpisode } from "@/client/types.gen";
+import { catalogShowEpisodesQueryKey, fetchShowSeasonEpisodes } from "@/lib/catalog-show-episodes";
 import { patchFavoriteState } from "@/api/favorite";
 import { patchWatchState } from "@/api/watch";
 import { AuthenticatedImage } from "@/components/authenticated-image";
@@ -139,18 +137,9 @@ function SeasonEpisodesList({
   const queryClient = useQueryClient();
 
   const episodesQuery = useQuery({
-    queryKey: ["catalog-show-episodes", slug, showKey, season],
+    queryKey: catalogShowEpisodesQueryKey(slug, showKey, season),
     enabled: open && Boolean(slug && showKey),
-    queryFn: async () => {
-      const response = await getApiCatalogByLibrarySlugShowsByShowKeySeasonsBySeasonEpisodes({
-        path: { librarySlug: slug, showKey, season },
-      });
-      if (response.error || !response.data) {
-        throw new Error("episodes failed");
-      }
-
-      return response.data;
-    },
+    queryFn: () => fetchShowSeasonEpisodes(slug, showKey, season),
   });
 
   const toggleWatched = useMutation({
@@ -161,7 +150,7 @@ function SeasonEpisodesList({
       void queryClient.invalidateQueries({ queryKey: ["catalog"] });
       void queryClient.invalidateQueries({ queryKey: ["catalog-show"] });
       void queryClient.invalidateQueries({
-        queryKey: ["catalog-show-episodes", slug, showKey, season],
+        queryKey: catalogShowEpisodesQueryKey(slug, showKey, season),
       });
       void queryClient.invalidateQueries({ queryKey: ["watch", variables.path] });
     },
@@ -175,7 +164,7 @@ function SeasonEpisodesList({
       void queryClient.invalidateQueries({ queryKey: ["catalog"] });
       void queryClient.invalidateQueries({ queryKey: ["catalog-show"] });
       void queryClient.invalidateQueries({
-        queryKey: ["catalog-show-episodes", slug, showKey, season],
+        queryKey: catalogShowEpisodesQueryKey(slug, showKey, season),
       });
     },
   });

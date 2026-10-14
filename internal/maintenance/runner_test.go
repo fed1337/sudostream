@@ -81,6 +81,15 @@ func (s stubTrash) PurgeExpired(_ context.Context) (int, error) {
 	return s.purged, s.err
 }
 
+type stubSkipIntro struct {
+	summary map[string]any
+	err     error
+}
+
+func (s stubSkipIntro) DetectLibraryMap(_ context.Context, _ string) (map[string]any, error) {
+	return s.summary, s.err
+}
+
 type stubProviderTasks struct {
 	summary provider.RunSummary
 	err     error
@@ -173,6 +182,11 @@ func TestRunAction_CoversRunners(t *testing.T) {
 				assertRunSummary(ctx, t, providerSvc, action, lib.ID, "providerConfigured", true)
 				assertRunSummary(ctx, t, providerSvc, action, lib.ID, "applied", 7)
 			}
+
+			skipSvc := NewService(store, Deps{
+				SkipIntro: stubSkipIntro{summary: map[string]any{"audioHits": 4}},
+			})
+			assertRunSummary(ctx, t, skipSvc, ActionPlaybackSkipDetect, lib.ID, "audioHits", 4)
 
 			_, err = svc.runAction(ctx, "unknown", "")
 			if !errors.Is(err, ErrInvalidAction) {

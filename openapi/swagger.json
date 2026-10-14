@@ -202,6 +202,15 @@
             },
             "internal_httpapi.HealthResponse": {
                 "properties": {
+                    "build": {
+                        "type": "string"
+                    },
+                    "ref": {
+                        "type": "string"
+                    },
+                    "revision": {
+                        "type": "string"
+                    },
                     "status": {
                         "type": "string"
                     },
@@ -402,6 +411,18 @@
                 },
                 "type": "object"
             },
+            "internal_httpapi.PatchPlaybackPreferencesRequest": {
+                "properties": {
+                    "audioLanguages": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
             "internal_httpapi.PatchProviderSettingsRequest": {
                 "properties": {
                     "allowOverrideUserMetadata": {
@@ -446,6 +467,18 @@
                     },
                     "transcode": {
                         "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "internal_httpapi.PlaybackPreferencesResponse": {
+                "properties": {
+                    "audioLanguages": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     }
                 },
                 "type": "object"
@@ -500,7 +533,12 @@
                         "uniqueItems": false
                     },
                     "series": {
-                        "$ref": "#/components/schemas/internal_httpapi.PlaybackSeriesContext"
+                        "$ref": "#/components/schemas/internal_httpapi.PlaybackSeriesContext",
+                        "description": "Series is set only for paths in a series library with resolvable S/E identity."
+                    },
+                    "skipIntro": {
+                        "$ref": "#/components/schemas/sudoStream_internal_skipsegment.Intro",
+                        "description": "SkipIntro is set when chapter metadata or offline audio detection finds an opening intro (E-23)."
                     },
                     "status": {
                         "$ref": "#/components/schemas/sudoStream_internal_transcode.Status"
@@ -519,13 +557,13 @@
                         "type": "boolean"
                     },
                     "userSubtitle": {
-                        "$ref": "#/components/schemas/internal_httpapi.UserSubtitleTrack"
+                        "$ref": "#/components/schemas/internal_httpapi.UserSubtitleTrack",
+                        "description": "UserSubtitle is the current user's uploaded caption when present (TTL 1d)."
                     }
                 },
                 "type": "object"
             },
             "internal_httpapi.PlaybackSeriesContext": {
-                "description": "Series is set only for paths in a series library with resolvable S/E identity.",
                 "properties": {
                     "episode": {
                         "type": "integer"
@@ -741,7 +779,6 @@
                 "type": "object"
             },
             "internal_httpapi.UserSubtitleTrack": {
-                "description": "UserSubtitle is the current user's uploaded caption when present (TTL 1d).",
                 "properties": {
                     "label": {
                         "type": "string"
@@ -1299,6 +1336,9 @@
                     "libraryId": {
                         "type": "string"
                     },
+                    "libraryName": {
+                        "type": "string"
+                    },
                     "startedAt": {
                         "type": "string"
                     },
@@ -1834,6 +1874,20 @@
                 },
                 "type": "object"
             },
+            "sudoStream_internal_skipsegment.Intro": {
+                "properties": {
+                    "endMs": {
+                        "type": "integer"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "startMs": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
             "sudoStream_internal_transcode.ChapterInfo": {
                 "properties": {
                     "endSeconds": {
@@ -1851,12 +1905,18 @@
             "sudoStream_internal_transcode.DownmixAlgorithm": {
                 "enum": [
                     "none",
-                    "ac4"
+                    "ac4",
+                    "dave750",
+                    "nightmodeDialogue",
+                    "rfc7845"
                 ],
                 "type": "string",
                 "x-enum-varnames": [
                     "DownmixNone",
-                    "DownmixAC4"
+                    "DownmixAC4",
+                    "DownmixDave750",
+                    "DownmixNightmodeDialogue",
+                    "DownmixRFC7845"
                 ]
             },
             "sudoStream_internal_transcode.HwAccel": {
@@ -1930,6 +1990,9 @@
             },
             "sudoStream_internal_transcode.TrackInfo": {
                 "properties": {
+                    "default": {
+                        "type": "boolean"
+                    },
                     "id": {
                         "type": "string"
                     },
@@ -1943,6 +2006,9 @@
                 "properties": {
                     "downmixAlgorithm": {
                         "$ref": "#/components/schemas/sudoStream_internal_transcode.DownmixAlgorithm"
+                    },
+                    "downmixBoost": {
+                        "type": "number"
                     },
                     "hwAccel": {
                         "$ref": "#/components/schemas/sudoStream_internal_transcode.HwAccel"
@@ -1984,7 +2050,7 @@
     "info": {
         "description": "HTTP API for browsing and streaming media files.",
         "title": "sudoStream API",
-        "version": "0.35.0"
+        "version": "0.1.0"
     },
     "externalDocs": {
         "description": "",
@@ -2025,16 +2091,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/sudoStream_internal_dlna.Settings",
-                                        "summary": "body",
-                                        "description": "DLNA settings"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/sudoStream_internal_dlna.Settings",
+                                "summary": "body",
+                                "description": "DLNA settings"
                             }
                         }
                     },
@@ -2174,16 +2233,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.CreateInviteRequest",
-                                        "summary": "body",
-                                        "description": "Invite"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.CreateInviteRequest",
+                                "summary": "body",
+                                "description": "Invite"
                             }
                         }
                     },
@@ -2292,16 +2344,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.ResendInviteRequest",
-                                        "summary": "body",
-                                        "description": "Optional TTL override"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.ResendInviteRequest",
+                                "summary": "body",
+                                "description": "Optional TTL override"
                             }
                         }
                     },
@@ -2384,16 +2429,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.CreateLibraryRequest",
-                                        "summary": "body",
-                                        "description": "Library fields"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.CreateLibraryRequest",
+                                "summary": "body",
+                                "description": "Library fields"
                             }
                         }
                     },
@@ -2530,16 +2568,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.PatchLibraryRequest",
-                                        "summary": "body",
-                                        "description": "Library fields"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.PatchLibraryRequest",
+                                "summary": "body",
+                                "description": "Library fields"
                             }
                         }
                     },
@@ -2660,16 +2691,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.PatchMaintenanceRequest",
-                                        "summary": "body",
-                                        "description": "Schedules"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.PatchMaintenanceRequest",
+                                "summary": "body",
+                                "description": "Schedules"
                             }
                         }
                     },
@@ -2792,16 +2816,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.PatchProviderSettingsRequest",
-                                        "summary": "body",
-                                        "description": "Provider settings"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.PatchProviderSettingsRequest",
+                                "summary": "body",
+                                "description": "Provider settings"
                             }
                         }
                     },
@@ -2946,16 +2963,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.AddLibraryRootRequest",
-                                        "summary": "body",
-                                        "description": "Folder"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.AddLibraryRootRequest",
+                                "summary": "body",
+                                "description": "Folder"
                             }
                         }
                     },
@@ -3107,16 +3117,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.PatchMaintenanceRequest",
-                                        "summary": "body",
-                                        "description": "Schedules"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.PatchMaintenanceRequest",
+                                "summary": "body",
+                                "description": "Schedules"
                             }
                         }
                     },
@@ -3171,6 +3174,14 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "description": "Filter by status (e.g. running)",
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -3183,9 +3194,80 @@
                             }
                         },
                         "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
                     }
                 },
                 "summary": "List maintenance runs",
+                "tags": [
+                    "admin"
+                ]
+            }
+        },
+        "/api/admin/maintenance/runs/{id}/cancel": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Run ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "canceled"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Service Unavailable"
+                    }
+                },
+                "summary": "Cancel maintenance run",
                 "tags": [
                     "admin"
                 ]
@@ -3284,16 +3366,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/sudoStream_internal_network.Settings",
-                                        "summary": "body",
-                                        "description": "Network settings"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/sudoStream_internal_network.Settings",
+                                "summary": "body",
+                                "description": "Network settings"
                             }
                         }
                     },
@@ -3344,16 +3419,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/sudoStream_internal_network.Settings",
-                                        "summary": "body",
-                                        "description": "Draft network settings"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/sudoStream_internal_network.Settings",
+                                "summary": "body",
+                                "description": "Draft network settings"
                             }
                         }
                     },
@@ -3466,16 +3534,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/sudoStream_internal_auth.Settings",
-                                        "summary": "body",
-                                        "description": "Settings"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/sudoStream_internal_auth.Settings",
+                                "summary": "body",
+                                "description": "Settings"
                             }
                         }
                     },
@@ -3554,16 +3615,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/sudoStream_internal_transcode.TranscodeSettings",
-                                        "summary": "body",
-                                        "description": "Transcode settings"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/sudoStream_internal_transcode.TranscodeSettings",
+                                "summary": "body",
+                                "description": "Transcode settings"
                             }
                         }
                     },
@@ -3693,16 +3747,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.TrashSettingsResponse",
-                                        "summary": "body",
-                                        "description": "Recycle bin settings"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.TrashSettingsResponse",
+                                "summary": "body",
+                                "description": "Recycle bin settings"
                             }
                         }
                     },
@@ -3856,16 +3903,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.CreateUserRequest",
-                                        "summary": "body",
-                                        "description": "New user"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.CreateUserRequest",
+                                "summary": "body",
+                                "description": "New user"
                             }
                         }
                     },
@@ -3999,16 +4039,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.UpdateUserRequest",
-                                        "summary": "body",
-                                        "description": "User patch"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.UpdateUserRequest",
+                                "summary": "body",
+                                "description": "User patch"
                             }
                         }
                     },
@@ -4155,16 +4188,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.PutGrantsRequest",
-                                        "summary": "body",
-                                        "description": "Grant list"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.PutGrantsRequest",
+                                "summary": "body",
+                                "description": "Grant list"
                             }
                         }
                     },
@@ -4344,16 +4370,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.DisableTwoFactorRequest",
-                                        "summary": "body",
-                                        "description": "Password and TOTP code"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.DisableTwoFactorRequest",
+                                "summary": "body",
+                                "description": "Password and TOTP code"
                             }
                         }
                     },
@@ -4397,16 +4416,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.TwoFactorConfirmRequest",
-                                        "summary": "body",
-                                        "description": "TOTP code"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.TwoFactorConfirmRequest",
+                                "summary": "body",
+                                "description": "TOTP code"
                             }
                         }
                     },
@@ -4457,16 +4469,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.TwoFactorSetupRequest",
-                                        "summary": "body",
-                                        "description": "Optional pending token"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.TwoFactorSetupRequest",
+                                "summary": "body",
+                                "description": "Optional pending token"
                             }
                         }
                     },
@@ -4526,16 +4531,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.VerifyTwoFactorRequest",
-                                        "summary": "body",
-                                        "description": "Pending token and code"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.VerifyTwoFactorRequest",
+                                "summary": "body",
+                                "description": "Pending token and code"
                             }
                         }
                     },
@@ -4586,16 +4584,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.AcceptInviteRequest",
-                                        "summary": "body",
-                                        "description": "Invite token"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.AcceptInviteRequest",
+                                "summary": "body",
+                                "description": "Invite token"
                             }
                         }
                     },
@@ -4639,16 +4630,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.ChangeEmailRequest",
-                                        "summary": "body",
-                                        "description": "Email change"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.ChangeEmailRequest",
+                                "summary": "body",
+                                "description": "Email change"
                             }
                         }
                     },
@@ -4712,16 +4696,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.ChangePasswordRequest",
-                                        "summary": "body",
-                                        "description": "Password change"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.ChangePasswordRequest",
+                                "summary": "body",
+                                "description": "Password change"
                             }
                         }
                     },
@@ -4824,16 +4801,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.ForgotPasswordRequest",
-                                        "summary": "body",
-                                        "description": "Email"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.ForgotPasswordRequest",
+                                "summary": "body",
+                                "description": "Email"
                             }
                         }
                     },
@@ -4868,16 +4838,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.LoginRequest",
-                                        "summary": "body",
-                                        "description": "Credentials"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.LoginRequest",
+                                "summary": "body",
+                                "description": "Credentials"
                             }
                         }
                     },
@@ -5034,16 +4997,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.ResetPasswordRequest",
-                                        "summary": "body",
-                                        "description": "Reset token"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.ResetPasswordRequest",
+                                "summary": "body",
+                                "description": "Reset token"
                             }
                         }
                     },
@@ -5691,16 +5647,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.FavoritePatchRequest",
-                                        "summary": "body",
-                                        "description": "Favorite flag"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.FavoritePatchRequest",
+                                "summary": "body",
+                                "description": "Favorite flag"
                             }
                         }
                     },
@@ -5930,6 +5879,109 @@
                 "summary": "List home favorites",
                 "tags": [
                     "home"
+                ]
+            }
+        },
+        "/api/me/playback-preferences": {
+            "get": {
+                "description": "Returns ordered audio language codes for default track selection (max 3).",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.PlaybackPreferencesResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Get playback preferences",
+                "tags": [
+                    "me"
+                ]
+            },
+            "patch": {
+                "description": "Sets ordered audio language codes for default track selection (max 3).",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/internal_httpapi.PatchPlaybackPreferencesRequest",
+                                "summary": "body",
+                                "description": "Playback preferences"
+                            }
+                        }
+                    },
+                    "description": "Playback preferences",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.PlaybackPreferencesResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Update playback preferences",
+                "tags": [
+                    "me"
                 ]
             }
         },
@@ -6260,16 +6312,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/sudoStream_internal_metadata.PatchRequest",
-                                        "summary": "body",
-                                        "description": "Metadata patch"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/sudoStream_internal_metadata.PatchRequest",
+                                "summary": "body",
+                                "description": "Metadata patch"
                             }
                         }
                     },
@@ -6350,7 +6395,7 @@
                     "content": {
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "type": "string"
+                                "type": "object"
                             }
                         }
                     }
@@ -6579,16 +6624,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.PlaybackNegotiateRequest",
-                                        "summary": "body",
-                                        "description": "Device profile and quality selection"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.PlaybackNegotiateRequest",
+                                "summary": "body",
+                                "description": "Device profile and quality selection"
                             }
                         }
                     },
@@ -7183,31 +7221,31 @@
                 ],
                 "requestBody": {
                     "content": {
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "oneOf": [
-                                    {
-                                        "title": "lang",
-                                        "type": "string"
-                                    },
-                                    {
-                                        "title": "label",
-                                        "type": "string"
-                                    },
-                                    {
-                                        "title": "file",
-                                        "type": "file"
-                                    }
-                                ]
-                            }
-                        },
                         "multipart/form-data": {
                             "schema": {
+                                "properties": {
+                                    "file": {
+                                        "description": "Subtitle file (.vtt or .srt)",
+                                        "format": "binary",
+                                        "type": "string"
+                                    },
+                                    "label": {
+                                        "description": "Display label",
+                                        "type": "string"
+                                    },
+                                    "lang": {
+                                        "description": "ISO 639-1 language code",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "file"
+                                ],
                                 "type": "object"
                             }
                         }
                     },
-                    "description": "ISO 639-1 language code | Display label | Subtitle file (.vtt or .srt)",
+                    "description": "ISO 639-1 language code",
                     "required": true
                 },
                 "responses": {
@@ -7356,16 +7394,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/internal_httpapi.WatchPatchRequest",
-                                        "summary": "body",
-                                        "description": "Watched flag and optional progress"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/internal_httpapi.WatchPatchRequest",
+                                "summary": "body",
+                                "description": "Watched flag and optional progress"
                             }
                         }
                     },

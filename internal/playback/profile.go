@@ -24,7 +24,7 @@ type DeviceProfile struct {
 }
 
 // DirectPlayProfile is one container + codec combination the client can play.
-// Codec fields are comma-separated lists (Jellyfin-style), case-insensitive.
+// Codec fields are comma-separated lists, case-insensitive.
 type DirectPlayProfile struct {
 	Container  string `json:"container"`
 	VideoCodec string `json:"videoCodec,omitempty"`

@@ -180,7 +180,6 @@ func (s *Service) readMeta(userID, relPath string) (metaFile, string, error) {
 	metaPath := filepath.Join(dir, base+metaSuffix)
 	vttPath := filepath.Join(dir, base+vttSuffix)
 
-	//nolint:gosec // paths under service cache root
 	raw, err := os.ReadFile(metaPath)
 	if err != nil {
 		if os.IsNotExist(err) {

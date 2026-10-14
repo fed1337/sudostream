@@ -8,10 +8,11 @@ import (
 	"regexp"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/auth/ginjwt"
-	authpostgres "sudoStream/internal/auth/postgres"
 	"sudoStream/internal/db"
 	"testing"
 	"time"
+
+	authpostgres "sudoStream/internal/auth/postgres"
 )
 
 const (

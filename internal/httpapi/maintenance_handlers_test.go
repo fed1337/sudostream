@@ -28,8 +28,10 @@ type stubMaintenanceRunner struct {
 	patchLibrary error
 	runErr       error
 	listErr      error
+	cancelErr    error
 	globalErr    error
 	libraryErr   error
+	listStatus   string
 }
 
 func (s *stubMaintenanceRunner) GetGlobalMaintenance(
@@ -79,12 +81,21 @@ func (s *stubMaintenanceRunner) RunNow(
 	return s.runResult, nil
 }
 
-func (s *stubMaintenanceRunner) ListRuns(_ context.Context, _ int) ([]maintenance.Run, error) {
+func (s *stubMaintenanceRunner) ListRuns(
+	_ context.Context,
+	_ int,
+	status string,
+) ([]maintenance.Run, error) {
+	s.listStatus = status
 	if s.listErr != nil {
 		return nil, s.listErr
 	}
 
 	return s.runs, nil
+}
+
+func (s *stubMaintenanceRunner) Cancel(_ context.Context, _ string) error {
+	return s.cancelErr
 }
 
 func (s *stubMaintenanceRunner) CacheDirBytes() int64 {
@@ -322,12 +333,59 @@ func TestMaintenanceHandlers_CoverBranches(t *testing.T) {
 		ctx.Request = httptest.NewRequestWithContext(
 			context.Background(),
 			http.MethodGet,
-			"/?limit=10",
+			"/?limit=10&status=running",
 			nil,
 		)
 		admin.listMaintenanceRuns(ctx)
 		if recorder.Code != http.StatusOK {
 			t.Fatalf("list: %d", recorder.Code)
+		}
+		if stub.listStatus != maintenance.StatusRunning {
+			t.Fatalf("list status filter=%q", stub.listStatus)
+		}
+
+		recorder = httptest.NewRecorder()
+		ctx, _ = gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			"/",
+			nil,
+		)
+		ctx.Params = gin.Params{{Key: "id", Value: "run-2"}}
+		admin.cancelMaintenanceRun(ctx)
+		if recorder.Code != http.StatusNoContent {
+			t.Fatalf("cancel: %d", recorder.Code)
+		}
+
+		stub.cancelErr = maintenance.ErrNotFound
+		recorder = httptest.NewRecorder()
+		ctx, _ = gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			"/",
+			nil,
+		)
+		ctx.Params = gin.Params{{Key: "id", Value: "missing"}}
+		admin.cancelMaintenanceRun(ctx)
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("want 404 cancel, got %d", recorder.Code)
+		}
+
+		stub.cancelErr = maintenance.ErrNotRunning
+		recorder = httptest.NewRecorder()
+		ctx, _ = gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			"/",
+			nil,
+		)
+		ctx.Params = gin.Params{{Key: "id", Value: "run-1"}}
+		admin.cancelMaintenanceRun(ctx)
+		if recorder.Code != http.StatusConflict {
+			t.Fatalf("want 409 cancel, got %d", recorder.Code)
 		}
 	})
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,6 +33,7 @@ import (
 	"sudoStream/internal/provider/tmdb"
 	"sudoStream/internal/provider/tvdb"
 	"sudoStream/internal/provider/tvmaze"
+	"sudoStream/internal/skipsegment"
 	"sudoStream/internal/transcode"
 	"sudoStream/internal/trash"
 	"sudoStream/internal/version"
@@ -45,8 +47,8 @@ import (
 	metadatapostgres "sudoStream/internal/metadata/postgres"
 	anilist "sudoStream/internal/provider/anilist"
 	opensubtitles "sudoStream/internal/provider/opensubtitles"
-
 	providerpostgres "sudoStream/internal/provider/postgres"
+	skipsegmentpostgres "sudoStream/internal/skipsegment/postgres"
 	trashpostgres "sudoStream/internal/trash/postgres"
 	watchpostgres "sudoStream/internal/watch/postgres"
 
@@ -80,6 +82,7 @@ type authBundle struct {
 	networkSettings   *network.KVSettingsStore
 	networkLive       *network.Live
 	trash             *trash.Service
+	skipIntro         *skipsegment.Service
 	dlnaSettings      *dlna.KVSettingsStore
 	dlnaController    *dlna.Controller
 	database          *db.Database
@@ -157,6 +160,7 @@ func main() { //nolint:funlen // composition root wiring
 			Favorite:          authBundle.favorite,
 			HomeShelf:         authBundle.homeShelf,
 			Trash:             authBundle.trash,
+			SkipIntro:         authBundle.skipIntro,
 			DLNASettings:      authBundle.dlnaSettings,
 			DLNAController:    authBundle.dlnaController,
 		},
@@ -189,7 +193,7 @@ func main() { //nolint:funlen // composition root wiring
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	log.Printf("starting sudoStream v%s (media root: %s)", version.Version, mediaRoot)
+	log.Printf("starting sudoStream %s (media root: %s)", version.Identity(), mediaRoot)
 
 	err = listenUntilSignal(srv)
 	if err != nil {
@@ -234,6 +238,12 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 	authStore := authpostgres.NewStore(pool.GORM)
 	accessStore := accesspostgres.NewStore(pool.GORM)
 	metadataStore := metadatapostgres.NewStore(pool.GORM)
+	backfilled, backfillErr := metadataStore.BackfillCatalogDenorm(context.Background())
+	if backfillErr != nil {
+		slog.Warn("catalog denorm backfill failed", "err", backfillErr)
+	} else if backfilled > 0 {
+		slog.Info("catalog denorm backfill complete", "rows", backfilled)
+	}
 	watchStore := watchpostgres.NewStore(pool.GORM)
 	favoriteStore := favoritepostgres.NewStore(pool.GORM)
 	mail := email.NewSenderFromEnv(
@@ -280,6 +290,12 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 		pool.GORM,
 		authStore,
 	)
+	skipIntroService := skipsegment.NewService(
+		skipsegmentpostgres.NewStore(pool.GORM),
+		fsService,
+		accessService,
+		metadataService,
+	)
 	maintenanceService := maintenance.NewService(
 		maintenancepostgres.NewStore(pool.GORM),
 		maintenance.Deps{
@@ -288,6 +304,7 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 			Indexer:   indexer,
 			Trash:     trashService,
 			Providers: providerEnricher,
+			SkipIntro: skipIntroService,
 		},
 	)
 
@@ -311,6 +328,7 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 		networkSettings,
 		networkLive,
 		trashService,
+		skipIntroService,
 		pool,
 	), nil
 }
@@ -330,6 +348,7 @@ func newAuthBundle(
 	networkSettings *network.KVSettingsStore,
 	networkLive *network.Live,
 	trashService *trash.Service,
+	skipIntroService *skipsegment.Service,
 	pool *db.Database,
 ) *authBundle {
 	return &authBundle{
@@ -347,6 +366,7 @@ func newAuthBundle(
 		networkSettings:   networkSettings,
 		networkLive:       networkLive,
 		trash:             trashService,
+		skipIntro:         skipIntroService,
 		database:          pool,
 	}
 }

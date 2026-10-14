@@ -16,8 +16,10 @@ var (
 	errPurgerUnavailable    = errors.New("cache purger unavailable")
 	errTrashUnavailable     = errors.New("trash service unavailable")
 	errProvidersUnavailable = errors.New("provider settings service unavailable")
+	errSkipIntroUnavailable = errors.New("skip intro detector unavailable")
 )
 
+//nolint:cyclop // dispatch table for all maintenance actions
 func (s *Service) runAction(
 	ctx context.Context,
 	action, libraryID string,
@@ -39,6 +41,8 @@ func (s *Service) runAction(
 		return s.runProviderTask(ctx, libraryID, provider.TaskPoster)
 	case ActionProvidersSubtitles:
 		return s.runProviderTask(ctx, libraryID, provider.TaskSubtitle)
+	case ActionPlaybackSkipDetect:
+		return s.runSkipIntroDetect(ctx, libraryID)
 	default:
 		return nil, ErrInvalidAction
 	}
@@ -96,20 +100,24 @@ func (s *Service) runThumbnailsWarm(ctx context.Context, libraryID string) (map[
 		generated += count
 		if warmErr != nil {
 			return map[string]any{
-					"generated": generated,
-				}, fmt.Errorf(
-					"warm thumbnails: %w",
-					warmErr,
-				)
+				"generated": generated,
+			}, fmt.Errorf(
+				"warm thumbnails: %w",
+				warmErr,
+			)
 		}
 	}
 
 	return map[string]any{"generated": generated}, nil
 }
 
-func (s *Service) runPlaybackCachePurge(_ context.Context) (map[string]any, error) {
+func (s *Service) runPlaybackCachePurge(ctx context.Context) (map[string]any, error) {
 	if s.deps.Purger == nil {
 		return nil, errPurgerUnavailable
+	}
+	err := ctx.Err()
+	if err != nil {
+		return nil, fmt.Errorf("purge canceled: %w", err)
 	}
 
 	deleted, bytesRemoved, err := s.deps.Purger.PurgeStaleCache(
@@ -157,4 +165,17 @@ func (s *Service) runProviderTask(
 	}
 
 	return summary.Map(), nil
+}
+
+func (s *Service) runSkipIntroDetect(ctx context.Context, libraryID string) (map[string]any, error) {
+	if s.deps.SkipIntro == nil {
+		return nil, errSkipIntroUnavailable
+	}
+
+	summary, err := s.deps.SkipIntro.DetectLibraryMap(ctx, libraryID)
+	if err != nil {
+		return summary, fmt.Errorf("skip intro detect: %w", err)
+	}
+
+	return summary, nil
 }

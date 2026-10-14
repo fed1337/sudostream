@@ -111,7 +111,8 @@ func TestFavoriteHandlers_GetPatchAuthAndErrors(t *testing.T) { //nolint:cyclop,
 				t.Fatalf("initial: %+v err=%v", state, err)
 			}
 
-			payload, err := json.Marshal(FavoritePatchRequest{Favorited: true})
+			favoritedTrue := true
+			payload, err := json.Marshal(FavoritePatchRequest{Favorited: &favoritedTrue})
 			if err != nil {
 				t.Fatalf("marshal: %v", err)
 			}
@@ -181,6 +182,18 @@ func TestFavoriteHandlers_GetPatchAuthAndErrors(t *testing.T) { //nolint:cyclop,
 			)
 			if bad.Code != http.StatusBadRequest {
 				t.Fatalf("bad json: %d", bad.Code)
+			}
+
+			wrongKey := serveFavorite(
+				hdl,
+				http.MethodPatch,
+				rel,
+				[]byte(`{"favorite":true}`),
+				&user,
+				(*handler).patchFavorite,
+			)
+			if wrongKey.Code != http.StatusBadRequest {
+				t.Fatalf("missing favorited key: %d %s", wrongKey.Code, wrongKey.Body.String())
 			}
 
 			for _, domainErr := range []error{

@@ -8,6 +8,7 @@ import (
 	"sudoStream/internal/maintenance"
 	"sudoStream/internal/network"
 	"sudoStream/internal/provider"
+	"sudoStream/internal/skipsegment"
 	"sudoStream/internal/transcode"
 	"sudoStream/internal/trash"
 	"sudoStream/internal/usersub"
@@ -29,6 +30,7 @@ type RouteConfig struct {
 	HomeShelf         *homeshelf.Service
 	Trash             *trash.Service
 	UserSubtitle      *usersub.Service
+	SkipIntro         *skipsegment.Service
 	DLNASettings      dlna.SettingsStore
 	DLNAController    *dlna.Controller
 }

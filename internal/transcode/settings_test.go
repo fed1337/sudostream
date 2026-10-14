@@ -130,9 +130,49 @@ func TestParseDownmixAlgorithm(t *testing.T) {
 		if err != nil || got != DownmixNone {
 			t.Fatalf("none: %q %v", got, err)
 		}
-		_, err = ParseDownmixAlgorithm("dave750")
-		if err == nil {
-			t.Fatal("expected invalid downmix")
+		got, err = ParseDownmixAlgorithm("dave750")
+		if err != nil || got != DownmixDave750 {
+			t.Fatalf("dave750: got %q err=%v", got, err)
+		}
+		got, err = ParseDownmixAlgorithm("ac4")
+		if err != nil || got != DownmixAC4 {
+			t.Fatalf("ac4: got %q err=%v", got, err)
+		}
+		got, err = ParseDownmixAlgorithm("nightmodeDialogue")
+		if err != nil || got != DownmixNightmodeDialogue {
+			t.Fatalf("nightmode: got %q err=%v", got, err)
+		}
+		got, err = ParseDownmixAlgorithm("rfc7845")
+		if err != nil || got != DownmixRFC7845 {
+			t.Fatalf("rfc7845: got %q err=%v", got, err)
+		}
+		_, err = ParseDownmixAlgorithm("bogus")
+		if !errors.Is(err, ErrInvalidDownmix) {
+			t.Fatalf("expected ErrInvalidDownmix, got %v", err)
+		}
+	})
+}
+
+func TestParseDownmixBoost(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "parseDownmixBoost applies algorithm defaults and bounds", func(a *allure.Context) {
+		t := a.T()
+		got, err := ParseDownmixBoost(0, DownmixNone)
+		if err != nil || got != 2 {
+			t.Fatalf("none default: got %v err=%v", got, err)
+		}
+		got, err = ParseDownmixBoost(0, DownmixAC4)
+		if err != nil || got != 1 {
+			t.Fatalf("ac4 default: got %v err=%v", got, err)
+		}
+		got, err = ParseDownmixBoost(1.25, DownmixAC4)
+		if err != nil || got != 1.25 {
+			t.Fatalf("explicit boost: got %v err=%v", got, err)
+		}
+		_, err = ParseDownmixBoost(0.4, DownmixAC4)
+		if !errors.Is(err, ErrInvalidDownmixBoost) {
+			t.Fatalf("expected ErrInvalidDownmixBoost, got %v", err)
 		}
 	})
 }

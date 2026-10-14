@@ -39,6 +39,7 @@ export type PlaybackInfo = {
   userSubtitle?: { lang: string; label: string; url: string };
   /** Container chapters for any video file (not series S/E identity). */
   chapters?: Array<{ startSeconds: number; endSeconds: number; title: string }>;
+  skipIntro?: { startMs: number; endMs: number; source?: string };
   series?: {
     librarySlug: string;
     showKey: string;

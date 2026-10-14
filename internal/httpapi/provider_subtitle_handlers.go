@@ -27,8 +27,8 @@ type ProviderSubtitleTrack struct {
 //	@Description	Serves a locally cached subtitle from providers.subtitles. Query lang is ISO 639-1.
 //	@Tags			media
 //	@Produce		text/vtt
-//	@Param			path	path		string	true	"Path under media root"
-//	@Param			lang	query		string	true	"ISO 639-1 language code"
+//	@Param			path	path	string	true	"Path under media root"
+//	@Param			lang	query	string	true	"ISO 639-1 language code"
 //	@Success		200
 //	@Failure		400	{object}	ErrorResponse
 //	@Failure		404	{object}	ErrorResponse

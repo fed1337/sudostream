@@ -7,16 +7,17 @@ import (
 )
 
 type userModel struct {
-	ID                 string     `gorm:"column:id;primaryKey;type:uuid"`
-	Email              string     `gorm:"column:email"`
-	PasswordHash       string     `gorm:"column:password_hash"`
-	Role               string     `gorm:"column:role"`
-	Enabled            bool       `gorm:"column:enabled"`
-	EmailVerifiedAt    *time.Time `gorm:"column:email_verified_at"`
-	MustChangePassword bool       `gorm:"column:must_change_password"`
-	CreatedAt          time.Time  `gorm:"column:created_at"`
-	UpdatedAt          time.Time  `gorm:"column:updated_at"`
-	LastLoginAt        *time.Time `gorm:"column:last_login_at"`
+	ID                 string         `gorm:"column:id;primaryKey;type:uuid"`
+	Email              string         `gorm:"column:email"`
+	PasswordHash       string         `gorm:"column:password_hash"`
+	Role               string         `gorm:"column:role"`
+	Enabled            bool           `gorm:"column:enabled"`
+	EmailVerifiedAt    *time.Time     `gorm:"column:email_verified_at"`
+	MustChangePassword bool           `gorm:"column:must_change_password"`
+	CreatedAt          time.Time      `gorm:"column:created_at"`
+	UpdatedAt          time.Time      `gorm:"column:updated_at"`
+	LastLoginAt        *time.Time     `gorm:"column:last_login_at"`
+	AudioLanguagePrefs datatypes.JSON `gorm:"column:audio_language_prefs"`
 }
 
 func (userModel) TableName() string {

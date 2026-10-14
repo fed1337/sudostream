@@ -176,7 +176,6 @@ func primaryGPUVendor() gpuVendor {
 }
 
 func readPCIVendor(path string) gpuVendor {
-	//nolint:gosec // path from filepath.Glob("/sys/class/drm/card*/device/vendor") only
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return gpuNone

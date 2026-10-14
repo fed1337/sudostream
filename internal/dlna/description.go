@@ -81,7 +81,7 @@ func writeConnectionManagerSCPD(writer http.ResponseWriter) {
 
 // DetectLANIPv4 returns a non-loopback IPv4 suitable for LOCATION URLs.
 func DetectLANIPv4(ctx context.Context) (string, error) {
-	dialer := net.Dialer{Timeout: lanProbeTimeout} //nolint:exhaustruct // dial probe only
+	dialer := net.Dialer{Timeout: lanProbeTimeout}
 	conn, err := dialer.DialContext(ctx, "udp", "8.8.8.8:80")
 	if err != nil {
 		return fallbackInterfaceIPv4()

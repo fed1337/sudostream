@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sudoStream/internal/auth"
 	"testing"
 	"time"
@@ -223,6 +224,13 @@ func TestAuthPasswordReset_ResetsAndRejectsInvalidToken(t *testing.T) {
 			err = service.RequestPasswordReset(ctx, "reset@example.com")
 			if err != nil {
 				t.Fatalf("request reset: %v", err)
+			}
+			if len(sender.bodies) == 0 {
+				t.Fatal("expected reset email body")
+			}
+			lastBody := sender.bodies[len(sender.bodies)-1]
+			if !strings.Contains(lastBody, "http://localhost:8080/reset-password?token=") {
+				t.Fatalf("reset link must use configured BaseURL, not request Host: %q", lastBody)
 			}
 			token := sender.lastToken(t)
 

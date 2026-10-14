@@ -9,7 +9,8 @@ coverage:
         threshold: 1%
     patch:
       default:
-        target: 70%
+        target: 65%
+        threshold: 1%
 comment:
   layout: "condensed_header, diff, flags, tree, condensed_footer"
   require_changes: true

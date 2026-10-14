@@ -218,6 +218,15 @@ export const internal_httpapi_GrantsResponseSchema = {
 
 export const internal_httpapi_HealthResponseSchema = {
   properties: {
+    build: {
+      type: 'string'
+    },
+    ref: {
+      type: 'string'
+    },
+    revision: {
+      type: 'string'
+    },
     status: {
       type: 'string'
     },
@@ -434,6 +443,19 @@ export const internal_httpapi_PatchMaintenanceRequestSchema = {
   type: 'object'
 } as const;
 
+export const internal_httpapi_PatchPlaybackPreferencesRequestSchema = {
+  properties: {
+    audioLanguages: {
+      items: {
+        type: 'string'
+      },
+      type: 'array',
+      uniqueItems: false
+    }
+  },
+  type: 'object'
+} as const;
+
 export const internal_httpapi_PatchProviderSettingsRequestSchema = {
   properties: {
     allowOverrideUserMetadata: {
@@ -479,6 +501,19 @@ export const internal_httpapi_PlaybackNegotiateRequestSchema = {
     },
     transcode: {
       type: 'boolean'
+    }
+  },
+  type: 'object'
+} as const;
+
+export const internal_httpapi_PlaybackPreferencesResponseSchema = {
+  properties: {
+    audioLanguages: {
+      items: {
+        type: 'string'
+      },
+      type: 'array',
+      uniqueItems: false
     }
   },
   type: 'object'
@@ -534,7 +569,12 @@ export const internal_httpapi_PlaybackResponseSchema = {
       uniqueItems: false
     },
     series: {
-      $ref: '#/components/schemas/internal_httpapi.PlaybackSeriesContext'
+      $ref: '#/components/schemas/internal_httpapi.PlaybackSeriesContext',
+      description: 'Series is set only for paths in a series library with resolvable S/E identity.'
+    },
+    skipIntro: {
+      $ref: '#/components/schemas/sudoStream_internal_skipsegment.Intro',
+      description: 'SkipIntro is set when chapter metadata or offline audio detection finds an opening intro (E-23).'
     },
     status: {
       $ref: '#/components/schemas/sudoStream_internal_transcode.Status'
@@ -553,14 +593,14 @@ export const internal_httpapi_PlaybackResponseSchema = {
       type: 'boolean'
     },
     userSubtitle: {
-      $ref: '#/components/schemas/internal_httpapi.UserSubtitleTrack'
+      $ref: '#/components/schemas/internal_httpapi.UserSubtitleTrack',
+      description: 'UserSubtitle is the current user\'s uploaded caption when present (TTL 1d).'
     }
   },
   type: 'object'
 } as const;
 
 export const internal_httpapi_PlaybackSeriesContextSchema = {
-  description: 'Series is set only for paths in a series library with resolvable S/E identity.',
   properties: {
     episode: {
       type: 'integer'
@@ -793,7 +833,6 @@ export const internal_httpapi_UserResponseSchema = {
 } as const;
 
 export const internal_httpapi_UserSubtitleTrackSchema = {
-  description: 'UserSubtitle is the current user\'s uploaded caption when present (TTL 1d).',
   properties: {
     label: {
       type: 'string'
@@ -1379,6 +1418,9 @@ export const sudoStream_internal_maintenance_RunSchema = {
     libraryId: {
       type: 'string'
     },
+    libraryName: {
+      type: 'string'
+    },
     startedAt: {
       type: 'string'
     },
@@ -1935,6 +1977,21 @@ export const sudoStream_internal_provider_SettingsSchema = {
   type: 'object'
 } as const;
 
+export const sudoStream_internal_skipsegment_IntroSchema = {
+  properties: {
+    endMs: {
+      type: 'integer'
+    },
+    source: {
+      type: 'string'
+    },
+    startMs: {
+      type: 'integer'
+    }
+  },
+  type: 'object'
+} as const;
+
 export const sudoStream_internal_transcode_ChapterInfoSchema = {
   properties: {
     endSeconds: {
@@ -1953,12 +2010,18 @@ export const sudoStream_internal_transcode_ChapterInfoSchema = {
 export const sudoStream_internal_transcode_DownmixAlgorithmSchema = {
   enum: [
     'none',
-    'ac4'
+    'ac4',
+    'dave750',
+    'nightmodeDialogue',
+    'rfc7845'
   ],
   type: 'string',
   'x-enum-varnames': [
     'DownmixNone',
-    'DownmixAC4'
+    'DownmixAC4',
+    'DownmixDave750',
+    'DownmixNightmodeDialogue',
+    'DownmixRFC7845'
   ]
 } as const;
 
@@ -2038,6 +2101,9 @@ export const sudoStream_internal_transcode_ToneMappingAlgorithmSchema = {
 
 export const sudoStream_internal_transcode_TrackInfoSchema = {
   properties: {
+    default: {
+      type: 'boolean'
+    },
     id: {
       type: 'string'
     },
@@ -2052,6 +2118,9 @@ export const sudoStream_internal_transcode_TranscodeSettingsSchema = {
   properties: {
     downmixAlgorithm: {
       $ref: '#/components/schemas/sudoStream_internal_transcode.DownmixAlgorithm'
+    },
+    downmixBoost: {
+      type: 'number'
     },
     hwAccel: {
       $ref: '#/components/schemas/sudoStream_internal_transcode.HwAccel'

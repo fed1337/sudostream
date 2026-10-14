@@ -112,7 +112,8 @@ type maintenanceRunner interface {
 		inputs []maintenance.ScheduleInput,
 	) error
 	RunNow(ctx context.Context, action, libraryID, trigger string) (maintenance.Run, error)
-	ListRuns(ctx context.Context, limit int) ([]maintenance.Run, error)
+	ListRuns(ctx context.Context, limit int, status string) ([]maintenance.Run, error)
+	Cancel(ctx context.Context, runID string) error
 	CacheDirBytes() int64
 }
 
@@ -383,6 +384,8 @@ func (h *adminHandler) patchTranscodeSettings(c *gin.Context) {
 			msg = "invalid hwAccel value"
 		case errors.Is(err, transcode.ErrInvalidDownmix):
 			msg = "invalid downmixAlgorithm value"
+		case errors.Is(err, transcode.ErrInvalidDownmixBoost):
+			msg = "invalid downmixBoost value"
 		case errors.Is(err, transcode.ErrInvalidToneMappingAlgorithm):
 			msg = "invalid toneMappingAlgorithm value"
 		}

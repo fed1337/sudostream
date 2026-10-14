@@ -100,6 +100,7 @@ type AudioStream struct {
 	Language      string `json:"language,omitempty"`
 	Channels      int    `json:"channels,omitempty"`
 	ChannelLayout string `json:"channelLayout,omitempty"`
+	Commentary    bool   `json:"commentary,omitempty"`
 }
 
 // NeedsToneMap reports whether HDR/wide-gamut/10-bit video must be converted for SDR HLS.
@@ -131,7 +132,7 @@ func needsToneMap(transfer, primaries, pixFmt string) bool {
 
 // ProbeSource inspects a media file with ffprobe.
 func ProbeSource(ctx context.Context, mediaPath string) (SourceInfo, error) {
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		ctx,
 		"ffprobe",
 		"-v", "quiet",
@@ -163,7 +164,7 @@ func ProbeSource(ctx context.Context, mediaPath string) (SourceInfo, error) {
 
 // ProbeChapters inspects chapter atoms only (fallback when cached source meta lacks them).
 func ProbeChapters(ctx context.Context, mediaPath string) ([]ChapterInfo, error) {
-	cmd := exec.CommandContext( //nolint:gosec // mediaPath resolved via mediafs
+	cmd := exec.CommandContext(
 		ctx,
 		"ffprobe",
 		"-v", "quiet",
@@ -299,6 +300,7 @@ func appendAudioStream(info *SourceInfo, stream probeStream, defaultAudioIndex *
 		Language:      strings.TrimSpace(stream.Tags["language"]),
 		Channels:      stream.Channels,
 		ChannelLayout: strings.TrimSpace(stream.ChannelLayout),
+		Commentary:    isCommentaryAudioStream(stream),
 	})
 }
 
@@ -315,6 +317,14 @@ func promoteDefaultAudioStream(info *SourceInfo, defaultAudioIndex int) {
 	def := streams[defaultAudioIndex]
 	streams = append(streams[:defaultAudioIndex], streams[defaultAudioIndex+1:]...)
 	info.AudioStreams = append([]AudioStream{def}, streams...)
+}
+
+func isCommentaryAudioStream(stream probeStream) bool {
+	if stream.Disposition == nil {
+		return false
+	}
+
+	return stream.Disposition["comment"] == 1 || stream.Disposition["description"] == 1
 }
 
 func audioLabel(stream probeStream) string {

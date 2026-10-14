@@ -78,7 +78,7 @@ func (idx *titlesIndex) loadFromDisk(cachePath string) bool {
 	if err != nil || time.Since(info.ModTime()) >= titlesCacheTTL {
 		return false
 	}
-	data, readErr := os.ReadFile(cachePath) //nolint:gosec // G304: path under controlled cacheDir
+	data, readErr := os.ReadFile(cachePath)
 	if readErr != nil {
 		return false
 	}

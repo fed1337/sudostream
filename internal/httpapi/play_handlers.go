@@ -13,6 +13,7 @@ import (
 	"sudoStream/internal/mediafs"
 	"sudoStream/internal/observability"
 	"sudoStream/internal/playback"
+	"sudoStream/internal/skipsegment"
 	"sudoStream/internal/transcode"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,8 @@ type PlaybackResponse struct {
 	UserSubtitle *UserSubtitleTrack `json:"userSubtitle,omitempty"`
 	// Chapters are container chapter atoms on any video file (not limited to film/series).
 	Chapters []transcode.ChapterInfo `json:"chapters,omitempty"`
+	// SkipIntro is set when chapter metadata or offline audio detection finds an opening intro (E-23).
+	SkipIntro *skipsegment.Intro `json:"skipIntro,omitempty"`
 	// Series is set only for paths in a series library with resolvable S/E identity.
 	Series *PlaybackSeriesContext `json:"series,omitempty"`
 }
@@ -280,7 +283,6 @@ func (h *handler) writeTranscodeResourceMissing(c *gin.Context, status transcode
 }
 
 func (h *handler) serveHLSPlaylist(c *gin.Context, diskPath string) {
-	//nolint:gosec // diskPath is under transcode cache directory
 	raw, err := os.ReadFile(diskPath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "failed to read playlist"})
@@ -291,6 +293,16 @@ func (h *handler) serveHLSPlaylist(c *gin.Context, diskPath string) {
 	c.Header("Cache-Control", transcode.PlaylistCacheControl(raw))
 
 	body := transcode.NormalizePlaylistForClient(raw)
+	if strings.HasSuffix(filepath.Base(diskPath), hlsMasterPlaylist) {
+		outDir := filepath.Dir(diskPath)
+		if meta, ok := transcode.ReadSourceMeta(outDir); ok {
+			defaultIndex := transcode.SelectDefaultAudioStreamIndex(
+				meta.AudioStreams,
+				h.userAudioLanguages(c),
+			)
+			body = transcode.ApplyMasterPlaylistDefaultAudio(body, defaultIndex)
+		}
+	}
 	body = transcode.RewritePlaylistTokens(body, accessToken(c))
 	_, err = c.Writer.Write(body)
 	if err != nil {
@@ -424,8 +436,12 @@ func (h *handler) respondHLSPlayback(
 	capsOK bool,
 ) {
 	jobStatus := h.transcode.Status(cacheKey)
-	playbackInfo := transcode.BuildPlaybackInfoWithSettings(
-		outDir, masterURL, jobStatus, h.transcode.CurrentSettings(),
+	playbackInfo := transcode.BuildPlaybackInfoWithUserPrefs(
+		outDir,
+		masterURL,
+		jobStatus,
+		h.transcode.CurrentSettings(),
+		h.userAudioLanguages(c),
 	)
 
 	playMethod := resolvePlayMethod(decision, playbackInfo.PackagingMode, capsOK)
@@ -463,6 +479,7 @@ func (h *handler) respondHLSPlayback(
 		ProviderSubtitleTracks: h.providerSubtitleTracks(c.Request.Context(), mediaPath),
 		UserSubtitle:           h.userSubtitleTrack(c, mediaPath),
 		Chapters:               chapters,
+		SkipIntro:              h.resolveSkipIntro(c, mediaPath, chapters, playbackInfo.DurationSeconds),
 		Series:                 h.playbackSeriesContext(c, mediaPath),
 	})
 }
@@ -523,8 +540,45 @@ func (h *handler) respondDirectPlay(
 		ProviderSubtitleTracks: h.providerSubtitleTracks(c.Request.Context(), mediaPath),
 		UserSubtitle:           h.userSubtitleTrack(c, mediaPath),
 		Chapters:               chapters,
+		SkipIntro:              h.resolveSkipIntro(c, mediaPath, chapters, caps.DurationSeconds),
 		Series:                 h.playbackSeriesContext(c, mediaPath),
 	})
+}
+
+func (h *handler) resolveSkipIntro(
+	c *gin.Context,
+	mediaPath string,
+	chapters []transcode.ChapterInfo,
+	durationSeconds float64,
+) *skipsegment.Intro {
+	chapterIntro := skipIntroFromChapters(chapters, durationSeconds)
+	var stored *skipsegment.Intro
+	if h.skipIntro != nil && h.access != nil {
+		library, matched, err := h.access.LibraryForRelPath(c.Request.Context(), mediaPath)
+		if err == nil && matched {
+			intro := h.skipIntro.LookupIntro(c.Request.Context(), library.ID, mediaPath)
+			stored = intro
+		}
+	}
+
+	return skipsegment.ResolveIntro(chapterIntro, stored)
+}
+
+func skipIntroFromChapters(chapters []transcode.ChapterInfo, durationSeconds float64) *skipsegment.Intro {
+	if len(chapters) == 0 || durationSeconds <= 0 {
+		return nil
+	}
+
+	cues := make([]skipsegment.ChapterCue, len(chapters))
+	for index, chapter := range chapters {
+		cues[index] = skipsegment.ChapterCue{
+			StartSeconds: chapter.StartSeconds,
+			EndSeconds:   chapter.EndSeconds,
+			Title:        chapter.Title,
+		}
+	}
+
+	return skipsegment.IntroFromChapters(cues, durationSeconds)
 }
 
 func (h *handler) sourceCapsForPlayback(
@@ -875,6 +929,20 @@ func setTestCacheRoot(root string) func() {
 	return func() {
 		testCacheRoot = previous
 	}
+}
+
+func (h *handler) userAudioLanguages(c *gin.Context) []string {
+	user, ok := currentUser(c)
+	if !ok || h.auth == nil {
+		return nil
+	}
+
+	langs, err := h.auth.PlaybackAudioLanguages(c.Request.Context(), user.ID)
+	if err != nil {
+		return nil
+	}
+
+	return langs
 }
 
 func cacheSubdir(subdir string) string {

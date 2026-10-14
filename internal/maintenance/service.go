@@ -57,11 +57,23 @@ type Deps struct {
 	Purger    CachePurger
 	Trash     TrashPurger
 	Providers ProviderTasks
+	SkipIntro SkipIntroDetector
+}
+
+// SkipIntroDetector runs offline intro detection for one library (E-23).
+type SkipIntroDetector interface {
+	DetectLibraryMap(ctx context.Context, libraryID string) (map[string]any, error)
 }
 
 // TrashPurger permanently deletes expired recycle-bin items.
 type TrashPurger interface {
 	PurgeExpired(ctx context.Context) (int, error)
+}
+
+// runningJob tracks one in-process maintenance execution.
+type runningJob struct {
+	runID  string
+	cancel context.CancelFunc
 }
 
 // Service owns schedules, cron, and run execution.
@@ -70,7 +82,7 @@ type Service struct {
 	deps  Deps
 
 	mu       sync.Mutex
-	locks    map[string]struct{}
+	locks    map[string]runningJob
 	cron     *cron.Cron
 	entryIDs []cron.EntryID
 	stopCh   chan struct{}
@@ -82,7 +94,7 @@ func NewService(store Store, deps Deps) *Service {
 	return &Service{
 		store:  store,
 		deps:   deps,
-		locks:  make(map[string]struct{}),
+		locks:  make(map[string]runningJob),
 		stopCh: make(chan struct{}),
 	}
 }
@@ -168,16 +180,22 @@ func (s *Service) RunNow(
 	}
 
 	key := LockKey(action, libraryID)
-	if !s.tryLock(key) {
+	jobCtx, cancel := context.WithCancel(context.Background())
+	if !s.tryLock(key, cancel) {
+		cancel()
+
 		return Run{}, ErrConflict
 	}
 
 	run, err := s.insertRunning(ctx, action, libraryID, trigger)
 	if err != nil {
 		s.unlock(key)
+		cancel()
 
 		return Run{}, err
 	}
+
+	s.bindRunID(key, run.ID)
 
 	observability.SetMaintenanceRunning(action, true)
 	slog.Info("maintenance run started",
@@ -188,8 +206,8 @@ func (s *Service) RunNow(
 	)
 
 	// Detach from request cancel so long jobs survive client disconnect.
-	//nolint:contextcheck,gosec // G118: Background in execute is intentional for long jobs
-	go s.execute(run, action, libraryID, trigger, key)
+	//nolint:contextcheck,gosec // G118: jobCtx is Background-derived; cancel via Cancel()
+	go s.execute(jobCtx, cancel, run, action, libraryID, trigger, key)
 
 	return run, nil
 }
@@ -220,6 +238,7 @@ func (s *Service) GetLibraryMaintenance(
 	return s.actionStatuses(ctx, []string{
 		ActionMetadataScan, ActionThumbnailsWarm,
 		ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles,
+		ActionPlaybackSkipDetect,
 	}, &libraryID)
 }
 
@@ -281,14 +300,111 @@ func (s *Service) PatchLibrarySchedules(
 	return s.ReloadSchedules(ctx)
 }
 
-// ListRuns returns recent runs.
-func (s *Service) ListRuns(ctx context.Context, limit int) ([]Run, error) {
-	runs, err := s.store.ListRuns(ctx, limit)
+// ListRuns returns recent runs. Empty status returns all; status=running returns active rows.
+func (s *Service) ListRuns(ctx context.Context, limit int, status string) ([]Run, error) {
+	status = strings.TrimSpace(status)
+	if status != "" && !validRunStatus(status) {
+		return nil, ErrInvalidAction
+	}
+
+	runs, err := s.store.ListRuns(ctx, limit, status)
 	if err != nil {
 		return nil, fmt.Errorf("list runs: %w", err)
 	}
 
+	s.enrichLibraryNames(ctx, runs)
+
 	return runs, nil
+}
+
+// Cancel signals a live run to stop, or force-finishes an orphaned DB "running" row.
+func (s *Service) Cancel(ctx context.Context, runID string) error {
+	if s == nil || s.store == nil {
+		return ErrNotFound
+	}
+
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return ErrNotFound
+	}
+
+	run, err := s.store.GetRun(ctx, runID)
+	if err != nil {
+		return fmt.Errorf("get run: %w", err)
+	}
+	if run.Status != StatusRunning {
+		return ErrNotRunning
+	}
+
+	if cancel := s.cancelFuncForRun(runID); cancel != nil {
+		cancel()
+		slog.Info("maintenance run cancel signaled",
+			slog.String("run_id", runID),
+			slog.String("action", run.Action),
+		)
+
+		return nil
+	}
+
+	// Lock gone but DB still running (crash race / lost job): recover without process restart.
+	finishErr := s.store.FinishRun(ctx, runID, StatusCanceled, map[string]any{
+		"error":  "canceled",
+		"reason": "no live job",
+	})
+	if finishErr != nil {
+		return fmt.Errorf("force-finish orphaned run: %w", finishErr)
+	}
+
+	libID := ""
+	if run.LibraryID != nil {
+		libID = *run.LibraryID
+	}
+	observability.SetMaintenanceRunning(run.Action, false)
+	observability.RecordMaintenanceRun(run.Action, StatusCanceled, run.Trigger, 0)
+	slog.Info("maintenance run force-canceled",
+		slog.String("run_id", runID),
+		slog.String("action", run.Action),
+		slog.String("library_id", libID),
+	)
+
+	return nil
+}
+
+func validRunStatus(status string) bool {
+	switch status {
+	case StatusRunning, StatusSuccess, StatusFailed, StatusSkipped, StatusCanceled:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Service) enrichLibraryNames(ctx context.Context, runs []Run) {
+	if s.deps.Access == nil {
+		return
+	}
+
+	names := make(map[string]string)
+	for i := range runs {
+		if runs[i].LibraryID == nil || *runs[i].LibraryID == "" {
+			continue
+		}
+
+		libraryID := *runs[i].LibraryID
+		if name, ok := names[libraryID]; ok {
+			runs[i].LibraryName = name
+
+			continue
+		}
+
+		library, err := s.deps.Access.GetLibrary(ctx, libraryID)
+		if err != nil {
+			continue
+		}
+
+		names[libraryID] = library.Name
+		runs[i].LibraryName = library.Name
+	}
 }
 
 func (s *Service) validateRunNow(action string, libraryID, trigger *string) error {
@@ -405,21 +521,37 @@ func (s *Service) fireScheduled(sched Schedule) {
 	}
 }
 
-func (s *Service) execute(run Run, action, libraryID, trigger, key string) {
+func (s *Service) execute(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	run Run,
+	action, libraryID, trigger, key string,
+) {
+	defer cancel()
 	defer s.unlock(key)
 	defer observability.SetMaintenanceRunning(action, false)
 
 	started := time.Now()
-	summary, err := s.runAction(context.Background(), action, libraryID)
+	summary, err := s.runAction(ctx, action, libraryID)
+	if err == nil && ctx.Err() != nil {
+		err = ctx.Err()
+	}
+
 	status := StatusSuccess
 	if err != nil {
-		status = StatusFailed
 		if summary == nil {
 			summary = map[string]any{}
 		}
-		summary["error"] = err.Error()
+		if errors.Is(err, context.Canceled) {
+			status = StatusCanceled
+			summary["error"] = "canceled"
+		} else {
+			status = StatusFailed
+			summary["error"] = err.Error()
+		}
 	}
 
+	//nolint:contextcheck // finish must outlive canceled job ctx
 	finishErr := s.store.FinishRun(context.Background(), run.ID, status, summary)
 	if finishErr != nil {
 		slog.Error("finish maintenance run failed",
@@ -440,21 +572,42 @@ func (s *Service) execute(run Run, action, libraryID, trigger, key string) {
 	)
 }
 
-func (s *Service) tryLock(key string) bool {
+func (s *Service) tryLock(key string, cancel context.CancelFunc) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.locks[key]; ok {
 		return false
 	}
-	s.locks[key] = struct{}{}
+	s.locks[key] = runningJob{cancel: cancel}
 
 	return true
+}
+
+func (s *Service) bindRunID(key, runID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if job, ok := s.locks[key]; ok {
+		job.runID = runID
+		s.locks[key] = job
+	}
 }
 
 func (s *Service) unlock(key string) {
 	s.mu.Lock()
 	delete(s.locks, key)
 	s.mu.Unlock()
+}
+
+func (s *Service) cancelFuncForRun(runID string) context.CancelFunc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, job := range s.locks {
+		if job.runID == runID {
+			return job.cancel
+		}
+	}
+
+	return nil
 }
 
 func (s *Service) isLocked(action, libraryID string) bool {

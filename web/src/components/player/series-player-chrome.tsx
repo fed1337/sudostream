@@ -4,23 +4,39 @@ import { useTranslation } from "react-i18next";
 
 import { usePlayerControlsVisible } from "@/components/player/use-player-controls-visible";
 import {
-  episodesForSeason,
   findNextEpisode,
-  uniqueSeasons,
+  normalizeMediaPath,
+  seasonNumbersForMenu,
+  seriesPickerVisibility,
   type SeriesEpisodeOption,
 } from "@/lib/series-nav";
+import { SkipIntroAction } from "@/components/player/skip-intro-action";
+import { isInSkipIntroSegment, type SkipIntroSegment } from "@/lib/skip-intro";
 import { cn } from "@/lib/utils";
 
 type SeriesPlayerChromeProps = {
   mediaPath: string;
+  /** Playing episode identity (from playback.series). */
   currentSeason: number;
   currentEpisode: number;
   showName: string;
-  episodes: SeriesEpisodeOption[];
+  /** Season whose episode list is shown in the episode menu (browse, not play). */
+  menuSeason: number;
+  /** Episodes for `menuSeason` only. */
+  menuEpisodes: SeriesEpisodeOption[];
+  /** Playing season + next season (for Next / end-of-season dialog). */
+  navEpisodes: SeriesEpisodeOption[];
+  catalogSeasons?: number[];
   seasonsLoading?: boolean;
+  /** True while show catalog (season headers) is still loading. */
+  catalogSeasonsLoading?: boolean;
+  /** Browse another season’s episode list — does not navigate. */
+  onBrowseSeason: (season: number) => void;
+  /** Navigate only when the user picks an episode. */
   onSelectEpisode: (path: string) => void;
   onUploadSubtitle?: (file: File) => Promise<void>;
   uploadBusy?: boolean;
+  skipIntro?: SkipIntroSegment | null;
 };
 
 type PlaybackEndedState = {
@@ -44,11 +60,17 @@ export function SeriesPlayerChrome({
   currentSeason,
   currentEpisode,
   showName,
-  episodes,
+  menuSeason,
+  menuEpisodes,
+  navEpisodes,
+  catalogSeasons,
   seasonsLoading,
+  catalogSeasonsLoading,
+  onBrowseSeason,
   onSelectEpisode,
   onUploadSubtitle,
   uploadBusy,
+  skipIntro,
 }: SeriesPlayerChromeProps): ReactNode {
   const { t } = useTranslation();
   const playback = usePlayer(selectPlayback) as PlaybackEndedState | undefined;
@@ -58,12 +80,25 @@ export function SeriesPlayerChrome({
   const fileRef = useRef<HTMLInputElement>(null);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
-  const seasons = useMemo(() => uniqueSeasons(episodes), [episodes]);
-  const seasonEpisodes = useMemo(
-    () => episodesForSeason(episodes, currentSeason),
-    [episodes, currentSeason],
+  const seasons = useMemo(
+    () => seasonNumbersForMenu(catalogSeasons, navEpisodes),
+    [catalogSeasons, navEpisodes],
   );
-  const nav = useMemo(() => findNextEpisode(episodes, mediaPath), [episodes, mediaPath]);
+  const { showSeason: showSeasonPicker, showEpisode: showEpisodePicker } = useMemo(
+    () =>
+      seriesPickerVisibility(
+        seasons.length,
+        menuEpisodes.length,
+        Boolean(catalogSeasonsLoading && !(catalogSeasons && catalogSeasons.length > 0)),
+      ),
+    [catalogSeasons, catalogSeasonsLoading, menuEpisodes.length, seasons.length],
+  );
+  const showPickers = showSeasonPicker || showEpisodePicker;
+  const episodeMenuValue = useMemo(() => {
+    const needle = normalizeMediaPath(mediaPath);
+    return menuEpisodes.some((ep) => normalizeMediaPath(ep.path) === needle) ? mediaPath : "";
+  }, [mediaPath, menuEpisodes]);
+  const nav = useMemo(() => findNextEpisode(navEpisodes, mediaPath), [navEpisodes, mediaPath]);
 
   const nearEnd = useMemo(() => {
     if (ended) {
@@ -77,7 +112,12 @@ export function SeriesPlayerChrome({
     return currentTime / duration >= NEXT_EPISODE_RATIO;
   }, [ended, time?.currentTime, time?.duration]);
 
-  const showNext = Boolean(nav.next && nearEnd);
+  const showSkipIntro = useMemo(
+    () => isInSkipIntroSegment(skipIntro ?? undefined, time?.currentTime ?? 0),
+    [skipIntro, time?.currentTime],
+  );
+  const showNext = Boolean(nav.next && nearEnd && !showSkipIntro);
+  const showActions = showSkipIntro || showNext;
 
   const congratsKind =
     ended && nav.seriesComplete
@@ -88,8 +128,14 @@ export function SeriesPlayerChrome({
   const endKey = `${mediaPath}:${ended ? "1" : "0"}:${congratsKind ?? "none"}`;
   const congratsOpen = congratsKind !== null && dismissedKey !== endKey;
 
-  const seasonLabel = t("player.seasonValue", { number: currentSeason });
-  const episodeLabel = t("player.episodeValue", { number: currentEpisode });
+  const seasonLabel =
+    menuSeason === 0 ? t("catalog.seasonUnknown") : t("player.seasonValue", { number: menuSeason });
+  const episodeLabel =
+    menuSeason === currentSeason
+      ? currentEpisode === 0
+        ? t("player.episodeMenu")
+        : t("player.episodeValue", { number: currentEpisode })
+      : t("player.episodeMenu");
 
   return (
     <>
@@ -101,84 +147,93 @@ export function SeriesPlayerChrome({
           )}
           aria-hidden={!controlsVisible}
         >
-          <div className="sudostream-series-chrome__pickers">
-            <Menu.Root side="bottom" align="start">
-              <Menu.Trigger
-                className="sudostream-series-chrome__trigger"
-                aria-label={t("player.seasonMenu")}
-                render={<button type="button" />}
-              >
-                {seasonLabel}
-              </Menu.Trigger>
-              <Menu.Popup className="sudostream-series-chrome__menu">
-                <Menu.Content className="sudostream-series-chrome__menu-content">
-                  <Menu.RadioGroup
-                    className="sudostream-series-chrome__group"
-                    value={String(currentSeason)}
-                    onValueChange={(value) => {
-                      const season = Number(value);
-                      const first = episodesForSeason(episodes, season)[0];
-                      if (first) {
-                        onSelectEpisode(first.path);
-                      }
-                    }}
+          {showPickers ? (
+            <div className="sudostream-series-chrome__pickers">
+              {showSeasonPicker ? (
+                <Menu.Root side="bottom" align="start">
+                  <Menu.Trigger
+                    className="sudostream-series-chrome__trigger"
+                    aria-label={t("player.seasonMenu")}
+                    render={<button type="button" />}
                   >
-                    <Menu.GroupLabel className="sudostream-series-chrome__label">
-                      {t("player.seasonMenu")}
-                    </Menu.GroupLabel>
-                    {seasons.map((season) => (
-                      <Menu.RadioItem
-                        key={season}
-                        className="sudostream-series-chrome__item"
-                        value={String(season)}
+                    {seasonLabel}
+                  </Menu.Trigger>
+                  <Menu.Popup className="sudostream-series-chrome__menu">
+                    <Menu.Content className="sudostream-series-chrome__menu-content">
+                      <Menu.RadioGroup
+                        className="sudostream-series-chrome__group"
+                        value={String(menuSeason)}
+                        onValueChange={(value) => {
+                          const season = Number(value);
+                          if (Number.isFinite(season)) {
+                            onBrowseSeason(season);
+                          }
+                        }}
                       >
-                        <Menu.ItemIndicator className="sudostream-series-chrome__indicator" />
-                        {t("player.seasonValue", { number: season })}
-                      </Menu.RadioItem>
-                    ))}
-                  </Menu.RadioGroup>
-                </Menu.Content>
-              </Menu.Popup>
-            </Menu.Root>
+                        <Menu.GroupLabel className="sudostream-series-chrome__label">
+                          {t("player.seasonMenu")}
+                        </Menu.GroupLabel>
+                        {seasons.map((season) => (
+                          <Menu.RadioItem
+                            key={season}
+                            className="sudostream-series-chrome__item"
+                            value={String(season)}
+                          >
+                            <Menu.ItemIndicator className="sudostream-series-chrome__indicator" />
+                            {season === 0
+                              ? t("catalog.seasonUnknown")
+                              : t("player.seasonValue", { number: season })}
+                          </Menu.RadioItem>
+                        ))}
+                      </Menu.RadioGroup>
+                    </Menu.Content>
+                  </Menu.Popup>
+                </Menu.Root>
+              ) : null}
 
-            <Menu.Root side="bottom" align="start">
-              <Menu.Trigger
-                className="sudostream-series-chrome__trigger"
-                aria-label={t("player.episodeMenu")}
-                disabled={seasonsLoading || seasonEpisodes.length === 0}
-                render={<button type="button" />}
-              >
-                {episodeLabel}
-              </Menu.Trigger>
-              <Menu.Popup className="sudostream-series-chrome__menu">
-                <Menu.Content className="sudostream-series-chrome__menu-content">
-                  <Menu.RadioGroup
-                    className="sudostream-series-chrome__group"
-                    value={mediaPath}
-                    onValueChange={(value) => {
-                      if (value && value !== mediaPath) {
-                        onSelectEpisode(value);
-                      }
-                    }}
+              {showEpisodePicker ? (
+                <Menu.Root side="bottom" align="start">
+                  <Menu.Trigger
+                    className="sudostream-series-chrome__trigger"
+                    aria-label={t("player.episodeMenu")}
+                    disabled={seasonsLoading || menuEpisodes.length === 0}
+                    render={<button type="button" />}
                   >
-                    <Menu.GroupLabel className="sudostream-series-chrome__label">
-                      {t("player.episodeMenu")}
-                    </Menu.GroupLabel>
-                    {seasonEpisodes.map((ep) => (
-                      <Menu.RadioItem
-                        key={ep.path}
-                        className="sudostream-series-chrome__item"
-                        value={ep.path}
+                    {episodeLabel}
+                  </Menu.Trigger>
+                  <Menu.Popup className="sudostream-series-chrome__menu">
+                    <Menu.Content className="sudostream-series-chrome__menu-content">
+                      <Menu.RadioGroup
+                        className="sudostream-series-chrome__group"
+                        value={episodeMenuValue}
+                        onValueChange={(value) => {
+                          if (value && value !== mediaPath) {
+                            onSelectEpisode(value);
+                          }
+                        }}
                       >
-                        <Menu.ItemIndicator className="sudostream-series-chrome__indicator" />
-                        {t("player.episodeValue", { number: ep.episode })}
-                      </Menu.RadioItem>
-                    ))}
-                  </Menu.RadioGroup>
-                </Menu.Content>
-              </Menu.Popup>
-            </Menu.Root>
-          </div>
+                        <Menu.GroupLabel className="sudostream-series-chrome__label">
+                          {t("player.episodeMenu")}
+                        </Menu.GroupLabel>
+                        {menuEpisodes.map((ep) => (
+                          <Menu.RadioItem
+                            key={ep.path}
+                            className="sudostream-series-chrome__item"
+                            value={ep.path}
+                          >
+                            <Menu.ItemIndicator className="sudostream-series-chrome__indicator" />
+                            {ep.episode === 0
+                              ? ep.title || t("player.episodeMenu")
+                              : t("player.episodeValue", { number: ep.episode })}
+                          </Menu.RadioItem>
+                        ))}
+                      </Menu.RadioGroup>
+                    </Menu.Content>
+                  </Menu.Popup>
+                </Menu.Root>
+              ) : null}
+            </div>
+          ) : null}
 
           {onUploadSubtitle ? (
             <div className="sudostream-series-chrome__upload">
@@ -207,15 +262,18 @@ export function SeriesPlayerChrome({
           ) : null}
         </div>
 
-        {showNext ? (
+        {showActions ? (
           <div className="sudostream-series-chrome__actions">
-            <button
-              type="button"
-              className="sudostream-series-chrome__next"
-              onClick={() => onSelectEpisode(nav.next!.path)}
-            >
-              {t("player.nextEpisode")}
-            </button>
+            {skipIntro ? <SkipIntroAction segment={skipIntro} /> : null}
+            {showNext ? (
+              <button
+                type="button"
+                className="sudostream-series-chrome__next"
+                onClick={() => onSelectEpisode(nav.next!.path)}
+              >
+                {t("player.nextEpisode")}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

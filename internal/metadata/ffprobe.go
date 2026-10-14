@@ -42,7 +42,7 @@ func ProbePath(absPath string) (VideoFields, error) {
 
 // ProbePathContext runs ffprobe with cancellation support.
 func ProbePathContext(ctx context.Context, absPath string) (VideoFields, error) {
-	output, err := exec.CommandContext( //nolint:gosec // absPath resolved via mediafs
+	output, err := exec.CommandContext(
 		ctx,
 		"ffprobe",
 		"-v", "quiet",
@@ -78,7 +78,7 @@ func ParseFFProbeJSON(raw []byte) (VideoFields, error) {
 func mapFFProbe( //nolint:cyclop,gocognit // ffprobe tag mapping is intentionally explicit
 	parsed ffprobeOutput,
 ) VideoFields {
-	fields := VideoFields{} //nolint:exhaustruct // populated below
+	fields := VideoFields{}
 
 	// Editorial tags come from the container/format only. Stream titles are
 	// track labels (e.g. "DD 2.0 @ 192 kbps") and must not become the file title.

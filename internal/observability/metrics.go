@@ -30,14 +30,14 @@ const (
 //nolint:gochecknoglobals // Prometheus metrics are registered process-wide.
 var (
 	httpRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total number of HTTP requests processed.",
 		},
 		[]string{metricLabelMethod, metricLabelRoute, metricLabelStatus},
 	)
 	httpRequestDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.HistogramOpts{
 			Name:    "http_request_duration_seconds",
 			Help:    "HTTP request latency in seconds.",
 			Buckets: prometheus.DefBuckets,
@@ -45,14 +45,14 @@ var (
 		[]string{metricLabelMethod, metricLabelRoute},
 	)
 	httpRequestsInFlight = promauto.NewGauge(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "http_requests_in_flight",
 			Help: "Number of HTTP requests currently being processed.",
 		},
 	)
 
 	videoPlayerOpensTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "video_player_opens_total",
 			Help: "Total number of video stream requests treated as player opens.",
 		},
@@ -60,21 +60,21 @@ var (
 	)
 
 	playbackDecisionsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "playback_decisions_total",
 			Help: "Playback method decisions (directPlay / remux / transcode) by client.",
 		},
 		[]string{metricLabelMethod, metricLabelClient},
 	)
 	playbackStreamsActive = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "playback_streams_active",
 			Help: "Number of progressive media streams currently being served.",
 		},
 		[]string{metricLabelMethod, metricLabelClient},
 	)
 	playbackStreamBytesTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "playback_stream_bytes_total",
 			Help: "Bytes written for progressive media streams.",
 		},
@@ -82,21 +82,21 @@ var (
 	)
 
 	metadataProbeTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "metadata_probe_total",
 			Help: "Total ffprobe executions during metadata indexing.",
 		},
 		[]string{metricLabelStatus},
 	)
 	metadataProbeDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.HistogramOpts{
 			Name:    "metadata_probe_duration_seconds",
 			Help:    "ffprobe latency during metadata indexing.",
 			Buckets: prometheus.DefBuckets,
 		},
 	)
 	metadataIndexFilesTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "metadata_index_files_total",
 			Help: "Total video files indexed into metadata cache.",
 		},
@@ -104,7 +104,7 @@ var (
 	)
 
 	videoPosterGenerationsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "video_poster_generations_total",
 			Help: "Total video poster thumbnail generations.",
 		},
@@ -112,40 +112,40 @@ var (
 	)
 
 	transcodeJobsActive = promauto.NewGauge(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "transcode_jobs_active",
 			Help: "Number of active HLS timeline probe/publish jobs.",
 		},
 	)
 	transcodeSegmentSessionsActive = promauto.NewGauge(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "transcode_segment_sessions_active",
 			Help: "Number of active ffmpeg HLS segment encode sessions.",
 		},
 	)
 	transcodeTimelineJobsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "transcode_timeline_jobs_total",
 			Help: "Finished HLS timeline probe/publish jobs by outcome.",
 		},
 		[]string{metricLabelStatus},
 	)
 	transcodeSegmentJobsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "transcode_segment_jobs_total",
 			Help: "Finished ffmpeg HLS segment encode sessions by outcome.",
 		},
 		[]string{metricLabelStatus},
 	)
 	transcodeTimelineDurationSeconds = promauto.NewHistogram(
-		prometheus.HistogramOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.HistogramOpts{
 			Name:    "transcode_timeline_duration_seconds",
 			Help:    "HLS timeline probe/publish job duration in seconds.",
 			Buckets: prometheus.DefBuckets,
 		},
 	)
 	transcodeSegmentDurationSeconds = promauto.NewHistogram(
-		prometheus.HistogramOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.HistogramOpts{
 			Name:    "transcode_segment_duration_seconds",
 			Help:    "ffmpeg HLS segment encode session duration in seconds.",
 			Buckets: prometheus.DefBuckets,
@@ -153,7 +153,7 @@ var (
 	)
 
 	ffmpegErrorsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "ffmpeg_errors_total",
 			Help: "Total ffmpeg failures by stage.",
 		},
@@ -161,26 +161,26 @@ var (
 	)
 
 	hlsCacheLookupsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "hls_cache_lookups_total",
 			Help: "HLS timeline cache lookups by result (hit or miss).",
 		},
 		[]string{metricLabelResult},
 	)
 	hlsCacheBytes = promauto.NewGauge(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "hls_cache_bytes",
 			Help: "Total bytes used by the on-disk HLS cache.",
 		},
 	)
 	hlsCacheEntries = promauto.NewGauge(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "hls_cache_entries",
 			Help: "Number of top-level HLS cache packages (cache keys).",
 		},
 	)
 	hlsSegmentRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "hls_segment_requests_total",
 			Help: "Total HLS segment resolutions by how they were served.",
 		},
@@ -188,14 +188,14 @@ var (
 	)
 
 	maintenanceRunsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "maintenance_runs_total",
 			Help: "Total maintenance action runs by action, status, and trigger.",
 		},
 		[]string{metricLabelAction, metricLabelStatus, metricLabelTrigger},
 	)
 	maintenanceRunDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.HistogramOpts{
 			Name:    "maintenance_run_duration_seconds",
 			Help:    "Maintenance action run duration in seconds.",
 			Buckets: prometheus.DefBuckets,
@@ -203,7 +203,7 @@ var (
 		[]string{metricLabelAction},
 	)
 	maintenanceRunning = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "maintenance_running",
 			Help: "Whether a maintenance action is currently running (0 or 1).",
 		},
@@ -211,14 +211,14 @@ var (
 	)
 
 	dlnaSOAPRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "dlna_soap_requests_total",
 			Help: "DLNA SOAP control requests by action and outcome.",
 		},
 		[]string{metricLabelAction, metricLabelStatus},
 	)
 	dlnaStreamRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "dlna_stream_requests_total",
 			Help: "DLNA signed progressive stream requests by outcome.",
 		},
@@ -226,34 +226,34 @@ var (
 	)
 
 	authLoginAttemptsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "auth_login_attempts_total",
 			Help: "Login attempts by result (success, invalid_credentials, disabled, …).",
 		},
 		[]string{metricLabelResult},
 	)
 	aclPathCanonicalizedTotal = promauto.NewCounter(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "acl_path_canonicalized_total",
 			Help: "ACL checks where the request path was rewritten (unescape/clean) before grant matching.",
 		},
 	)
 	authSessionsActive = promauto.NewGauge(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "auth_sessions_active",
 			Help: "Number of refresh sessions currently stored.",
 		},
 	)
 
 	providerTaskItemsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "provider_task_items_total",
 			Help: "Provider enrichment item outcomes by provider, kind, and result.",
 		},
 		[]string{metricLabelProvider, metricLabelKind, metricLabelResult},
 	)
 	providerHTTPRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.CounterOpts{
 			Name: "provider_http_requests_total",
 			Help: "Outbound provider HTTP requests by provider and status class.",
 		},
@@ -261,14 +261,14 @@ var (
 	)
 
 	libraryMediaFiles = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "library_media_files",
 			Help: "Indexed media files per library slug.",
 		},
 		[]string{metricLabelLibrarySlug},
 	)
 	trashItems = promauto.NewGauge(
-		prometheus.GaugeOpts{ //nolint:exhaustruct // optional Prometheus fields omitted
+		prometheus.GaugeOpts{
 			Name: "trash_items",
 			Help: "Number of items currently in the recycle bin.",
 		},

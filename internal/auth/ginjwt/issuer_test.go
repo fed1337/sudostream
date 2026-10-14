@@ -9,10 +9,11 @@ import (
 	"os"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/auth/ginjwt"
-	authpostgres "sudoStream/internal/auth/postgres"
 	"sudoStream/internal/db"
 	"testing"
 	"time"
+
+	authpostgres "sudoStream/internal/auth/postgres"
 
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 	"github.com/gin-gonic/gin"

@@ -11,6 +11,16 @@ export type SeriesNavResult = {
   seriesComplete: boolean;
 };
 
+/** Normalize media paths for equality (route params vs catalog JSON). */
+export function normalizeMediaPath(path: string): string {
+  const trimmed = path.replace(/^\/+/, "").replaceAll("\\", "/");
+  try {
+    return decodeURIComponent(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
 /** Flat list of episodes sorted by season then episode number. */
 export function sortEpisodes(episodes: SeriesEpisodeOption[]): SeriesEpisodeOption[] {
   return [...episodes].sort((a, b) => {
@@ -26,7 +36,8 @@ export function findNextEpisode(
   currentPath: string,
 ): SeriesNavResult {
   const sorted = sortEpisodes(episodes);
-  const index = sorted.findIndex((ep) => ep.path === currentPath);
+  const needle = normalizeMediaPath(currentPath);
+  const index = sorted.findIndex((ep) => normalizeMediaPath(ep.path) === needle);
   if (index < 0) {
     return { next: null, seasonComplete: false, seriesComplete: false };
   }
@@ -48,4 +59,38 @@ export function episodesForSeason(
 
 export function uniqueSeasons(episodes: SeriesEpisodeOption[]): number[] {
   return [...new Set(episodes.map((ep) => ep.season))].sort((a, b) => a - b);
+}
+
+/** Prefer catalog season headers; fall back to seasons inferred from loaded episodes. */
+export function seasonNumbersForMenu(
+  catalogSeasons: number[] | undefined,
+  episodes: SeriesEpisodeOption[],
+): number[] {
+  if (catalogSeasons && catalogSeasons.length > 0) {
+    return [...new Set(catalogSeasons)].sort((a, b) => a - b);
+  }
+
+  return uniqueSeasons(episodes);
+}
+
+/**
+ * Which S/E menus to show for series chrome.
+ * Multi-season shows keep both menus even when the browsed season has one episode
+ * (S1 with 1 ep can still open Season → S2). Single-season one-offs hide both.
+ * Films never reach this — no playback.series.
+ * While catalog seasons are still loading, keep chrome visible so multi-season S1 is not hidden.
+ */
+export function seriesPickerVisibility(
+  seasonCount: number,
+  menuEpisodeCount: number,
+  catalogPending = false,
+): { showSeason: boolean; showEpisode: boolean } {
+  if (catalogPending) {
+    return { showSeason: true, showEpisode: true };
+  }
+  const multiSeason = seasonCount > 1;
+  return {
+    showSeason: multiSeason,
+    showEpisode: multiSeason || menuEpisodeCount > 1,
+  };
 }

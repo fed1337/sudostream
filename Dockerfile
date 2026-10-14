@@ -17,11 +17,14 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 COPY web/ ./
 RUN pnpm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-trixie AS builder
 
 WORKDIR /src
 
 ARG TARGETARCH
+ARG BUILD_VERSION=dev
+ARG BUILD_REVISION=unknown
+ARG IMAGE_REF_NAME=local
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -32,19 +35,25 @@ COPY --from=frontend /src/web/dist ./internal/frontend/dist
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
+    set -eux; \
+    SHORT_REV="${BUILD_REVISION}"; \
+    SHORT_REV=$(printf '%.7s' "$BUILD_REVISION"); \
     TAGS="embed nomsgpack"; \
     if [ "$TARGETARCH" = "amd64" ]; then TAGS="$TAGS sonic avx"; fi; \
     CGO_ENABLED=0 GOOS=linux GOARCH="$TARGETARCH" go build \
     -tags="$TAGS" \
     -trimpath \
-    -ldflags="-s -w" \
+    -ldflags="-s -w \
+    -X sudoStream/internal/version.Build=${BUILD_VERSION} \
+    -X sudoStream/internal/version.Revision=${SHORT_REV} \
+    -X sudoStream/internal/version.Ref=${IMAGE_REF_NAME}" \
     -o /out/sudostream \
     ./cmd/server
 
 FROM --platform=$BUILDPLATFORM debian:trixie-slim AS ffmpeg
 
 ARG TARGETARCH
-ARG JELLYFIN_FFMPEG_VERSION=8.1.2-4
+ARG JELLYFIN_FFMPEG_VERSION=8.1.3-1
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
@@ -129,7 +138,7 @@ ARG BUILD_VERSION=dev
 ARG BUILD_REVISION=unknown
 ARG BUILD_CREATED=unknown
 ARG IMAGE_REF_NAME=local
-ARG JELLYFIN_FFMPEG_VERSION=8.1.2-4
+ARG JELLYFIN_FFMPEG_VERSION=8.1.3-1
 ARG TARGETARCH
 ARG DISTROLESS_TAG=nonroot
 ARG APP_UID=65532

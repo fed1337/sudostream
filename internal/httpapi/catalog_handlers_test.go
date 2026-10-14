@@ -162,7 +162,10 @@ func newCatalogHandlerFixture(
 	favStore := &flagMemoryStore{rows: map[string]bool{}}
 	favSvc := favorite.NewService(media, accessSvc, favStore)
 	catalogSvc := catalog.NewService(
-		catalogIndexedPaths{paths: []string{sampleRel}},
+		catalog.PathCatalogIndex{
+			LibraryType: libraryType,
+			ByLibrary:   map[string][]string{catalogTestLibraryID: {sampleRel}},
+		},
 		accessSvc,
 		nil,
 	)
@@ -174,17 +177,6 @@ func newCatalogHandlerFixture(
 		favorite: favSvc,
 		catalog:  catalogSvc,
 	}, slug, sampleRel
-}
-
-type catalogIndexedPaths struct {
-	paths []string
-}
-
-func (c catalogIndexedPaths) ListIndexedPaths(
-	_ context.Context,
-	_ string,
-) ([]string, error) {
-	return append([]string(nil), c.paths...), nil
 }
 
 //nolint:cyclop,funlen // multi-scenario catalog handler coverage

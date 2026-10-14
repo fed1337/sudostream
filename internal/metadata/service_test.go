@@ -156,6 +156,189 @@ func (m *memoryRepository) ListActiveIndexedPaths(
 	return paths, nil
 }
 
+func (m *memoryRepository) ListCatalogMoviesPage(
+	ctx context.Context,
+	libraryID string,
+	limit, offset int,
+) ([]CatalogMovieRow, int, error) {
+	_ = ctx
+	paths, err := m.ListActiveIndexedPaths(ctx, libraryID)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows := make([]CatalogMovieRow, 0, len(paths))
+	for _, relPath := range paths {
+		denorm := CatalogDenormFrom(
+			access.LibraryTypeFilm, relPath, VideoFields{}, StoredOverride{},
+		)
+		rows = append(rows, CatalogMovieRow{
+			RelPath: relPath, Title: denorm.SortTitle, Year: denorm.Year,
+		})
+	}
+	total := len(rows)
+	if offset > total {
+		return nil, total, nil
+	}
+	end := total
+	if limit > 0 {
+		end = min(offset+limit, total)
+	}
+
+	return rows[offset:end], total, nil
+}
+
+func (m *memoryRepository) ListCatalogShowsPage(
+	ctx context.Context,
+	libraryID string,
+	limit, offset int,
+) ([]CatalogShowRow, int, error) {
+	_ = ctx
+	paths, err := m.ListActiveIndexedPaths(ctx, libraryID)
+	if err != nil {
+		return nil, 0, err
+	}
+	type agg struct {
+		name         string
+		seasons      map[int]struct{}
+		episodeCount int
+		posterPath   string
+	}
+	byKey := map[string]*agg{}
+	for _, relPath := range paths {
+		row, _ := m.Get(ctx, libraryID, relPath)
+		denorm := CatalogDenormFrom(
+			access.LibraryTypeSeries, relPath, row.Original, row.Override,
+		)
+		if denorm.ShowKey == "" {
+			continue
+		}
+		entry, ok := byKey[denorm.ShowKey]
+		if !ok {
+			entry = &agg{
+				name: denorm.SortTitle, seasons: map[int]struct{}{}, posterPath: relPath,
+			}
+			byKey[denorm.ShowKey] = entry
+		}
+		entry.episodeCount++
+		season := 0
+		if denorm.Season != nil {
+			season = *denorm.Season
+		}
+		entry.seasons[season] = struct{}{}
+	}
+	rows := make([]CatalogShowRow, 0, len(byKey))
+	for key, entry := range byKey {
+		rows = append(rows, CatalogShowRow{
+			ShowKey: key, Name: entry.name, SeasonCount: len(entry.seasons),
+			EpisodeCount: entry.episodeCount, PosterPath: entry.posterPath,
+		})
+	}
+	total := len(rows)
+	if offset > total {
+		return nil, total, nil
+	}
+	end := total
+	if limit > 0 {
+		end = min(offset+limit, total)
+	}
+
+	return rows[offset:end], total, nil
+}
+
+func (m *memoryRepository) GetCatalogShowAgg(
+	ctx context.Context,
+	libraryID, showKey string,
+) (CatalogShowAgg, bool, error) {
+	paths, err := m.ListActiveIndexedPaths(ctx, libraryID)
+	if err != nil {
+		return CatalogShowAgg{}, false, err
+	}
+	counts := map[int]int{}
+	name, posterPath := "", ""
+	for _, relPath := range paths {
+		row, _ := m.Get(ctx, libraryID, relPath)
+		denorm := CatalogDenormFrom(
+			access.LibraryTypeSeries, relPath, row.Original, row.Override,
+		)
+		if denorm.ShowKey != showKey {
+			continue
+		}
+		if name == "" {
+			name = denorm.SortTitle
+		}
+		if posterPath == "" || relPath < posterPath {
+			posterPath = relPath
+		}
+		season := 0
+		if denorm.Season != nil {
+			season = *denorm.Season
+		}
+		counts[season]++
+	}
+	if len(counts) == 0 {
+		return CatalogShowAgg{}, false, nil
+	}
+	seasons := make([]CatalogSeasonCount, 0, len(counts))
+	for season, count := range counts {
+		seasons = append(seasons, CatalogSeasonCount{Season: season, EpisodeCount: count})
+	}
+
+	return CatalogShowAgg{
+		ShowKey: showKey, Name: name, PosterPath: posterPath, Seasons: seasons,
+	}, true, nil
+}
+
+func (m *memoryRepository) CatalogShowExists(
+	ctx context.Context,
+	libraryID, showKey string,
+) (bool, error) {
+	_, ok, err := m.GetCatalogShowAgg(ctx, libraryID, showKey)
+
+	return ok, err
+}
+
+func (m *memoryRepository) ListCatalogSeasonEpisodes(
+	ctx context.Context,
+	libraryID, showKey string,
+	season, limit, offset int,
+) ([]CatalogEpisodeRow, int, error) {
+	paths, err := m.ListActiveIndexedPaths(ctx, libraryID)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows := make([]CatalogEpisodeRow, 0)
+	for _, relPath := range paths {
+		row, _ := m.Get(ctx, libraryID, relPath)
+		denorm := CatalogDenormFrom(
+			access.LibraryTypeSeries, relPath, row.Original, row.Override,
+		)
+		if denorm.ShowKey != showKey {
+			continue
+		}
+		seasonNum := 0
+		if denorm.Season != nil {
+			seasonNum = *denorm.Season
+		}
+		if seasonNum != season {
+			continue
+		}
+		rows = append(rows, CatalogEpisodeRow{
+			RelPath: relPath, Title: denorm.DisplayName,
+			Season: denorm.Season, Episode: denorm.Episode, EpisodeTitle: denorm.EpisodeTitle,
+		})
+	}
+	total := len(rows)
+	if offset > total {
+		return nil, total, nil
+	}
+	end := total
+	if limit > 0 {
+		end = min(offset+limit, total)
+	}
+
+	return rows[offset:end], total, nil
+}
+
 func documentHasAllTokens(document string, tokens []string) bool {
 	haystack := strings.ToLower(document)
 	for _, token := range tokens {

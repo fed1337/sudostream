@@ -9,8 +9,11 @@ import (
 
 // HealthResponse describes service health and release metadata.
 type HealthResponse struct {
-	Status  string `json:"status"`
-	Version string `json:"version"`
+	Status   string `json:"status"`
+	Version  string `json:"version"`
+	Build    string `json:"build,omitempty"`
+	Revision string `json:"revision,omitempty"`
+	Ref      string `json:"ref,omitempty"`
 }
 
 // Healthcheck reports service readiness and the current release version.
@@ -24,8 +27,11 @@ type HealthResponse struct {
 //	@Router			/api/health [get]
 func (h *handler) health(c *gin.Context) {
 	response := HealthResponse{
-		Status:  "ok",
-		Version: version.Version,
+		Status:   "ok",
+		Version:  version.Version,
+		Build:    version.Build,
+		Revision: version.Revision,
+		Ref:      version.Ref,
 	}
 
 	err := h.media.Health()

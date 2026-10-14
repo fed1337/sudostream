@@ -13,9 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/disintegration/imaging"
-
 	allure "github.com/allure-framework/allure-go/commons/gotest"
+	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/pquerna/otp/totp"
 )

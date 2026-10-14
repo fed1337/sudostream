@@ -7,20 +7,20 @@ import type {
 
 export async function patchFavoriteState(
   mediaPath: string,
-  favorite: boolean,
-): Promise<{ favorite: boolean }> {
+  favorited: boolean,
+): Promise<{ favorited: boolean }> {
   const trimmed = mediaPath.replace(/^\/+/, "");
   const response = await client.patch<
     PatchApiFavoriteByPathResponses,
     PatchApiFavoriteByPathErrors
   >({
     url: catchAllUrl("/api/favorite", trimmed),
-    body: { favorite },
+    body: { favorited },
   });
 
   if (response.error || !response.data) {
     throw new Error("favorite update failed");
   }
 
-  return response.data as { favorite: boolean };
+  return response.data as { favorited: boolean };
 }

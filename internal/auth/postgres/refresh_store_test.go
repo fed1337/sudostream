@@ -5,9 +5,10 @@ import (
 	"errors"
 	"os"
 	"sudoStream/internal/auth"
-	authpostgres "sudoStream/internal/auth/postgres"
 	"testing"
 	"time"
+
+	authpostgres "sudoStream/internal/auth/postgres"
 
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 	"github.com/appleboy/gin-jwt/v3/core"

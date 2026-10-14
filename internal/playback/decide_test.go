@@ -8,6 +8,7 @@ import (
 
 const (
 	testContainerMP4  = "mp4"
+	testContainerMKV  = "mkv"
 	testCodecH264     = "h264"
 	testCodecAAC      = "aac"
 	testContainerWebM = "webm"
@@ -151,6 +152,33 @@ func TestDecide_BitrateOverMaxBlocksDirectPlay(t *testing.T) {
 		got := Decide(profile, source, 0)
 		if got.Method != MethodTranscode {
 			t.Fatalf("method: got %q want %q", got.Method, MethodTranscode)
+		}
+	})
+}
+
+func TestDecide_MultiChannelAC3DirectPlay(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "AC-3 5.1 stays Direct Play when profile lists ac3", func(a *allure.Context) {
+		t := a.T()
+		profile := DeviceProfile{
+			DirectPlay: []DirectPlayProfile{{
+				Container:  testContainerMKV,
+				VideoCodec: testCodecH264,
+				AudioCodec: "ac3",
+			}},
+		}
+		source := SourceCaps{
+			Container:  testContainerMKV,
+			VideoCodec: testCodecH264,
+			AudioCodec: "ac3",
+			Height:     1080,
+			RemuxOK:    true,
+		}
+
+		got := Decide(profile, source, 0)
+		if got.Method != MethodDirectPlay {
+			t.Fatalf("method: got %q want %q", got.Method, MethodDirectPlay)
 		}
 	})
 }

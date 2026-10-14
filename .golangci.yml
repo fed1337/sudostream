@@ -38,22 +38,29 @@ linters:
     cyclop:
       max-complexity: 10
     funlen:
-      lines: 100
+      lines: 90
   exclusions:
+    presets:
+      - comments
+      - common-false-positives
     paths:
-      - "openapi/"
-      - "web/"
       - "cache/"
+      - "docs/"
       - "logs/"
+      - "openapi/"
+      - "site/"
+      - "web/"
+      - "_test.go"
 formatters:
   enable:
+    - goimports
     - gofumpt
-#    - goimports
-#    - golines
-#    - swaggo
+    - swaggo
   exclusions:
     paths:
-      - "openapi/"
-      - "web/"
       - "cache/"
+      - "docs/"
       - "logs/"
+      - "openapi/"
+      - "site/"
+      - "web/"

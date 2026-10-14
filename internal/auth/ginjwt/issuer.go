@@ -9,11 +9,11 @@ import (
 	"sudoStream/internal/auth"
 	"time"
 
+	authpostgres "sudoStream/internal/auth/postgres"
+
 	jwtmw "github.com/appleboy/gin-jwt/v3"
 	"github.com/appleboy/gin-jwt/v3/core"
 	"github.com/gin-gonic/gin"
-
-	authpostgres "sudoStream/internal/auth/postgres"
 )
 
 const (
@@ -43,7 +43,7 @@ func New(store auth.Store, config auth.Config) (*Issuer, error) {
 
 	refreshStore := authpostgres.NewRefreshTokenStore(store)
 	jwtMiddleware, err := jwtmw.New(
-		&jwtmw.GinJWTMiddleware{ //nolint:exhaustruct // gin-jwt defaults
+		&jwtmw.GinJWTMiddleware{
 			Realm:               auth.JWTRealm,
 			Key:                 secret,
 			Timeout:             accessTTL,

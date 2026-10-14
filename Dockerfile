@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 COPY web/ ./
 RUN pnpm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-trixie AS builder
 
 WORKDIR /src
 

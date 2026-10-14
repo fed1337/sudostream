@@ -130,6 +130,7 @@ func apiRouteCatalog() []routeKey {
 		{http.MethodGet, "/api/admin/maintenance"},
 		{http.MethodPatch, "/api/admin/maintenance"},
 		{http.MethodGet, "/api/admin/maintenance/runs"},
+		{http.MethodPost, "/api/admin/maintenance/runs/{id}/cancel"},
 		{http.MethodPost, "/api/admin/maintenance/{action}/run"},
 		{http.MethodGet, "/api/admin/trash"},
 		{http.MethodDelete, "/api/admin/trash"},

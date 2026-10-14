@@ -3,7 +3,9 @@ package maintenance
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
+	"sudoStream/internal/access"
 	"sync"
 	"testing"
 	"time"
@@ -88,10 +90,22 @@ func (m *memoryStore) UpsertSchedule(
 func (m *memoryStore) InsertRun(_ context.Context, run Run) (Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	run.ID = "run-" + time.Now().Format("150405.000")
+	run.ID = fmt.Sprintf("run-%d", len(m.runs)+1)
 	m.runs = append(m.runs, run)
 
 	return run, nil
+}
+
+func (m *memoryStore) GetRun(_ context.Context, runID string) (Run, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, run := range m.runs {
+		if run.ID == runID {
+			return run, nil
+		}
+	}
+
+	return Run{}, ErrNotFound
 }
 
 func (m *memoryStore) FinishRun(
@@ -137,14 +151,20 @@ func (m *memoryStore) LatestRun(
 	return Run{}, ErrNotFound
 }
 
-func (m *memoryStore) ListRuns(_ context.Context, limit int) ([]Run, error) {
+func (m *memoryStore) ListRuns(_ context.Context, limit int, status string) ([]Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if limit <= 0 || limit > len(m.runs) {
-		limit = len(m.runs)
+	filtered := make([]Run, 0, len(m.runs))
+	for _, run := range m.runs {
+		if status == "" || run.Status == status {
+			filtered = append(filtered, run)
+		}
 	}
-	start := max(len(m.runs)-limit, 0)
-	out := append([]Run(nil), m.runs[start:]...)
+	if limit <= 0 || limit > len(filtered) {
+		limit = len(filtered)
+	}
+	start := max(len(filtered)-limit, 0)
+	out := append([]Run(nil), filtered[start:]...)
 
 	return out, nil
 }
@@ -234,7 +254,7 @@ func TestService_RunNowConflict(t *testing.T) {
 				t.Fatal("run did not finish")
 			default:
 			}
-			runs, listErr := svc.ListRuns(context.Background(), 10)
+			runs, listErr := svc.ListRuns(context.Background(), 10, "")
 			if listErr != nil {
 				t.Fatal(listErr)
 			}
@@ -321,7 +341,7 @@ func TestService_PatchAndStatus(
 			svc.Shutdown()
 			svc.Shutdown()
 
-			runs, err := svc.ListRuns(context.Background(), 5)
+			runs, err := svc.ListRuns(context.Background(), 5, "")
 			if err != nil {
 				t.Fatalf("list runs: %v", err)
 			}
@@ -381,10 +401,176 @@ func TestService_FireScheduledSkip(t *testing.T) {
 		t := a.T()
 		store := &memoryStore{}
 		svc := NewService(store, Deps{})
-		if !svc.tryLock(LockKey(ActionLibrariesScan, "")) {
+		if !svc.tryLock(LockKey(ActionLibrariesScan, ""), func() {}) {
 			t.Fatal("lock")
 		}
 		svc.fireScheduled(Schedule{Action: ActionLibrariesScan, Cron: "0 * * * *"})
 		svc.unlock(LockKey(ActionLibrariesScan, ""))
+	})
+}
+
+type blockingSkipIntro struct {
+	started chan struct{}
+}
+
+func (b *blockingSkipIntro) DetectLibraryMap(
+	ctx context.Context,
+	_ string,
+) (map[string]any, error) {
+	close(b.started)
+	<-ctx.Done()
+
+	return nil, ctx.Err()
+}
+
+type cancelAccessStub struct{}
+
+func (cancelAccessStub) SyncLibraries(
+	_ context.Context,
+	_ string,
+) (access.SyncLibrariesResult, error) {
+	return access.SyncLibrariesResult{}, nil
+}
+
+func (cancelAccessStub) GetLibrary(_ context.Context, libraryID string) (access.Library, error) {
+	return access.Library{ID: libraryID, Name: "Lib One"}, nil
+}
+
+func TestService_CancelLiveRun(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "Cancel mid-run finishes as canceled and releases lock", func(a *allure.Context) {
+		t := a.T()
+		store := &memoryStore{}
+		blocker := &blockingSkipIntro{started: make(chan struct{})}
+		svc := NewService(store, Deps{
+			Access:    cancelAccessStub{},
+			SkipIntro: blocker,
+		})
+
+		run, err := svc.RunNow(
+			context.Background(),
+			ActionPlaybackSkipDetect,
+			"lib-1",
+			TriggerManual,
+		)
+		if err != nil {
+			t.Fatalf("run: %v", err)
+		}
+
+		<-blocker.started
+		err = svc.Cancel(context.Background(), run.ID)
+		if err != nil {
+			t.Fatalf("cancel: %v", err)
+		}
+
+		deadline := time.After(2 * time.Second)
+		for {
+			select {
+			case <-deadline:
+				t.Fatal("run did not finish canceled")
+			default:
+			}
+			got, getErr := store.GetRun(context.Background(), run.ID)
+			if getErr != nil {
+				t.Fatal(getErr)
+			}
+			if got.Status == StatusCanceled {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		if svc.isLocked(ActionPlaybackSkipDetect, "lib-1") {
+			t.Fatal("lock still held after cancel")
+		}
+	})
+
+	allure.Test(t, "ListRuns status filter and library name enrich", func(a *allure.Context) {
+		t := a.T()
+		libID := "lib-1"
+		store := &memoryStore{runs: []Run{
+			{
+				ID:        "r1",
+				Action:    ActionMetadataScan,
+				LibraryID: &libID,
+				Status:    StatusSuccess,
+				StartedAt: time.Now().UTC(),
+			},
+			{
+				ID:        "r2",
+				Action:    ActionLibrariesScan,
+				Status:    StatusRunning,
+				StartedAt: time.Now().UTC(),
+			},
+		}}
+		svc := NewService(store, Deps{Access: cancelAccessStub{}})
+
+		_, err := svc.ListRuns(context.Background(), 10, "not-a-status")
+		if !errors.Is(err, ErrInvalidAction) {
+			t.Fatalf("want invalid status, got %v", err)
+		}
+
+		running, err := svc.ListRuns(context.Background(), 10, StatusRunning)
+		if err != nil || len(running) != 1 || running[0].ID != "r2" {
+			t.Fatalf("running filter: %v %+v", err, running)
+		}
+
+		all, err := svc.ListRuns(context.Background(), 10, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		foundNamed := false
+		for _, run := range all {
+			if run.ID == "r1" && run.LibraryName == "Lib One" {
+				foundNamed = true
+			}
+		}
+		if !foundNamed {
+			t.Fatalf("expected libraryName on lib run: %+v", all)
+		}
+	})
+
+	allure.Test(t, "Cancel unknown / finished / orphaned running", func(a *allure.Context) {
+		t := a.T()
+		store := &memoryStore{}
+		svc := NewService(store, Deps{})
+
+		err := svc.Cancel(context.Background(), "missing")
+		if !errors.Is(err, ErrNotFound) {
+			t.Fatalf("want ErrNotFound, got %v", err)
+		}
+
+		finished, err := store.InsertRun(context.Background(), Run{
+			Action:    ActionLibrariesScan,
+			Trigger:   TriggerManual,
+			Status:    StatusSuccess,
+			StartedAt: time.Now().UTC(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = svc.Cancel(context.Background(), finished.ID)
+		if !errors.Is(err, ErrNotRunning) {
+			t.Fatalf("want ErrNotRunning, got %v", err)
+		}
+
+		orphan, err := store.InsertRun(context.Background(), Run{
+			Action:    ActionLibrariesScan,
+			Trigger:   TriggerManual,
+			Status:    StatusRunning,
+			StartedAt: time.Now().UTC(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = svc.Cancel(context.Background(), orphan.ID)
+		if err != nil {
+			t.Fatalf("orphan cancel: %v", err)
+		}
+		got, err := store.GetRun(context.Background(), orphan.ID)
+		if err != nil || got.Status != StatusCanceled {
+			t.Fatalf("orphan status=%s err=%v", got.Status, err)
+		}
 	})
 }

@@ -112,7 +112,8 @@ type maintenanceRunner interface {
 		inputs []maintenance.ScheduleInput,
 	) error
 	RunNow(ctx context.Context, action, libraryID, trigger string) (maintenance.Run, error)
-	ListRuns(ctx context.Context, limit int) ([]maintenance.Run, error)
+	ListRuns(ctx context.Context, limit int, status string) ([]maintenance.Run, error)
+	Cancel(ctx context.Context, runID string) error
 	CacheDirBytes() int64
 }
 

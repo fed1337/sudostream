@@ -296,8 +296,10 @@ func (h *adminHandler) runMaintenance(c *gin.Context) {
 //	@Summary	List maintenance runs
 //	@Tags		admin
 //	@Produce	json
-//	@Param		limit	query		int	false	"Max rows (default 50)"
+//	@Param		limit	query		int		false	"Max rows (default 50)"
+//	@Param		status	query		string	false	"Filter by status (e.g. running)"
 //	@Success	200		{object}	MaintenanceRunsResponse
+//	@Failure	400		{object}	ErrorResponse
 //	@Router		/api/admin/maintenance/runs [get]
 func (h *adminHandler) listMaintenanceRuns(c *gin.Context) {
 	if h.maintenance == nil {
@@ -314,12 +316,54 @@ func (h *adminHandler) listMaintenanceRuns(c *gin.Context) {
 		}
 	}
 
-	runs, err := h.maintenance.ListRuns(c.Request.Context(), limit)
+	status := c.Query("status")
+	runs, err := h.maintenance.ListRuns(c.Request.Context(), limit, status)
 	if err != nil {
+		if errors.Is(err, maintenance.ErrInvalidAction) {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid status filter"})
+
+			return
+		}
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "list runs failed"})
 
 		return
 	}
 
 	c.JSON(http.StatusOK, MaintenanceRunsResponse{Runs: runs})
+}
+
+// CancelMaintenanceRun cancels a running maintenance job.
+//
+//	@Summary	Cancel maintenance run
+//	@Tags		admin
+//	@Produce	json
+//	@Param		id	path		string	true	"Run ID"
+//	@Success	204	{string}	string	"canceled"
+//	@Failure	404	{object}	ErrorResponse
+//	@Failure	409	{object}	ErrorResponse
+//	@Failure	503	{object}	ErrorResponse
+//	@Router		/api/admin/maintenance/runs/{id}/cancel [post]
+func (h *adminHandler) cancelMaintenanceRun(c *gin.Context) {
+	if h.maintenance == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errMaintenanceUnavailable})
+
+		return
+	}
+
+	runID := c.Param("id")
+	err := h.maintenance.Cancel(c.Request.Context(), runID)
+	if err != nil {
+		switch {
+		case errors.Is(err, maintenance.ErrNotFound):
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "run not found"})
+		case errors.Is(err, maintenance.ErrNotRunning):
+			c.JSON(http.StatusConflict, ErrorResponse{Error: "run is not running"})
+		default:
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "cancel failed"})
+		}
+
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
 }

@@ -291,6 +291,7 @@ func registerAdminRoutes(api *gin.RouterGroup, adminRoutes *adminHandler) { //no
 		admin.GET("/maintenance", adminRoutes.getMaintenance)
 		admin.PATCH("/maintenance", adminRoutes.patchMaintenance)
 		admin.GET("/maintenance/runs", adminRoutes.listMaintenanceRuns)
+		admin.POST("/maintenance/runs/:id/cancel", adminRoutes.cancelMaintenanceRun)
 		admin.POST("/maintenance/:action/run", adminRoutes.runMaintenance)
 		registerAdminTrashRoutes(admin, adminRoutes)
 		admin.GET("/users/:id/libraries", adminRoutes.getUserLibraries)

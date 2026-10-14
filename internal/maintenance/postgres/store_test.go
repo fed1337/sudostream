@@ -126,9 +126,19 @@ func TestStore_MaintenanceCRUD(t *testing.T) {
 			t.Fatalf("mark interrupted: n=%d err=%v", n, err)
 		}
 
-		runs, err := store.ListRuns(ctx, 10)
+		runs, err := store.ListRuns(ctx, 10, "")
 		if err != nil || len(runs) < 2 {
 			t.Fatalf("list runs: %v %+v", err, runs)
+		}
+
+		got, err := store.GetRun(ctx, run.ID)
+		if err != nil || got.ID != run.ID {
+			t.Fatalf("get run: %v %+v", err, got)
+		}
+
+		failedOnly, err := store.ListRuns(ctx, 10, maintenance.StatusFailed)
+		if err != nil || len(failedOnly) < 1 {
+			t.Fatalf("list failed: %v %+v", err, failedOnly)
 		}
 	})
 }

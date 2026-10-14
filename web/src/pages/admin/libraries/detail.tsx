@@ -13,6 +13,7 @@ import {
   getApiAdminLibrariesByIdMaintenanceOptions,
   getApiAdminLibrariesByIdProvidersOptions,
   getApiAdminLibrariesOptions,
+  getApiAdminMaintenanceRunsQueryKey,
 } from "@/client/@tanstack/react-query.gen";
 import {
   deleteApiAdminLibrariesById,
@@ -22,6 +23,7 @@ import {
   patchApiAdminLibrariesByIdProviders,
   postApiAdminLibrariesByIdRoots,
   postApiAdminMaintenanceByActionRun,
+  postApiAdminMaintenanceRunsByIdCancel,
 } from "@/client/sdk.gen";
 import type { LibraryType } from "@/api/media";
 import { libraryRoots } from "@/api/media";
@@ -276,8 +278,35 @@ export default function AdminLibraryDetailPage() {
     },
     onSuccess: () => {
       void maintenanceQuery.refetch();
+      void queryClient.invalidateQueries({ queryKey: getApiAdminMaintenanceRunsQueryKey() });
     },
   });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (runId: string) => {
+      const response = await postApiAdminMaintenanceRunsByIdCancel({
+        path: { id: runId },
+      });
+      if (response.error) {
+        throw new Error(t("admin.maintenanceCancelFailed"));
+      }
+    },
+    onSuccess: () => {
+      void maintenanceQuery.refetch();
+      void queryClient.invalidateQueries({ queryKey: getApiAdminMaintenanceRunsQueryKey() });
+    },
+  });
+
+  const cancelForStatus = (status?: { running?: boolean; latestRun?: { id?: string } }) => {
+    const runId = status?.running ? status.latestRun?.id : undefined;
+    if (!runId) {
+      return undefined;
+    }
+
+    return () => {
+      cancelMutation.mutate(runId);
+    };
+  };
 
   const addRootMutation = useMutation({
     mutationFn: async (relPaths: string[]) => {
@@ -617,6 +646,8 @@ export default function AdminLibraryDetailPage() {
         onRun={() => {
           runMutation.mutate(METADATA_ACTION);
         }}
+        canceling={cancelMutation.isPending}
+        onCancel={cancelForStatus(metadataStatus)}
       />
 
       <MaintenanceActionCard
@@ -644,6 +675,8 @@ export default function AdminLibraryDetailPage() {
         onRun={() => {
           runMutation.mutate(THUMBS_ACTION);
         }}
+        canceling={cancelMutation.isPending}
+        onCancel={cancelForStatus(thumbsStatus)}
       />
 
       {library?.type === "series" ? (
@@ -672,6 +705,8 @@ export default function AdminLibraryDetailPage() {
           onRun={() => {
             runMutation.mutate(SKIP_INTRO_ACTION);
           }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(skipIntroStatus)}
         />
       ) : null}
 
@@ -712,6 +747,8 @@ export default function AdminLibraryDetailPage() {
           onRun={() => {
             runMutation.mutate(PROVIDERS_METADATA_ACTION);
           }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(providersMetadataStatus)}
         />
       ) : null}
 
@@ -746,6 +783,8 @@ export default function AdminLibraryDetailPage() {
           onRun={() => {
             runMutation.mutate(PROVIDERS_POSTERS_ACTION);
           }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(providersPostersStatus)}
         />
       ) : null}
 
@@ -787,15 +826,19 @@ export default function AdminLibraryDetailPage() {
           onRun={() => {
             runMutation.mutate(PROVIDERS_SUBTITLES_ACTION);
           }}
+          canceling={cancelMutation.isPending}
+          onCancel={cancelForStatus(providersSubtitlesStatus)}
         />
       ) : null}
 
-      {saveScheduleMutation.isError || runMutation.isError ? (
+      {saveScheduleMutation.isError || runMutation.isError || cancelMutation.isError ? (
         <Alert variant="destructive">
           <AlertTitle>{t("common.error")}</AlertTitle>
           <AlertDescription>
-            {(saveScheduleMutation.error ?? runMutation.error) instanceof Error
-              ? ((saveScheduleMutation.error ?? runMutation.error) as Error).message
+            {(saveScheduleMutation.error ?? runMutation.error ?? cancelMutation.error) instanceof
+            Error
+              ? ((saveScheduleMutation.error ?? runMutation.error ?? cancelMutation.error) as Error)
+                  .message
               : t("common.error")}
           </AlertDescription>
         </Alert>

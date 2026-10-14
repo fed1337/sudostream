@@ -197,6 +197,20 @@ func (s *Store) InsertRun(ctx context.Context, run maintenance.Run) (maintenance
 	return runFromModel(model), nil
 }
 
+// GetRun loads one run by ID.
+func (s *Store) GetRun(ctx context.Context, runID string) (maintenance.Run, error) {
+	var model runModel
+	err := s.db.WithContext(ctx).Where("id = ?", runID).First(&model).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return maintenance.Run{}, maintenance.ErrNotFound
+	}
+	if err != nil {
+		return maintenance.Run{}, fmt.Errorf("get run: %w", err)
+	}
+
+	return runFromModel(model), nil
+}
+
 // FinishRun updates status, finished_at, and summary.
 func (s *Store) FinishRun(
 	ctx context.Context,
@@ -255,17 +269,23 @@ func (s *Store) LatestRun(
 	return runFromModel(model), nil
 }
 
-// ListRuns returns recent runs newest-first.
-func (s *Store) ListRuns(ctx context.Context, limit int) ([]maintenance.Run, error) {
+// ListRuns returns recent runs newest-first. Empty status returns all statuses.
+func (s *Store) ListRuns(
+	ctx context.Context,
+	limit int,
+	status string,
+) ([]maintenance.Run, error) {
 	if limit <= 0 {
 		limit = 50
 	}
 
+	query := s.db.WithContext(ctx).Order("started_at DESC").Limit(limit)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
 	var models []runModel
-	err := s.db.WithContext(ctx).
-		Order("started_at DESC").
-		Limit(limit).
-		Find(&models).Error
+	err := query.Find(&models).Error
 	if err != nil {
 		return nil, fmt.Errorf("list runs: %w", err)
 	}

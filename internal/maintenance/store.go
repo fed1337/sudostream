@@ -9,8 +9,9 @@ type Store interface {
 	ListSchedulesForLibrary(ctx context.Context, libraryID string) ([]Schedule, error)
 	UpsertSchedule(ctx context.Context, schedule Schedule) (Schedule, error)
 	InsertRun(ctx context.Context, run Run) (Run, error)
+	GetRun(ctx context.Context, runID string) (Run, error)
 	FinishRun(ctx context.Context, runID, status string, summary map[string]any) error
 	LatestRun(ctx context.Context, action string, libraryID *string) (Run, error)
-	ListRuns(ctx context.Context, limit int) ([]Run, error)
+	ListRuns(ctx context.Context, limit int, status string) ([]Run, error)
 	MarkInterruptedRuns(ctx context.Context) (int64, error)
 }

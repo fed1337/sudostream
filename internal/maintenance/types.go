@@ -33,10 +33,11 @@ const (
 
 // Run status values.
 const (
-	StatusRunning = "running"
-	StatusSuccess = "success"
-	StatusFailed  = "failed"
-	StatusSkipped = "skipped"
+	StatusRunning  = "running"
+	StatusSuccess  = "success"
+	StatusFailed   = "failed"
+	StatusSkipped  = "skipped"
+	StatusCanceled = "canceled"
 )
 
 // PurgeRetentionHours is how old an HLS cache dir must be before purge deletes it.
@@ -58,6 +59,8 @@ var (
 	ErrInvalidAction = errors.New("invalid maintenance action")
 	// ErrNotFound is returned when a schedule or run is missing.
 	ErrNotFound = errors.New("maintenance record not found")
+	// ErrNotRunning is returned when Cancel targets a finished or non-running run.
+	ErrNotRunning = errors.New("maintenance run is not running")
 )
 
 // Schedule is a persisted cron schedule for one action (optionally per library).
@@ -82,14 +85,15 @@ type ScheduleInput struct {
 
 // Run is one execution of a maintenance action.
 type Run struct {
-	ID         string         `json:"id"`
-	Action     string         `json:"action"`
-	LibraryID  *string        `json:"libraryId,omitempty"`
-	Trigger    string         `json:"trigger"`
-	Status     string         `json:"status"`
-	StartedAt  time.Time      `json:"startedAt"`
-	FinishedAt *time.Time     `json:"finishedAt,omitempty"`
-	Summary    map[string]any `json:"summary,omitempty"`
+	ID          string         `json:"id"`
+	Action      string         `json:"action"`
+	LibraryID   *string        `json:"libraryId,omitempty"`
+	LibraryName string         `json:"libraryName,omitempty"`
+	Trigger     string         `json:"trigger"`
+	Status      string         `json:"status"`
+	StartedAt   time.Time      `json:"startedAt"`
+	FinishedAt  *time.Time     `json:"finishedAt,omitempty"`
+	Summary     map[string]any `json:"summary,omitempty"`
 }
 
 // ActionStatus combines schedule + latest run for API responses.

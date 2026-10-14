@@ -111,9 +111,13 @@ func (s *Service) runThumbnailsWarm(ctx context.Context, libraryID string) (map[
 	return map[string]any{"generated": generated}, nil
 }
 
-func (s *Service) runPlaybackCachePurge(_ context.Context) (map[string]any, error) {
+func (s *Service) runPlaybackCachePurge(ctx context.Context) (map[string]any, error) {
 	if s.deps.Purger == nil {
 		return nil, errPurgerUnavailable
+	}
+	err := ctx.Err()
+	if err != nil {
+		return nil, fmt.Errorf("purge canceled: %w", err)
 	}
 
 	deleted, bytesRemoved, err := s.deps.Purger.PurgeStaleCache(

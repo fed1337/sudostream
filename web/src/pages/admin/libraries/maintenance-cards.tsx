@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PlayIcon } from "lucide-react";
+import { PlayIcon, SquareIcon } from "lucide-react";
 
 import type { SudoStreamInternalMaintenanceActionStatus } from "@/client/types.gen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -40,11 +40,13 @@ type MaintenanceActionCardProps = {
   status?: ActionStatus;
   saving: boolean;
   running: boolean;
+  canceling?: boolean;
   validationError?: string | null;
   onCronChange: (value: string) => void;
   onEnabledChange: (value: boolean) => void;
   onSave: () => void;
   onRun: () => void;
+  onCancel?: () => void;
 };
 
 export function MaintenanceActionCard({
@@ -55,14 +57,17 @@ export function MaintenanceActionCard({
   status,
   saving,
   running,
+  canceling,
   validationError,
   onCronChange,
   onEnabledChange,
   onSave,
   onRun,
+  onCancel,
 }: MaintenanceActionCardProps) {
   const { t } = useTranslation();
   const latest = status?.latestRun;
+  const canCancel = Boolean(running && latest?.id && onCancel);
   const enabledId = `maintenance-enabled-${title.replace(/\s+/g, "-").toLowerCase()}`;
 
   return (
@@ -119,6 +124,16 @@ export function MaintenanceActionCard({
             {running ? <Spinner data-icon="inline-start" /> : <PlayIcon data-icon="inline-start" />}
             {t("admin.maintenanceRunNow")}
           </Button>
+          {canCancel ? (
+            <Button variant="destructive" onClick={onCancel} disabled={canceling || saving}>
+              {canceling ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <SquareIcon data-icon="inline-start" />
+              )}
+              {t("admin.maintenanceCancel")}
+            </Button>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -137,12 +152,14 @@ type ProviderTaskCardProps = {
   status?: ActionStatus;
   saving: boolean;
   running: boolean;
+  canceling?: boolean;
   validationError?: string | null;
   onProviderChange: (value: string) => void;
   onCronChange: (value: string) => void;
   onEnabledChange: (value: boolean) => void;
   onSave: () => void;
   onRun: () => void;
+  onCancel?: () => void;
   metadataWriteTarget?: string;
   metadataApplyMode?: string;
   allowOverrideUserMetadata?: boolean;
@@ -165,12 +182,14 @@ export function ProviderTaskCard({
   status,
   saving,
   running,
+  canceling,
   validationError,
   onProviderChange,
   onCronChange,
   onEnabledChange,
   onSave,
   onRun,
+  onCancel,
   metadataWriteTarget,
   metadataApplyMode,
   allowOverrideUserMetadata,
@@ -182,6 +201,7 @@ export function ProviderTaskCard({
 }: ProviderTaskCardProps) {
   const { t } = useTranslation();
   const latest = status?.latestRun;
+  const canCancel = Boolean(running && latest?.id && onCancel);
   const enabledId = `provider-enabled-${title.replace(/\s+/g, "-").toLowerCase()}`;
   const [languagesOpen, setLanguagesOpen] = useState(false);
   const showMetadataFields =
@@ -344,6 +364,16 @@ export function ProviderTaskCard({
             {running ? <Spinner data-icon="inline-start" /> : <PlayIcon data-icon="inline-start" />}
             {t("admin.maintenanceRunNow")}
           </Button>
+          {canCancel ? (
+            <Button variant="destructive" onClick={onCancel} disabled={canceling || saving}>
+              {canceling ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <SquareIcon data-icon="inline-start" />
+              )}
+              {t("admin.maintenanceCancel")}
+            </Button>
+          ) : null}
         </div>
 
         {showSubtitleLanguages ? (

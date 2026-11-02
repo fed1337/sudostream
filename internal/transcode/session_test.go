@@ -579,6 +579,117 @@ func TestResolveSegment_KeepsTheTimelineAcrossARestart(t *testing.T) {
 	)
 }
 
+func TestResolveSegment_CopyRestartsLandOnTheTimelineKeyframe(t *testing.T) {
+	t.Parallel()
+
+	for _, container := range []string{"mkv", "ts"} {
+		allure.Test(
+			t,
+			"remux restarts start on the advertised keyframe — B-frames in "+container,
+			func(a *allure.Context) {
+				t := a.T()
+				mediaPath := synthesizeBFrameFixture(t, container)
+				root := t.TempDir()
+
+				service, err := NewService(root)
+				if err != nil {
+					t.Fatalf("new service: %v", err)
+				}
+
+				cacheKey := "copy-" + container
+				outDir := filepath.Join(root, cacheKey)
+
+				err = os.MkdirAll(outDir, 0o750)
+				if err != nil {
+					t.Fatalf("mkdir: %v", err)
+				}
+
+				meta, err := ProbeAndPublish(context.Background(), outDir, mediaPath)
+				if err != nil {
+					t.Fatalf("probe and publish: %v", err)
+				}
+
+				if meta.PackagingMode != PackagingRemux {
+					t.Fatalf("fixture must be remux-eligible, got %q", meta.PackagingMode)
+				}
+
+				seekIndex := 3
+				boundaryIndex := seekIndex + maxRunSegments
+				if meta.SegmentCount() <= boundaryIndex {
+					t.Fatalf("fixture produced only %d segments", meta.SegmentCount())
+				}
+
+				variant := VideoVariant(meta.Height)
+				// A cold seek, then the first segment past that run's throttle bound: both
+				// start a fresh copy run, which is where v0.2.0 landed a GOP early or late.
+				for _, index := range []int{seekIndex, boundaryIndex} {
+					path, resolveErr := service.ResolveSegment(
+						context.Background(), cacheKey, mediaPath, variant, index,
+					)
+					if resolveErr != nil {
+						t.Fatalf("resolve segment %d: %v", index, resolveErr)
+					}
+
+					want := SegmentStart(meta.Segments, index)
+					if got := segmentStartPTS(t, path); math.Abs(got-want) > halfFrameAt24fps {
+						t.Fatalf("segment %d starts at %.3f, timeline says %.3f", index, got, want)
+					}
+				}
+			},
+		)
+	}
+}
+
+const halfFrameAt24fps = 1.0 / 48
+
+// synthesizeBFrameFixture renders a remuxable H.264 clip with B-frames and 2s GOPs.
+//
+// "mkv" gets a negative container start_time from AAC priming; "ts" is shifted to a positive
+// one. Both reproduce copy seeks the B-frame-free MP4 fixture cannot.
+func synthesizeBFrameFixture(t *testing.T, container string) string {
+	t.Helper()
+
+	_, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+
+	root := t.TempDir()
+	mkvPath := filepath.Join(root, "bframes.mkv")
+
+	run := func(args ...string) {
+		cmd := exec.CommandContext(context.Background(), "ffmpeg", args...) //nolint:gosec // temp paths
+		output, runErr := cmd.CombinedOutput()
+		if runErr != nil {
+			t.Skipf("ffmpeg fixture unavailable: %v (%s)", runErr, output)
+		}
+	}
+
+	run(
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24",
+		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
+		"-t", "100",
+		"-c:v", "libx264", "-preset", "veryfast", "-bf", "3",
+		"-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
+		"-c:a", "aac", "-shortest", "-y",
+		mkvPath,
+	)
+
+	if container == "mkv" {
+		return mkvPath
+	}
+
+	tsPath := filepath.Join(root, "bframes.ts")
+	run(
+		"-hide_banner", "-loglevel", "error",
+		"-i", mkvPath, "-c", "copy", "-output_ts_offset", "1.4", "-f", "mpegts", "-y",
+		tsPath,
+	)
+
+	return tsPath
+}
+
 // segmentStartPTS reads the first presentation timestamp of a produced segment.
 func segmentStartPTS(t *testing.T, segmentPath string) float64 {
 	t.Helper()

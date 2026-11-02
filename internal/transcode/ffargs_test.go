@@ -116,6 +116,103 @@ func TestBuildSegmentArgs_NativeRungCopiesVideo(t *testing.T) {
 	})
 }
 
+func TestBuildSegmentArgs_CopySeekPrerollAndTrim(t *testing.T) {
+	t.Parallel()
+
+	uniform := func(count int) []float64 {
+		segments := make([]float64, count)
+		for index := range segments {
+			segments[index] = SegmentTargetSeconds
+		}
+
+		return segments
+	}
+
+	for _, tc := range []struct {
+		name       string
+		variant    Variant
+		segments   []float64
+		keyframes  []float64
+		startIndex int
+		want       []string
+		reject     []string
+	}{
+		{
+			name:       "keyframe start seeks early and trims just before the keyframe",
+			variant:    VideoVariant(720),
+			segments:   []float64{6, 6, 4, 6},
+			keyframes:  []float64{0, 2, 6, 12, 16},
+			startIndex: 2,
+			want: []string{
+				"-ss 10.500000 -i /media/movie.mkv -ss 1.000000 -map",
+				"-output_ts_offset 11.500000",
+				"-segment_times 4.000000",
+			},
+			reject: []string{"-t "},
+		},
+		{
+			name:       "throttled run extends -t by the trim",
+			variant:    VideoVariant(720),
+			segments:   uniform(maxRunSegments * 2),
+			keyframes:  []float64{0, 6, 12, 18},
+			startIndex: 2,
+			want:       []string{"-ss 1.000000 -t 72.500000 -map"},
+		},
+		{
+			name:       "start inside the preroll skips the input seek",
+			variant:    VideoVariant(720),
+			segments:   []float64{1, 6, 6},
+			keyframes:  []float64{0, 1, 7},
+			startIndex: 1,
+			want:       []string{"-nostdin -i /media/movie.mkv -ss 0.500000 -map", "-output_ts_offset 0.500000"},
+		},
+		{
+			name:       "a close previous keyframe shrinks the trim to the midpoint",
+			variant:    VideoVariant(720),
+			segments:   []float64{6, 6, 4, 6},
+			keyframes:  []float64{0, 6, 11.6, 12},
+			startIndex: 2,
+			want:       []string{"-ss 10.500000 -i /media/movie.mkv -ss 1.300000 -map", "-output_ts_offset 11.800000"},
+		},
+		{
+			name:       "a start that is not a probed keyframe keeps the plain seek",
+			variant:    VideoVariant(720),
+			segments:   []float64{6, 6, 4, 6},
+			keyframes:  []float64{0, 5, 13},
+			startIndex: 2,
+			want:       []string{"-ss 12.000000 -i /media/movie.mkv -map", "-output_ts_offset 12.000000"},
+		},
+		{
+			name:       "transcoded rungs keep the frame-accurate input seek",
+			variant:    VideoVariant(360),
+			segments:   []float64{6, 6, 4, 6},
+			keyframes:  []float64{0, 6, 12, 16},
+			startIndex: 2,
+			want:       []string{"-ss 12.000000 -i /media/movie.mkv -map", "-output_ts_offset 12.000000"},
+		},
+	} {
+		allure.Test(t, "copy seek argv — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			run := segmentRunFixture(tc.variant, tc.startIndex)
+			run.meta.Segments = tc.segments
+			run.keyframes = tc.keyframes
+			joined := strings.Join(buildSegmentArgs(run), " ")
+
+			for _, fragment := range tc.want {
+				if !strings.Contains(joined, fragment) {
+					t.Fatalf("missing %q in: %s", fragment, joined)
+				}
+			}
+
+			for _, fragment := range tc.reject {
+				if strings.Contains(joined, fragment) {
+					t.Fatalf("unexpected %q in: %s", fragment, joined)
+				}
+			}
+		})
+	}
+}
+
 func TestBuildSegmentArgs_LowerRungForcesKeyframesAtCuts(t *testing.T) {
 	t.Parallel()
 

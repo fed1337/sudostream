@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,15 +18,28 @@ const (
 	// keyframeProbeTimeout bounds packet-index scans. Large HEVC/MKV files can take
 	// minutes to dump every packet; equal-length segments are the documented fallback.
 	keyframeProbeTimeout = 20 * time.Second
+	bitsPerByte          = 8
 )
 
-// ProbeKeyframes lists video keyframe presentation timestamps in seconds.
+// PacketIndex is one packet-level pass over the first video stream: keyframe times build the
+// segment table and packet sizes give the stream-copied rung its real bandwidth.
+type PacketIndex struct {
+	Keyframes []float64
+	packets   []packetSample
+}
+
+type packetSample struct {
+	pts  float64
+	size int64
+}
+
+// ProbeVideoPackets indexes video packet timestamps, sizes, and keyframe flags.
 //
 // Packet flags are read without decoding, so the cost is a sequential pass over the
 // container. Sources without usable timestamps — or probes that exceed
 // keyframeProbeTimeout — yield an empty/error result; callers fall back to equal-length
 // segments.
-func ProbeKeyframes(ctx context.Context, mediaPath string) ([]float64, error) {
+func ProbeVideoPackets(ctx context.Context, mediaPath string) (PacketIndex, error) {
 	probeCtx, cancel := context.WithTimeout(ctx, keyframeProbeTimeout)
 	defer cancel()
 
@@ -34,54 +48,123 @@ func ProbeKeyframes(ctx context.Context, mediaPath string) ([]float64, error) {
 		"ffprobe",
 		"-v", "error",
 		"-select_streams", "v:0",
-		"-show_entries", "packet=pts_time,flags",
+		"-show_entries", "packet=pts_time,size,flags",
 		"-of", "csv=p=0",
 		mediaPath,
 	)
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("ffprobe keyframes %s: %w", filepath.Base(mediaPath), err)
+		return PacketIndex{}, fmt.Errorf("ffprobe packets %s: %w", filepath.Base(mediaPath), err)
 	}
 
-	return parseKeyframeCSV(string(output)), nil
+	return parsePacketCSV(string(output)), nil
 }
 
-// parseKeyframeCSV extracts keyframe timestamps from `pts_time,flags` rows.
-func parseKeyframeCSV(raw string) []float64 {
+// parsePacketCSV reads `pts_time,size,flags` rows (ffprobe's fixed packet field order).
+// Keyframes keep only strictly increasing timestamps, dropping B-frame reorder noise.
+func parsePacketCSV(raw string) PacketIndex {
 	lines := strings.Split(raw, "\n")
-	keyframes := make([]float64, 0, len(lines))
+	index := PacketIndex{
+		Keyframes: make([]float64, 0, len(lines)/24), //nolint:mnd // ~1 keyframe per second
+		packets:   make([]packetSample, 0, len(lines)),
+	}
 	previous := -1.0
 
 	for _, line := range lines {
-		seconds, ok := parseKeyframeRow(line)
-		if !ok || seconds <= previous {
+		fields := strings.Split(strings.TrimSpace(line), ",")
+		if len(fields) < 3 { //nolint:mnd // pts_time,size,flags
 			continue
 		}
 
-		keyframes = append(keyframes, seconds)
+		seconds, err := strconv.ParseFloat(strings.TrimSpace(fields[0]), 64)
+		if err != nil {
+			continue
+		}
+
+		size, err := strconv.ParseInt(strings.TrimSpace(fields[1]), 10, 64)
+		if err == nil && size > 0 {
+			index.packets = append(index.packets, packetSample{pts: seconds, size: size})
+		}
+
+		if !strings.Contains(fields[2], "K") || seconds < 0 || seconds <= previous {
+			continue
+		}
+
+		index.Keyframes = append(index.Keyframes, seconds)
 		previous = seconds
 	}
 
-	return keyframes
+	return index
 }
 
-func parseKeyframeRow(line string) (float64, bool) {
-	fields := strings.Split(strings.TrimSpace(line), ",")
-	if len(fields) < 2 { //nolint:mnd // pts_time,flags pair
-		return 0, false
+// normalized shifts packet times onto the timeline ffmpeg writes: without -copyts it rebases
+// output by the container start_time, and -ss is relative to it too. A table built from raw
+// PTS lands every copy seek on the wrong keyframe whenever start_time is non-zero.
+func (p PacketIndex) normalized(startSeconds float64) PacketIndex {
+	if startSeconds == 0 {
+		return p
 	}
 
-	if !strings.Contains(fields[1], "K") {
-		return 0, false
+	shifted := PacketIndex{
+		Keyframes: make([]float64, 0, len(p.Keyframes)),
+		packets:   make([]packetSample, len(p.packets)),
 	}
 
-	seconds, err := strconv.ParseFloat(strings.TrimSpace(fields[0]), 64)
-	if err != nil || seconds < 0 {
-		return 0, false
+	for _, keyframe := range p.Keyframes {
+		if value := keyframe - startSeconds; value >= 0 {
+			shifted.Keyframes = append(shifted.Keyframes, value)
+		}
 	}
 
-	return seconds, true
+	for position, packet := range p.packets {
+		shifted.packets[position] = packetSample{pts: packet.pts - startSeconds, size: packet.size}
+	}
+
+	return shifted
+}
+
+// segmentBitrates returns the peak and mean video bitrate (bits/s) over the segment table.
+// Segments shorter than half the target are skipped for the peak so a short tail cannot
+// dominate it.
+func (p PacketIndex) segmentBitrates(segments []float64) (int64, int64) {
+	if len(p.packets) == 0 || len(segments) == 0 {
+		return 0, 0
+	}
+
+	starts := make([]float64, len(segments))
+	total := 0.0
+
+	for position, length := range segments {
+		starts[position] = total
+		total += length
+	}
+
+	bytes := make([]int64, len(segments))
+	sum := int64(0)
+
+	for _, packet := range p.packets {
+		position := max(sort.SearchFloat64s(starts, packet.pts+1e-9)-1, 0) //nolint:mnd // epsilon
+		bytes[position] += packet.size
+		sum += packet.size
+	}
+
+	if total <= 0 {
+		return 0, 0
+	}
+
+	average := int64(float64(sum*bitsPerByte) / total)
+	peak := int64(0)
+
+	for position, length := range segments {
+		if length < SegmentTargetSeconds/2 {
+			continue
+		}
+
+		peak = max(peak, int64(float64(bytes[position]*bitsPerByte)/length))
+	}
+
+	return max(peak, average), average
 }
 
 // WriteKeyframes caches keyframe timestamps beside the transcode output.

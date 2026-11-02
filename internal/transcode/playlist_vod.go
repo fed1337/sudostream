@@ -235,23 +235,52 @@ func streamInfSuffix(hasAudio, hasSubtitles bool) string {
 }
 
 func streamInfLine(meta SourceMeta, height int, attrs string) string {
-	rung := ladderRung(meta.Height, height)
-
-	bandwidth := bitrateToInt(rung.Bitrate)
-	if bandwidth <= 0 {
-		bandwidth = defaultStubBandwidth
-	}
-
+	peak, average := rungBandwidth(meta, height)
 	width := scaledWidth(meta, height)
 
 	return fmt.Sprintf(
-		`#EXT-X-STREAM-INF:BANDWIDTH=%d,RESOLUTION=%dx%d,CODECS="%s"%s`,
-		bandwidth,
+		`#EXT-X-STREAM-INF:BANDWIDTH=%d,AVERAGE-BANDWIDTH=%d,RESOLUTION=%dx%d,CODECS="%s"%s`,
+		peak,
+		average,
 		width,
 		height,
 		hlsCodecsAttr,
 		attrs,
 	)
+}
+
+// rungBandwidth returns the peak and average bits/s a client pulls for one rung, audio included.
+//
+// hls.js picks rungs from these numbers, so the stream-copied rung must carry the measured
+// source bitrate: a ladder constant under-reports a remux several-fold and starves the buffer.
+func rungBandwidth(meta SourceMeta, height int) (int, int) {
+	audio := 0
+	if len(meta.AudioStreams) > 0 {
+		audio = audioRenditionKbps * 1000 //nolint:mnd // kilobits to bits
+	}
+
+	if meta.copiesVideoAt(height) && meta.VideoPeakBitrate > 0 {
+		average := meta.VideoAverageBitrate
+		if average <= 0 {
+			average = meta.VideoPeakBitrate
+		}
+
+		return int(meta.VideoPeakBitrate) + audio, int(average) + audio
+	}
+
+	rung := ladderRung(meta.Height, height)
+
+	peak := bitrateToInt(rung.MaxRate)
+	if peak <= 0 {
+		peak = defaultStubBandwidth
+	}
+
+	average := bitrateToInt(rung.Bitrate)
+	if average <= 0 || average > peak {
+		average = peak
+	}
+
+	return peak + audio, average + audio
 }
 
 // scaledWidth keeps the source aspect ratio so the client reports sane rendition dimensions.

@@ -448,6 +448,7 @@ export default function PlayerPage() {
 
   return (
     <SidebarProvider
+      storageId="metadata"
       className="h-svh! min-h-0!"
       style={{ "--sidebar-width": "32rem" } as CSSProperties}
     >

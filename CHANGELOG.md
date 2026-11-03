@@ -1,3 +1,9 @@
+## v0.3.0 (2026-11-03)
+
+### Feat
+
+- fix playback issues and enhance UX (#13)
+
 ## v0.2.0 (2026-10-14)
 
 ### Feat

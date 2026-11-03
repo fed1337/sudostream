@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import { ArrowLeftIcon, FolderPlusIcon, Trash2Icon } from "lucide-react";
+import { z } from "zod";
 
 import type {
   InternalHttpapiProviderAvailability,
@@ -42,7 +45,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -60,6 +63,7 @@ import {
   LIBRARY_CARD_TITLE_CLASS,
   MaintenanceActionCard,
   ProviderTaskCard,
+  type ProviderTaskValues,
 } from "@/pages/admin/libraries/maintenance-cards";
 
 type ScheduleInput = SudoStreamInternalMaintenanceScheduleInput;
@@ -74,23 +78,6 @@ const SKIP_INTRO_ACTION = "playback.skip.detect";
 const NONE_PROVIDER = "none";
 const PROVIDER_LIBRARY_TYPES: LibraryType[] = ["film", "series"];
 
-function validateSchedule(enabled: boolean, cron: string): string | null {
-  if (enabled && cron.trim() === "") {
-    return "admin.maintenanceCronRequired";
-  }
-  return null;
-}
-
-function validateProviderSettings(
-  subtitleProvider: string,
-  subtitleLanguages: string[],
-): string | null {
-  if (subtitleProvider !== NONE_PROVIDER && subtitleLanguages.length === 0) {
-    return "admin.providersSubtitleLanguagesRequired";
-  }
-  return null;
-}
-
 export { MaintenanceActionCard } from "@/pages/admin/libraries/maintenance-cards";
 
 export default function AdminLibraryDetailPage() {
@@ -101,8 +88,6 @@ export default function AdminLibraryDetailPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSelected, setPickerSelected] = useState<string[]>([]);
 
-  const [metadataValidationError, setMetadataValidationError] = useState<string | null>(null);
-  const [thumbsValidationError, setThumbsValidationError] = useState<string | null>(null);
   const [providersMetadataValidationError, setProvidersMetadataValidationError] = useState<
     string | null
   >(null);
@@ -112,7 +97,6 @@ export default function AdminLibraryDetailPage() {
   const [providersSubtitlesValidationError, setProvidersSubtitlesValidationError] = useState<
     string | null
   >(null);
-  const [skipIntroValidationError, setSkipIntroValidationError] = useState<string | null>(null);
 
   const librariesQuery = useQuery({
     ...getApiAdminLibrariesOptions(),
@@ -136,8 +120,6 @@ export default function AdminLibraryDetailPage() {
     enabled: Boolean(id) && supportsProviders,
   });
 
-  const [name, setName] = useState("");
-  const [type, setType] = useState<LibraryType>("other");
   const [metadataCron, setMetadataCron] = useState("");
   const [metadataEnabled, setMetadataEnabled] = useState(false);
   const [thumbsCron, setThumbsCron] = useState("");
@@ -162,12 +144,32 @@ export default function AdminLibraryDetailPage() {
   const [hydratedMaintenanceId, setHydratedMaintenanceId] = useState<string | null>(null);
   const [hydratedProvidersId, setHydratedProvidersId] = useState<string | null>(null);
 
+  const librarySchema = useMemo(
+    () =>
+      z.object({
+        name: z
+          .string()
+          .trim()
+          .min(1, { error: t("validation.required") }),
+        type: z.enum(["film", "series", "music", "photos", "other"]),
+      }),
+    [t],
+  );
+  type LibrarySettingsValues = z.infer<typeof librarySchema>;
+
+  const libraryForm = useForm<LibrarySettingsValues>({
+    resolver: zodResolver(librarySchema),
+    defaultValues: { name: "", type: "other" },
+  });
+
   // Hydrate once per library id. Object-identity sync skips when the list query is
   // already cached on first paint (common when navigating from /admin/libraries).
   if (library?.id === id && hydratedLibraryId !== id) {
     setHydratedLibraryId(id);
-    setName(library.name?.trim() || library.slug || "");
-    setType((library.type ?? "other") as LibraryType);
+    libraryForm.reset({
+      name: library.name?.trim() || library.slug || "",
+      type: (library.type ?? "other") as LibraryType,
+    });
   }
 
   if (maintenanceQuery.data && hydratedMaintenanceId !== id) {
@@ -210,17 +212,23 @@ export default function AdminLibraryDetailPage() {
   }
 
   const saveLibraryMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: LibrarySettingsValues) => {
       const response = await patchApiAdminLibrariesById({
         path: { id },
-        body: { name, type },
+        body: { name: values.name, type: values.type },
       });
       if (response.error || !response.data) {
         throw new Error(t("admin.updateLibraryFailed"));
       }
       return response.data.library;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      if (updated) {
+        libraryForm.reset({
+          name: updated.name?.trim() || updated.slug || "",
+          type: (updated.type ?? "other") as LibraryType,
+        });
+      }
       void librariesQuery.refetch();
     },
   });
@@ -242,17 +250,27 @@ export default function AdminLibraryDetailPage() {
   });
 
   const saveProvidersMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (body: {
+      metadataProvider: string;
+      posterProvider: string;
+      subtitleProvider: string;
+      subtitleLanguages: string[];
+      allowOverrideUserMetadata: boolean;
+      metadataApplyMode: string;
+      metadataWriteTarget: string;
+    }) => {
       const response = await patchApiAdminLibrariesByIdProviders({
         path: { id },
         body: {
-          metadataProvider: metadataProvider === NONE_PROVIDER ? undefined : metadataProvider,
-          posterProvider: posterProvider === NONE_PROVIDER ? undefined : posterProvider,
-          subtitleProvider: subtitleProvider === NONE_PROVIDER ? undefined : subtitleProvider,
-          subtitleLanguages,
-          allowOverrideUserMetadata,
-          metadataApplyMode,
-          metadataWriteTarget,
+          metadataProvider:
+            body.metadataProvider === NONE_PROVIDER ? undefined : body.metadataProvider,
+          posterProvider: body.posterProvider === NONE_PROVIDER ? undefined : body.posterProvider,
+          subtitleProvider:
+            body.subtitleProvider === NONE_PROVIDER ? undefined : body.subtitleProvider,
+          subtitleLanguages: body.subtitleLanguages,
+          allowOverrideUserMetadata: body.allowOverrideUserMetadata,
+          metadataApplyMode: body.metadataApplyMode,
+          metadataWriteTarget: body.metadataWriteTarget,
         },
       });
       if (response.error || !response.data) {
@@ -366,27 +384,21 @@ export default function AdminLibraryDetailPage() {
   const saveMaintenance = async (
     schedule: ScheduleInput,
     setValidationError: (value: string | null) => void,
-    alsoSaveProviders: boolean,
+    providersBody?: {
+      metadataProvider: string;
+      posterProvider: string;
+      subtitleProvider: string;
+      subtitleLanguages: string[];
+      allowOverrideUserMetadata: boolean;
+      metadataApplyMode: string;
+      metadataWriteTarget: string;
+    },
   ) => {
-    const scheduleKey = validateSchedule(Boolean(schedule.enabled), schedule.cron ?? "");
-    if (scheduleKey) {
-      setValidationError(t(scheduleKey));
-      return;
-    }
-
-    if (alsoSaveProviders) {
-      const providerKey = validateProviderSettings(subtitleProvider, subtitleLanguages);
-      if (providerKey) {
-        setValidationError(t(providerKey));
-        return;
-      }
-    }
-
     setValidationError(null);
 
     try {
-      if (alsoSaveProviders) {
-        await saveProvidersMutation.mutateAsync();
+      if (providersBody) {
+        await saveProvidersMutation.mutateAsync(providersBody);
       }
       await saveScheduleMutation.mutateAsync([schedule]);
     } catch (error) {
@@ -453,62 +465,66 @@ export default function AdminLibraryDetailPage() {
           <CardDescription>{t("admin.librarySettingsDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <FieldGroup>
-            <Field>
-              <FieldLabel>{t("admin.name")}</FieldLabel>
-              <Input
-                value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                }}
-              />
-              <FieldDescription>{t("admin.libraryNameHelp")}</FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel>{t("admin.type")}</FieldLabel>
-              <Select
-                value={type}
-                onValueChange={(value) => {
-                  setType(value as LibraryType);
-                }}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue>
-                    <LibraryTypeBadge type={type} />
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {LIBRARY_TYPES.map((libraryType) => (
-                      <SelectItem key={libraryType} value={libraryType}>
-                        <LibraryTypeBadge type={libraryType} />
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          </FieldGroup>
-          <Button
-            className="w-fit"
-            disabled={saveLibraryMutation.isPending || !name.trim()}
-            onClick={() => {
-              saveLibraryMutation.mutate();
-            }}
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={libraryForm.handleSubmit((values) => {
+              saveLibraryMutation.mutate(values);
+            })}
           >
-            {saveLibraryMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
-            {t("admin.saveLibrary")}
-          </Button>
-          {saveLibraryMutation.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>{t("admin.updateLibraryFailed")}</AlertTitle>
-              <AlertDescription>
-                {saveLibraryMutation.error instanceof Error
-                  ? translateApiError(saveLibraryMutation.error, t, { fallbackKey: "common.error" })
-                  : t("common.error")}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+            <FieldGroup>
+              <Field data-invalid={Boolean(libraryForm.formState.errors.name)}>
+                <FieldLabel htmlFor="library-name">{t("admin.name")}</FieldLabel>
+                <Input
+                  id="library-name"
+                  aria-invalid={Boolean(libraryForm.formState.errors.name)}
+                  {...libraryForm.register("name")}
+                />
+                <FieldDescription>{t("admin.libraryNameHelp")}</FieldDescription>
+                <FieldError errors={[libraryForm.formState.errors.name]} />
+              </Field>
+              <Field>
+                <FieldLabel>{t("admin.type")}</FieldLabel>
+                <Controller
+                  control={libraryForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue>
+                          <LibraryTypeBadge type={field.value} />
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {LIBRARY_TYPES.map((libraryType) => (
+                            <SelectItem key={libraryType} value={libraryType}>
+                              <LibraryTypeBadge type={libraryType} />
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+            </FieldGroup>
+            <Button className="w-fit" type="submit" disabled={saveLibraryMutation.isPending}>
+              {saveLibraryMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {t("admin.saveLibrary")}
+            </Button>
+            {saveLibraryMutation.isError ? (
+              <Alert variant="destructive">
+                <AlertTitle>{t("admin.updateLibraryFailed")}</AlertTitle>
+                <AlertDescription>
+                  {saveLibraryMutation.error instanceof Error
+                    ? translateApiError(saveLibraryMutation.error, t, {
+                        fallbackKey: "common.error",
+                      })
+                    : t("common.error")}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </form>
         </CardContent>
       </Card>
 
@@ -629,18 +645,16 @@ export default function AdminLibraryDetailPage() {
         status={metadataStatus}
         saving={saving}
         running={Boolean(metadataStatus?.running) || running}
-        validationError={metadataValidationError}
-        onCronChange={setMetadataCron}
-        onEnabledChange={setMetadataEnabled}
-        onSave={() => {
+        onSave={(values) => {
+          setMetadataCron(values.cron);
+          setMetadataEnabled(values.enabled);
           void saveMaintenance(
             {
               action: METADATA_ACTION,
-              cron: metadataCron,
-              enabled: metadataEnabled,
+              cron: values.cron,
+              enabled: values.enabled,
             },
-            setMetadataValidationError,
-            false,
+            () => undefined,
           );
         }}
         onRun={() => {
@@ -658,18 +672,16 @@ export default function AdminLibraryDetailPage() {
         status={thumbsStatus}
         saving={saving}
         running={Boolean(thumbsStatus?.running) || running}
-        validationError={thumbsValidationError}
-        onCronChange={setThumbsCron}
-        onEnabledChange={setThumbsEnabled}
-        onSave={() => {
+        onSave={(values) => {
+          setThumbsCron(values.cron);
+          setThumbsEnabled(values.enabled);
           void saveMaintenance(
             {
               action: THUMBS_ACTION,
-              cron: thumbsCron,
-              enabled: thumbsEnabled,
+              cron: values.cron,
+              enabled: values.enabled,
             },
-            setThumbsValidationError,
-            false,
+            () => undefined,
           );
         }}
         onRun={() => {
@@ -688,18 +700,16 @@ export default function AdminLibraryDetailPage() {
           status={skipIntroStatus}
           saving={saving}
           running={Boolean(skipIntroStatus?.running) || running}
-          validationError={skipIntroValidationError}
-          onCronChange={setSkipIntroCron}
-          onEnabledChange={setSkipIntroEnabled}
-          onSave={() => {
+          onSave={(values) => {
+            setSkipIntroCron(values.cron);
+            setSkipIntroEnabled(values.enabled);
             void saveMaintenance(
               {
                 action: SKIP_INTRO_ACTION,
-                cron: skipIntroCron,
-                enabled: skipIntroEnabled,
+                cron: values.cron,
+                enabled: values.enabled,
               },
-              setSkipIntroValidationError,
-              false,
+              () => undefined,
             );
           }}
           onRun={() => {
@@ -723,25 +733,40 @@ export default function AdminLibraryDetailPage() {
           status={providersMetadataStatus}
           saving={saving}
           running={Boolean(providersMetadataStatus?.running) || running}
-          validationError={providersMetadataValidationError}
-          onProviderChange={setMetadataProvider}
-          onCronChange={setProvidersMetadataCron}
-          onEnabledChange={setProvidersMetadataEnabled}
+          saveError={providersMetadataValidationError}
           metadataWriteTarget={metadataWriteTarget}
           metadataApplyMode={metadataApplyMode}
           allowOverrideUserMetadata={allowOverrideUserMetadata}
-          onMetadataWriteTargetChange={setMetadataWriteTarget}
-          onMetadataApplyModeChange={setMetadataApplyMode}
-          onAllowOverrideUserMetadataChange={setAllowOverrideUserMetadata}
-          onSave={() => {
+          onSave={(values: ProviderTaskValues) => {
+            setMetadataProvider(values.provider);
+            setProvidersMetadataCron(values.cron);
+            setProvidersMetadataEnabled(values.enabled);
+            if (values.metadataWriteTarget) {
+              setMetadataWriteTarget(values.metadataWriteTarget);
+            }
+            if (values.metadataApplyMode) {
+              setMetadataApplyMode(values.metadataApplyMode);
+            }
+            if (typeof values.allowOverrideUserMetadata === "boolean") {
+              setAllowOverrideUserMetadata(values.allowOverrideUserMetadata);
+            }
             void saveMaintenance(
               {
                 action: PROVIDERS_METADATA_ACTION,
-                cron: providersMetadataCron,
-                enabled: providersMetadataEnabled,
+                cron: values.cron,
+                enabled: values.enabled,
               },
               setProvidersMetadataValidationError,
-              true,
+              {
+                metadataProvider: values.provider,
+                posterProvider,
+                subtitleProvider,
+                subtitleLanguages,
+                allowOverrideUserMetadata:
+                  values.allowOverrideUserMetadata ?? allowOverrideUserMetadata,
+                metadataApplyMode: values.metadataApplyMode ?? metadataApplyMode,
+                metadataWriteTarget: values.metadataWriteTarget ?? metadataWriteTarget,
+              },
             );
           }}
           onRun={() => {
@@ -765,19 +790,27 @@ export default function AdminLibraryDetailPage() {
           status={providersPostersStatus}
           saving={saving}
           running={Boolean(providersPostersStatus?.running) || running}
-          validationError={providersPostersValidationError}
-          onProviderChange={setPosterProvider}
-          onCronChange={setProvidersPostersCron}
-          onEnabledChange={setProvidersPostersEnabled}
-          onSave={() => {
+          saveError={providersPostersValidationError}
+          onSave={(values: ProviderTaskValues) => {
+            setPosterProvider(values.provider);
+            setProvidersPostersCron(values.cron);
+            setProvidersPostersEnabled(values.enabled);
             void saveMaintenance(
               {
                 action: PROVIDERS_POSTERS_ACTION,
-                cron: providersPostersCron,
-                enabled: providersPostersEnabled,
+                cron: values.cron,
+                enabled: values.enabled,
               },
               setProvidersPostersValidationError,
-              true,
+              {
+                metadataProvider,
+                posterProvider: values.provider,
+                subtitleProvider,
+                subtitleLanguages,
+                allowOverrideUserMetadata,
+                metadataApplyMode,
+                metadataWriteTarget,
+              },
             );
           }}
           onRun={() => {
@@ -801,26 +834,32 @@ export default function AdminLibraryDetailPage() {
           status={providersSubtitlesStatus}
           saving={saving}
           running={Boolean(providersSubtitlesStatus?.running) || running}
-          validationError={providersSubtitlesValidationError}
-          onProviderChange={(value) => {
-            setSubtitleProvider(value);
-            if (value === NONE_PROVIDER) {
-              setSubtitleLanguages([]);
-            }
-          }}
-          onCronChange={setProvidersSubtitlesCron}
-          onEnabledChange={setProvidersSubtitlesEnabled}
+          saveError={providersSubtitlesValidationError}
           subtitleLanguages={subtitleLanguages}
-          onSubtitleLanguagesChange={setSubtitleLanguages}
-          onSave={() => {
+          requireSubtitleLanguages
+          onSave={(values: ProviderTaskValues) => {
+            const nextLanguages =
+              values.provider === NONE_PROVIDER ? [] : (values.subtitleLanguages ?? []);
+            setSubtitleProvider(values.provider);
+            setProvidersSubtitlesCron(values.cron);
+            setProvidersSubtitlesEnabled(values.enabled);
+            setSubtitleLanguages(nextLanguages);
             void saveMaintenance(
               {
                 action: PROVIDERS_SUBTITLES_ACTION,
-                cron: providersSubtitlesCron,
-                enabled: providersSubtitlesEnabled,
+                cron: values.cron,
+                enabled: values.enabled,
               },
               setProvidersSubtitlesValidationError,
-              true,
+              {
+                metadataProvider,
+                posterProvider,
+                subtitleProvider: values.provider,
+                subtitleLanguages: nextLanguages,
+                allowOverrideUserMetadata,
+                metadataApplyMode,
+                metadataWriteTarget,
+              },
             );
           }}
           onRun={() => {

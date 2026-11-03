@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
@@ -31,6 +34,7 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
@@ -39,14 +43,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Table,
   TableBody,
@@ -62,18 +59,34 @@ export default function AdminLibrariesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [type, setType] = useState<LibraryType>("other");
   const [selectedRoots, setSelectedRoots] = useState<string[]>([]);
+
+  const createSchema = useMemo(
+    () =>
+      z.object({
+        name: z
+          .string()
+          .trim()
+          .min(1, { error: t("validation.required") }),
+        type: z.enum(["film", "series", "music", "photos", "other"]),
+      }),
+    [t],
+  );
+  type CreateValues = z.infer<typeof createSchema>;
+
+  const createForm = useForm<CreateValues>({
+    resolver: zodResolver(createSchema),
+    defaultValues: { name: "", type: "other" },
+  });
 
   const librariesQuery = useQuery({
     ...getApiAdminLibrariesOptions(),
   });
 
   const createMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: CreateValues) => {
       const response = await postApiAdminLibraries({
-        body: { name: name.trim(), type },
+        body: { name: values.name.trim(), type: values.type },
       });
       if (response.error || !response.data?.library?.id) {
         throw new Error(extractApiErrorMessage(response.error) ?? t("admin.createLibraryFailed"));
@@ -96,8 +109,7 @@ export default function AdminLibrariesPage() {
     },
     onSuccess: (library) => {
       setCreateOpen(false);
-      setName("");
-      setType("other");
+      createForm.reset({ name: "", type: "other" });
       setSelectedRoots([]);
       void librariesQuery.refetch();
       if (library.id) {
@@ -167,6 +179,7 @@ export default function AdminLibrariesPage() {
           setCreateOpen(open);
           if (!open) {
             setSelectedRoots([]);
+            createForm.reset({ name: "", type: "other" });
             createMutation.reset();
           }
         }}
@@ -177,38 +190,37 @@ export default function AdminLibrariesPage() {
             <DialogDescription>{t("admin.createLibraryDescription")}</DialogDescription>
           </DialogHeader>
           <FieldGroup className="min-h-0 overflow-auto">
-            <Field>
-              <FieldLabel>{t("admin.name")}</FieldLabel>
+            <Field data-invalid={Boolean(createForm.formState.errors.name)}>
+              <FieldLabel htmlFor="create-library-name">{t("admin.name")}</FieldLabel>
               <Input
-                value={name}
-                onChange={(event) => {
-                  setName(event.target.value);
-                }}
+                id="create-library-name"
+                aria-invalid={Boolean(createForm.formState.errors.name)}
+                {...createForm.register("name")}
               />
+              <FieldError errors={[createForm.formState.errors.name]} />
             </Field>
             <Field>
-              <FieldLabel>{t("admin.type")}</FieldLabel>
-              <Select
-                value={type}
-                onValueChange={(value) => {
-                  setType(value as LibraryType);
-                }}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue>
-                    <LibraryTypeBadge type={type} />
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
+              <FieldLabel htmlFor="create-library-type">{t("admin.type")}</FieldLabel>
+              <Controller
+                control={createForm.control}
+                name="type"
+                render={({ field }) => (
+                  <NativeSelect
+                    id="create-library-type"
+                    className="w-48"
+                    value={field.value}
+                    onChange={(event) => {
+                      field.onChange(event.target.value as LibraryType);
+                    }}
+                  >
                     {LIBRARY_TYPES.map((libraryType) => (
-                      <SelectItem key={libraryType} value={libraryType}>
-                        <LibraryTypeBadge type={libraryType} />
-                      </SelectItem>
+                      <NativeSelectOption key={libraryType} value={libraryType}>
+                        {libraryType}
+                      </NativeSelectOption>
                     ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+                  </NativeSelect>
+                )}
+              />
             </Field>
             <FieldSet>
               <FieldLegend variant="label">{t("admin.folders")}</FieldLegend>
@@ -241,10 +253,10 @@ export default function AdminLibrariesPage() {
           ) : null}
           <DialogFooter>
             <Button
-              disabled={createMutation.isPending || !name.trim()}
-              onClick={() => {
-                createMutation.mutate();
-              }}
+              disabled={createMutation.isPending}
+              onClick={createForm.handleSubmit((values) => {
+                createMutation.mutate(values);
+              })}
             >
               {createMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
               {t("admin.createLibrary")}

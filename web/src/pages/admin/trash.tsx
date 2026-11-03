@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { RotateCcwIcon, Trash2Icon } from "lucide-react";
@@ -23,10 +22,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { TrashSettingsForm } from "@/pages/admin/trash-settings-form";
 import {
   Table,
   TableBody,
@@ -53,16 +51,6 @@ export default function AdminTrashPage() {
   const settingsQuery = useQuery({
     ...getApiAdminTrashSettingsOptions(),
   });
-  const [retentionDays, setRetentionDays] = useState("0");
-  const [prevSettings, setPrevSettings] = useState(settingsQuery.data);
-
-  if (settingsQuery.data !== prevSettings) {
-    setPrevSettings(settingsQuery.data);
-    if (typeof settingsQuery.data?.retentionDays === "number") {
-      setRetentionDays(String(settingsQuery.data.retentionDays));
-    }
-  }
-
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await postApiAdminTrashByIdRestore({
@@ -165,33 +153,13 @@ export default function AdminTrashPage() {
           <CardDescription>{t("admin.trashRetentionDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="retention-days">{t("admin.trashRetentionDays")}</FieldLabel>
-              <div className="flex max-w-sm items-center gap-2">
-                <Input
-                  id="retention-days"
-                  type="number"
-                  min={0}
-                  value={retentionDays}
-                  onChange={(event) => {
-                    setRetentionDays(event.target.value);
-                  }}
-                />
-                <Button
-                  disabled={busy}
-                  onClick={() => {
-                    const parsed = Number.parseInt(retentionDays, 10);
-                    saveSettingsMutation.mutate(Number.isFinite(parsed) ? parsed : 0);
-                  }}
-                >
-                  {saveSettingsMutation.isPending ? <Spinner /> : null}
-                  {t("common.save")}
-                </Button>
-              </div>
-              <FieldDescription>{t("admin.trashRetentionHint")}</FieldDescription>
-            </Field>
-          </FieldGroup>
+          <TrashSettingsForm
+            retentionDays={settingsQuery.data?.retentionDays ?? 0}
+            pending={busy}
+            onSave={(days) => {
+              saveSettingsMutation.mutate(days);
+            }}
+          />
         </CardContent>
       </Card>
 

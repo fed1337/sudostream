@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { CpuIcon, NetworkIcon, SettingsIcon, TvIcon } from "lucide-react";
+import { z } from "zod";
 
 import type {
   SudoStreamInternalAuthSettings,
@@ -28,7 +30,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -70,68 +72,131 @@ export default function AdminSettingsPage() {
     defaultValues: {},
   });
 
-  const [hwAccel, setHwAccel] = useState<HwAccelValue>("off");
-  const [downmixAlgorithm, setDownmixAlgorithm] = useState<DownmixValue>("ac4");
-  const [downmixBoost, setDownmixBoost] = useState("1");
-  const [toneMappingEnabled, setToneMappingEnabled] = useState(true);
-  const [toneMappingAlgorithm, setToneMappingAlgorithm] = useState<ToneAlgoValue>("bt2390");
-  const [prevTranscode, setPrevTranscode] = useState(transcodeQuery.data);
+  const networkSchema = useMemo(
+    () =>
+      z.object({
+        proxyUrl: z.string(),
+        proxyUser: z.string(),
+        proxyPassword: z.string(),
+        noProxy: z.string(),
+      }),
+    [],
+  );
+  type NetworkValues = z.infer<typeof networkSchema>;
 
-  const [proxyUrl, setProxyUrl] = useState("");
-  const [proxyUser, setProxyUser] = useState("");
-  const [proxyPassword, setProxyPassword] = useState("");
-  const [noProxy, setNoProxy] = useState("");
+  const networkForm = useForm<NetworkValues>({
+    resolver: zodResolver(networkSchema),
+    defaultValues: {
+      proxyUrl: "",
+      proxyUser: "",
+      proxyPassword: "",
+      noProxy: "",
+    },
+  });
+
+  const transcodeSchema = useMemo(
+    () =>
+      z.object({
+        hwAccel: z.enum(["off", "qsv", "vaapi", "nvenc", "rockchip"]),
+        downmixAlgorithm: z.enum(["ac4", "none", "dave750", "nightmodeDialogue", "rfc7845"]),
+        downmixBoost: z.string().refine(
+          (value) => {
+            if (value.trim() === "") {
+              return true;
+            }
+            const n = Number(value);
+            return Number.isFinite(n) && n >= 0.5 && n <= 3;
+          },
+          { error: t("apiErrors.invalidDownmixBoostValue") },
+        ),
+        toneMappingEnabled: z.boolean(),
+        toneMappingAlgorithm: z.enum(["bt2390", "hable", "reinhard", "mobius"]),
+      }),
+    [t],
+  );
+  type TranscodeValues = z.infer<typeof transcodeSchema>;
+
+  const transcodeForm = useForm<TranscodeValues>({
+    resolver: zodResolver(transcodeSchema),
+    defaultValues: {
+      hwAccel: "off",
+      downmixAlgorithm: "ac4",
+      downmixBoost: "1",
+      toneMappingEnabled: true,
+      toneMappingAlgorithm: "bt2390",
+    },
+  });
+
+  const dlnaSchema = useMemo(
+    () =>
+      z
+        .object({
+          enabled: z.boolean(),
+          userId: z.string(),
+        })
+        .superRefine((data, ctx) => {
+          if (data.enabled && data.userId.trim() === "") {
+            ctx.addIssue({
+              code: "custom",
+              path: ["userId"],
+              message: t("apiErrors.dlnaTvUserIdIsRequiredWhenEnabled"),
+            });
+          }
+        }),
+    [t],
+  );
+  type DlnaValues = z.infer<typeof dlnaSchema>;
+
+  const dlnaForm = useForm<DlnaValues>({
+    resolver: zodResolver(dlnaSchema),
+    defaultValues: { enabled: false, userId: "" },
+  });
+
   const [hasProxyPassword, setHasProxyPassword] = useState(false);
-  const [prevNetwork, setPrevNetwork] = useState(networkQuery.data);
   const [probeResult, setProbeResult] = useState<SudoStreamInternalNetworkProbeResult | null>(null);
-
-  const [dlnaEnabled, setDlnaEnabled] = useState(false);
-  const [dlnaUserId, setDlnaUserId] = useState("");
-  const [prevDlna, setPrevDlna] = useState(dlnaQuery.data);
-
-  if (transcodeQuery.data !== prevTranscode) {
-    setPrevTranscode(transcodeQuery.data);
-    if (transcodeQuery.data?.hwAccel) {
-      setHwAccel(transcodeQuery.data.hwAccel);
-    }
-    if (transcodeQuery.data?.downmixAlgorithm) {
-      setDownmixAlgorithm(transcodeQuery.data.downmixAlgorithm);
-    }
-    if (typeof transcodeQuery.data?.downmixBoost === "number") {
-      setDownmixBoost(String(transcodeQuery.data.downmixBoost));
-    }
-    if (typeof transcodeQuery.data?.toneMappingEnabled === "boolean") {
-      setToneMappingEnabled(transcodeQuery.data.toneMappingEnabled);
-    }
-    if (transcodeQuery.data?.toneMappingAlgorithm) {
-      setToneMappingAlgorithm(transcodeQuery.data.toneMappingAlgorithm);
-    }
-  }
-
-  if (networkQuery.data !== prevNetwork) {
-    setPrevNetwork(networkQuery.data);
-    if (networkQuery.data) {
-      setProxyUrl(networkQuery.data.proxyUrl ?? "");
-      setProxyUser(networkQuery.data.proxyUser ?? "");
-      setProxyPassword("");
-      setNoProxy(networkQuery.data.noProxy ?? "");
-      setHasProxyPassword(Boolean(networkQuery.data.hasProxyPassword));
-    }
-  }
-
-  if (dlnaQuery.data !== prevDlna) {
-    setPrevDlna(dlnaQuery.data);
-    if (dlnaQuery.data) {
-      setDlnaEnabled(Boolean(dlnaQuery.data.enabled));
-      setDlnaUserId(dlnaQuery.data.userId ?? "");
-    }
-  }
 
   useEffect(() => {
     if (settingsQuery.data) {
       form.reset(settingsQuery.data);
     }
   }, [form, settingsQuery.data]);
+
+  useEffect(() => {
+    if (networkQuery.data) {
+      networkForm.reset({
+        proxyUrl: networkQuery.data.proxyUrl ?? "",
+        proxyUser: networkQuery.data.proxyUser ?? "",
+        proxyPassword: "",
+        noProxy: networkQuery.data.noProxy ?? "",
+      });
+      setHasProxyPassword(Boolean(networkQuery.data.hasProxyPassword));
+    }
+  }, [networkForm, networkQuery.data]);
+
+  useEffect(() => {
+    if (transcodeQuery.data) {
+      transcodeForm.reset({
+        hwAccel: (transcodeQuery.data.hwAccel ?? "off") as HwAccelValue,
+        downmixAlgorithm: (transcodeQuery.data.downmixAlgorithm ?? "ac4") as DownmixValue,
+        downmixBoost:
+          typeof transcodeQuery.data.downmixBoost === "number"
+            ? String(transcodeQuery.data.downmixBoost)
+            : "",
+        toneMappingEnabled: Boolean(transcodeQuery.data.toneMappingEnabled ?? true),
+        toneMappingAlgorithm: (transcodeQuery.data.toneMappingAlgorithm ??
+          "bt2390") as ToneAlgoValue,
+      });
+    }
+  }, [transcodeForm, transcodeQuery.data]);
+
+  useEffect(() => {
+    if (dlnaQuery.data) {
+      dlnaForm.reset({
+        enabled: Boolean(dlnaQuery.data.enabled),
+        userId: dlnaQuery.data.userId ?? "",
+      });
+    }
+  }, [dlnaForm, dlnaQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async (values: Settings) => {
@@ -165,29 +230,21 @@ export default function AdminSettingsPage() {
       return response.data;
     },
     onSuccess: (data) => {
-      if (data.hwAccel) {
-        setHwAccel(data.hwAccel);
-      }
-      if (data.downmixAlgorithm) {
-        setDownmixAlgorithm(data.downmixAlgorithm);
-      }
-      if (typeof data.downmixBoost === "number") {
-        setDownmixBoost(String(data.downmixBoost));
-      }
-      if (typeof data.toneMappingEnabled === "boolean") {
-        setToneMappingEnabled(data.toneMappingEnabled);
-      }
-      if (data.toneMappingAlgorithm) {
-        setToneMappingAlgorithm(data.toneMappingAlgorithm);
-      }
+      transcodeForm.reset({
+        hwAccel: (data.hwAccel ?? "off") as HwAccelValue,
+        downmixAlgorithm: (data.downmixAlgorithm ?? "ac4") as DownmixValue,
+        downmixBoost: typeof data.downmixBoost === "number" ? String(data.downmixBoost) : "",
+        toneMappingEnabled: Boolean(data.toneMappingEnabled ?? true),
+        toneMappingAlgorithm: (data.toneMappingAlgorithm ?? "bt2390") as ToneAlgoValue,
+      });
     },
   });
 
-  const networkDraft = (): NetworkSettings => ({
-    proxyUrl,
-    proxyUser: proxyUser || undefined,
-    proxyPassword: proxyPassword || undefined,
-    noProxy,
+  const toNetworkBody = (values: NetworkValues): NetworkSettings => ({
+    proxyUrl: values.proxyUrl,
+    proxyUser: values.proxyUser || undefined,
+    proxyPassword: values.proxyPassword || undefined,
+    noProxy: values.noProxy,
   });
 
   const saveNetworkMutation = useMutation({
@@ -202,10 +259,12 @@ export default function AdminSettingsPage() {
       return response.data;
     },
     onSuccess: (data) => {
-      setProxyUrl(data.proxyUrl ?? "");
-      setProxyUser(data.proxyUser ?? "");
-      setProxyPassword("");
-      setNoProxy(data.noProxy ?? "");
+      networkForm.reset({
+        proxyUrl: data.proxyUrl ?? "",
+        proxyUser: data.proxyUser ?? "",
+        proxyPassword: "",
+        noProxy: data.noProxy ?? "",
+      });
       setHasProxyPassword(Boolean(data.hasProxyPassword));
       setProbeResult(null);
       void networkQuery.refetch();
@@ -224,8 +283,10 @@ export default function AdminSettingsPage() {
       return response.data;
     },
     onSuccess: (data) => {
-      setDlnaEnabled(Boolean(data.enabled));
-      setDlnaUserId(data.userId ?? "");
+      dlnaForm.reset({
+        enabled: Boolean(data.enabled),
+        userId: data.userId ?? "",
+      });
       void dlnaQuery.refetch();
     },
   });
@@ -256,6 +317,11 @@ export default function AdminSettingsPage() {
       </div>
     );
   }
+
+  const toneMappingEnabled = transcodeForm.watch("toneMappingEnabled");
+  const networkErrors = networkForm.formState.errors;
+  const transcodeErrors = transcodeForm.formState.errors;
+  const dlnaErrors = dlnaForm.formState.errors;
 
   return (
     <div className="flex flex-col gap-6">
@@ -360,13 +426,12 @@ export default function AdminSettingsPage() {
         <CardContent>
           <form
             className="flex flex-col gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
+            onSubmit={networkForm.handleSubmit((values) => {
               saveNetworkMutation.reset();
               testNetworkMutation.reset();
               setProbeResult(null);
-              saveNetworkMutation.mutate(networkDraft());
-            }}
+              saveNetworkMutation.mutate(toNetworkBody(values));
+            })}
           >
             {saveNetworkMutation.isError ? (
               <Alert variant="destructive">
@@ -420,7 +485,7 @@ export default function AdminSettingsPage() {
             ) : null}
 
             <FieldGroup>
-              <Field>
+              <Field data-invalid={Boolean(networkErrors.proxyUrl)}>
                 <div className="flex items-center gap-2">
                   <FieldLabel htmlFor="proxyUrl">{t("admin.proxyUrl")}</FieldLabel>
                   <FieldHelp label={t("admin.proxyUrlHelp")}>
@@ -429,23 +494,23 @@ export default function AdminSettingsPage() {
                 </div>
                 <Input
                   id="proxyUrl"
-                  value={proxyUrl}
-                  onChange={(event) => setProxyUrl(event.target.value)}
                   placeholder="socks5h://127.0.0.1:7890"
                   className="max-w-xl"
                   autoComplete="off"
+                  aria-invalid={Boolean(networkErrors.proxyUrl)}
+                  {...networkForm.register("proxyUrl")}
                 />
                 <FieldDescription>{t("admin.proxyUrlDescription")}</FieldDescription>
+                <FieldError errors={[networkErrors.proxyUrl]} />
               </Field>
 
               <Field>
                 <FieldLabel htmlFor="proxyUser">{t("admin.proxyUser")}</FieldLabel>
                 <Input
                   id="proxyUser"
-                  value={proxyUser}
-                  onChange={(event) => setProxyUser(event.target.value)}
                   className="max-w-md"
                   autoComplete="off"
+                  {...networkForm.register("proxyUser")}
                 />
               </Field>
 
@@ -454,8 +519,6 @@ export default function AdminSettingsPage() {
                 <Input
                   id="proxyPassword"
                   type="password"
-                  value={proxyPassword}
-                  onChange={(event) => setProxyPassword(event.target.value)}
                   className="max-w-md"
                   autoComplete="new-password"
                   placeholder={
@@ -463,6 +526,7 @@ export default function AdminSettingsPage() {
                       ? t("admin.proxyPasswordStored")
                       : t("admin.proxyPasswordEmpty")
                   }
+                  {...networkForm.register("proxyPassword")}
                 />
                 <FieldDescription>{t("admin.proxyPasswordDescription")}</FieldDescription>
               </Field>
@@ -471,11 +535,10 @@ export default function AdminSettingsPage() {
                 <FieldLabel htmlFor="noProxy">{t("admin.noProxy")}</FieldLabel>
                 <Input
                   id="noProxy"
-                  value={noProxy}
-                  onChange={(event) => setNoProxy(event.target.value)}
                   placeholder="localhost,127.0.0.1,.lan"
                   className="max-w-xl"
                   autoComplete="off"
+                  {...networkForm.register("noProxy")}
                 />
                 <FieldDescription>{t("admin.noProxyDescription")}</FieldDescription>
               </Field>
@@ -486,10 +549,12 @@ export default function AdminSettingsPage() {
                   variant="secondary"
                   disabled={testNetworkMutation.isPending || saveNetworkMutation.isPending}
                   onClick={() => {
-                    testNetworkMutation.reset();
-                    saveNetworkMutation.reset();
-                    setProbeResult(null);
-                    testNetworkMutation.mutate(networkDraft());
+                    void networkForm.handleSubmit((values) => {
+                      testNetworkMutation.reset();
+                      saveNetworkMutation.reset();
+                      setProbeResult(null);
+                      testNetworkMutation.mutate(toNetworkBody(values));
+                    })();
                   }}
                 >
                   {testNetworkMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
@@ -523,18 +588,18 @@ export default function AdminSettingsPage() {
         <CardContent>
           <form
             className="flex flex-col gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
+            onSubmit={transcodeForm.handleSubmit((values) => {
               saveTranscodeMutation.reset();
-              const boost = Number.parseFloat(downmixBoost);
+              const boost =
+                values.downmixBoost.trim() === "" ? undefined : Number(values.downmixBoost);
               saveTranscodeMutation.mutate({
-                hwAccel,
-                downmixAlgorithm,
-                downmixBoost: Number.isFinite(boost) ? boost : undefined,
-                toneMappingEnabled,
-                toneMappingAlgorithm,
+                hwAccel: values.hwAccel,
+                downmixAlgorithm: values.downmixAlgorithm,
+                downmixBoost: boost,
+                toneMappingEnabled: values.toneMappingEnabled,
+                toneMappingAlgorithm: values.toneMappingAlgorithm,
               });
-            }}
+            })}
           >
             {saveTranscodeMutation.isError ? (
               <Alert variant="destructive">
@@ -561,25 +626,35 @@ export default function AdminSettingsPage() {
                   <FieldLabel htmlFor="hwAccel">{t("admin.hwAccel")}</FieldLabel>
                   <FieldHelp label={t("admin.hwAccelHelp")}>{t("admin.hwAccelTooltip")}</FieldHelp>
                 </div>
-                <NativeSelect
-                  id="hwAccel"
-                  className="w-full max-w-md"
-                  value={hwAccel}
-                  onChange={(event) => {
-                    const value = event.target.value as HwAccelValue;
-                    if (hwAccelOptions.includes(value)) {
-                      setHwAccel(value);
-                    }
-                  }}
-                >
-                  <NativeSelectOption value="off">{t("admin.hwAccelOff")}</NativeSelectOption>
-                  <NativeSelectOption value="qsv">{t("admin.hwAccelQsv")}</NativeSelectOption>
-                  <NativeSelectOption value="vaapi">{t("admin.hwAccelVaapi")}</NativeSelectOption>
-                  <NativeSelectOption value="nvenc">{t("admin.hwAccelNvenc")}</NativeSelectOption>
-                  <NativeSelectOption value="rockchip">
-                    {t("admin.hwAccelRockchip")}
-                  </NativeSelectOption>
-                </NativeSelect>
+                <Controller
+                  control={transcodeForm.control}
+                  name="hwAccel"
+                  render={({ field }) => (
+                    <NativeSelect
+                      id="hwAccel"
+                      className="w-full max-w-md"
+                      value={field.value}
+                      onChange={(event) => {
+                        const value = event.target.value as HwAccelValue;
+                        if (hwAccelOptions.includes(value)) {
+                          field.onChange(value);
+                        }
+                      }}
+                    >
+                      <NativeSelectOption value="off">{t("admin.hwAccelOff")}</NativeSelectOption>
+                      <NativeSelectOption value="qsv">{t("admin.hwAccelQsv")}</NativeSelectOption>
+                      <NativeSelectOption value="vaapi">
+                        {t("admin.hwAccelVaapi")}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="nvenc">
+                        {t("admin.hwAccelNvenc")}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="rockchip">
+                        {t("admin.hwAccelRockchip")}
+                      </NativeSelectOption>
+                    </NativeSelect>
+                  )}
+                />
                 <FieldDescription>{t("admin.hwAccelDescription")}</FieldDescription>
               </Field>
 
@@ -590,30 +665,36 @@ export default function AdminSettingsPage() {
                     {t("admin.downmixAlgorithmTooltip")}
                   </FieldHelp>
                 </div>
-                <NativeSelect
-                  id="downmixAlgorithm"
-                  className="w-full max-w-md"
-                  value={downmixAlgorithm}
-                  onChange={(event) => {
-                    setDownmixAlgorithm(event.target.value as typeof downmixAlgorithm);
-                  }}
-                >
-                  <NativeSelectOption value="ac4">{t("admin.downmixAc4")}</NativeSelectOption>
-                  <NativeSelectOption value="none">{t("admin.downmixNone")}</NativeSelectOption>
-                  <NativeSelectOption value="dave750">
-                    {t("admin.downmixDave750")}
-                  </NativeSelectOption>
-                  <NativeSelectOption value="nightmodeDialogue">
-                    {t("admin.downmixNightmodeDialogue")}
-                  </NativeSelectOption>
-                  <NativeSelectOption value="rfc7845">
-                    {t("admin.downmixRfc7845")}
-                  </NativeSelectOption>
-                </NativeSelect>
+                <Controller
+                  control={transcodeForm.control}
+                  name="downmixAlgorithm"
+                  render={({ field }) => (
+                    <NativeSelect
+                      id="downmixAlgorithm"
+                      className="w-full max-w-md"
+                      value={field.value}
+                      onChange={(event) => {
+                        field.onChange(event.target.value as DownmixValue);
+                      }}
+                    >
+                      <NativeSelectOption value="ac4">{t("admin.downmixAc4")}</NativeSelectOption>
+                      <NativeSelectOption value="none">{t("admin.downmixNone")}</NativeSelectOption>
+                      <NativeSelectOption value="dave750">
+                        {t("admin.downmixDave750")}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="nightmodeDialogue">
+                        {t("admin.downmixNightmodeDialogue")}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="rfc7845">
+                        {t("admin.downmixRfc7845")}
+                      </NativeSelectOption>
+                    </NativeSelect>
+                  )}
+                />
                 <FieldDescription>{t("admin.downmixAlgorithmDescription")}</FieldDescription>
               </Field>
 
-              <Field>
+              <Field data-invalid={Boolean(transcodeErrors.downmixBoost)}>
                 <FieldLabel htmlFor="downmixBoost">{t("admin.downmixBoost")}</FieldLabel>
                 <Input
                   id="downmixBoost"
@@ -622,18 +703,25 @@ export default function AdminSettingsPage() {
                   max={3}
                   step={0.1}
                   className="max-w-md"
-                  value={downmixBoost}
-                  onChange={(event) => setDownmixBoost(event.target.value)}
+                  aria-invalid={Boolean(transcodeErrors.downmixBoost)}
+                  {...transcodeForm.register("downmixBoost")}
                 />
                 <FieldDescription>{t("admin.downmixBoostDescription")}</FieldDescription>
+                <FieldError errors={[transcodeErrors.downmixBoost]} />
               </Field>
 
               <Field orientation="horizontal">
                 <div className="flex items-center gap-2">
-                  <Switch
-                    id="toneMappingEnabled"
-                    checked={toneMappingEnabled}
-                    onCheckedChange={setToneMappingEnabled}
+                  <Controller
+                    control={transcodeForm.control}
+                    name="toneMappingEnabled"
+                    render={({ field }) => (
+                      <Switch
+                        id="toneMappingEnabled"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
                   />
                   <FieldLabel htmlFor="toneMappingEnabled">
                     {t("admin.toneMappingEnabled")}
@@ -654,26 +742,34 @@ export default function AdminSettingsPage() {
                     {t("admin.toneMappingAlgorithmTooltip")}
                   </FieldHelp>
                 </div>
-                <NativeSelect
-                  id="toneMappingAlgorithm"
-                  className="w-full max-w-md"
-                  value={toneMappingAlgorithm}
-                  disabled={!toneMappingEnabled}
-                  onChange={(event) => {
-                    setToneMappingAlgorithm(event.target.value as typeof toneMappingAlgorithm);
-                  }}
-                >
-                  <NativeSelectOption value="bt2390">
-                    {t("admin.toneAlgoBt2390")}
-                  </NativeSelectOption>
-                  <NativeSelectOption value="hable">{t("admin.toneAlgoHable")}</NativeSelectOption>
-                  <NativeSelectOption value="reinhard">
-                    {t("admin.toneAlgoReinhard")}
-                  </NativeSelectOption>
-                  <NativeSelectOption value="mobius">
-                    {t("admin.toneAlgoMobius")}
-                  </NativeSelectOption>
-                </NativeSelect>
+                <Controller
+                  control={transcodeForm.control}
+                  name="toneMappingAlgorithm"
+                  render={({ field }) => (
+                    <NativeSelect
+                      id="toneMappingAlgorithm"
+                      className="w-full max-w-md"
+                      value={field.value}
+                      disabled={!toneMappingEnabled}
+                      onChange={(event) => {
+                        field.onChange(event.target.value as ToneAlgoValue);
+                      }}
+                    >
+                      <NativeSelectOption value="bt2390">
+                        {t("admin.toneAlgoBt2390")}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="hable">
+                        {t("admin.toneAlgoHable")}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="reinhard">
+                        {t("admin.toneAlgoReinhard")}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="mobius">
+                        {t("admin.toneAlgoMobius")}
+                      </NativeSelectOption>
+                    </NativeSelect>
+                  )}
+                />
                 <FieldDescription>{t("admin.toneMappingAlgorithmDescription")}</FieldDescription>
               </Field>
 
@@ -717,40 +813,57 @@ export default function AdminSettingsPage() {
           ) : null}
           <form
             className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
+            onSubmit={dlnaForm.handleSubmit((values) => {
               saveDlnaMutation.mutate({
-                enabled: dlnaEnabled,
-                userId: dlnaUserId,
+                enabled: values.enabled,
+                userId: values.userId,
               });
-            }}
+            })}
           >
             <FieldGroup>
               <Field orientation="horizontal">
                 <div className="flex items-center gap-2">
-                  <Switch id="dlnaEnabled" checked={dlnaEnabled} onCheckedChange={setDlnaEnabled} />
+                  <Controller
+                    control={dlnaForm.control}
+                    name="enabled"
+                    render={({ field }) => (
+                      <Switch
+                        id="dlnaEnabled"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
                   <FieldLabel htmlFor="dlnaEnabled">{t("admin.dlnaEnabled")}</FieldLabel>
                 </div>
               </Field>
 
-              <Field>
+              <Field data-invalid={Boolean(dlnaErrors.userId)}>
                 <FieldLabel htmlFor="dlnaUser">{t("admin.dlnaUser")}</FieldLabel>
-                <NativeSelect
-                  id="dlnaUser"
-                  className="w-full max-w-md"
-                  value={dlnaUserId}
-                  onChange={(event) => {
-                    setDlnaUserId(event.target.value);
-                  }}
-                >
-                  <NativeSelectOption value="">{t("admin.dlnaUser")}</NativeSelectOption>
-                  {tvUsers.map((user) => (
-                    <NativeSelectOption key={user.id} value={user.id ?? ""}>
-                      {user.email}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
+                <Controller
+                  control={dlnaForm.control}
+                  name="userId"
+                  render={({ field }) => (
+                    <NativeSelect
+                      id="dlnaUser"
+                      className="w-full max-w-md"
+                      value={field.value}
+                      aria-invalid={Boolean(dlnaErrors.userId)}
+                      onChange={(event) => {
+                        field.onChange(event.target.value);
+                      }}
+                    >
+                      <NativeSelectOption value="">{t("admin.dlnaUser")}</NativeSelectOption>
+                      {tvUsers.map((user) => (
+                        <NativeSelectOption key={user.id} value={user.id ?? ""}>
+                          {user.email}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  )}
+                />
                 <FieldDescription>{t("admin.dlnaUserDescription")}</FieldDescription>
+                <FieldError errors={[dlnaErrors.userId]} />
               </Field>
 
               <FieldDescription>{t("admin.dlnaPortHint")}</FieldDescription>

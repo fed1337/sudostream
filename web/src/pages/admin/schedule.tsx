@@ -192,10 +192,12 @@ export default function AdminSchedulePage() {
             saving={saveMutation.isPending}
             running={Boolean(scanStatus?.running) || runMutation.isPending}
             canceling={cancelMutation.isPending}
-            onCronChange={setScanCron}
-            onEnabledChange={setScanEnabled}
-            onSave={() => {
-              saveMutation.mutate([{ action: SCAN_ACTION, cron: scanCron, enabled: scanEnabled }]);
+            onSave={(values) => {
+              setScanCron(values.cron);
+              setScanEnabled(values.enabled);
+              saveMutation.mutate([
+                { action: SCAN_ACTION, cron: values.cron, enabled: values.enabled },
+              ]);
             }}
             onRun={() => {
               runMutation.mutate(SCAN_ACTION);
@@ -212,15 +214,11 @@ export default function AdminSchedulePage() {
             saving={saveMutation.isPending}
             running={Boolean(purgeStatus?.running) || runMutation.isPending}
             canceling={cancelMutation.isPending}
-            onCronChange={setPurgeCron}
-            onEnabledChange={setPurgeEnabled}
-            onSave={() => {
+            onSave={(values) => {
+              setPurgeCron(values.cron);
+              setPurgeEnabled(values.enabled);
               saveMutation.mutate([
-                {
-                  action: PURGE_ACTION,
-                  cron: purgeCron,
-                  enabled: purgeEnabled,
-                },
+                { action: PURGE_ACTION, cron: values.cron, enabled: values.enabled },
               ]);
             }}
             onRun={() => {
@@ -238,15 +236,11 @@ export default function AdminSchedulePage() {
             saving={saveMutation.isPending}
             running={Boolean(trashStatus?.running) || runMutation.isPending}
             canceling={cancelMutation.isPending}
-            onCronChange={setTrashCron}
-            onEnabledChange={setTrashEnabled}
-            onSave={() => {
+            onSave={(values) => {
+              setTrashCron(values.cron);
+              setTrashEnabled(values.enabled);
               saveMutation.mutate([
-                {
-                  action: TRASH_PURGE_ACTION,
-                  cron: trashCron,
-                  enabled: trashEnabled,
-                },
+                { action: TRASH_PURGE_ACTION, cron: values.cron, enabled: values.enabled },
               ]);
             }}
             onRun={() => {
@@ -259,10 +253,11 @@ export default function AdminSchedulePage() {
             <Alert variant="destructive">
               <AlertTitle>{t("common.error")}</AlertTitle>
               <AlertDescription>
-                {(saveMutation.error ?? runMutation.error ?? cancelMutation.error) instanceof Error
-                  ? ((saveMutation.error ?? runMutation.error ?? cancelMutation.error) as Error)
-                      .message
-                  : t("common.error")}
+                {translateApiError(
+                  saveMutation.error ?? runMutation.error ?? cancelMutation.error,
+                  t,
+                  { fallbackKey: "common.error" },
+                )}
               </AlertDescription>
             </Alert>
           ) : null}

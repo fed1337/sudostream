@@ -150,7 +150,7 @@ func (s *Service) CacheKey(mediaPath string, mtime int64, size int64) string {
 		tmFlag = "1"
 	}
 	hashData := fmt.Sprintf(
-		"%s:%d:%d:v25:tm=%s:%s:dm=%s:%g",
+		"%s:%d:%d:v26:tm=%s:%s:dm=%s:%g",
 		mediaPath,
 		mtime,
 		size,

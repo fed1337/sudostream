@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useCurrentUser } from "@/hooks/use-auth";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 import { getAccessToken } from "@/lib/auth-storage";
 
 type ConfirmState = "idle" | "loading" | "success" | "error";
@@ -43,7 +43,7 @@ export default function ConfirmEmailPage() {
         if (response.error) {
           return {
             ok: false,
-            error: extractApiErrorMessage(response.error) ?? t("auth.confirmEmailFailed"),
+            error: extractApiErrorMessage(response.error) ?? "invalid token",
           };
         }
         return { ok: true };
@@ -94,7 +94,9 @@ export default function ConfirmEmailPage() {
       <GuestAuthLayout title={t("auth.confirmEmailTitle")}>
         <Alert variant="destructive">
           <AlertTitle>{t("auth.confirmEmailFailed")}</AlertTitle>
-          <AlertDescription>{errorMessage ?? t("auth.confirmEmailFailed")}</AlertDescription>
+          <AlertDescription>
+            {translateApiError(errorMessage, t, { fallbackKey: "auth.confirmEmailFailed" })}
+          </AlertDescription>
         </Alert>
         <Button variant="outline" asChild className="mt-4 w-full">
           <Link to={hasSession ? "/" : "/login"}>

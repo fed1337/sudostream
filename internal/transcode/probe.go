@@ -25,6 +25,7 @@ type probeChapter struct {
 
 type probeFormat struct {
 	Duration   string `json:"duration"`
+	StartTime  string `json:"start_time"`  //nolint:tagliatelle // ffprobe JSON
 	BitRate    string `json:"bit_rate"`    //nolint:tagliatelle // ffprobe JSON
 	FormatName string `json:"format_name"` //nolint:tagliatelle // ffprobe JSON
 }
@@ -65,10 +66,12 @@ type ChapterInfo struct {
 
 // SourceInfo holds probed stream metadata for HLS packaging and Direct Play.
 type SourceInfo struct {
-	Height           int
-	Width            int
-	FrameRate        float64
-	DurationSeconds  float64
+	Height          int
+	Width           int
+	FrameRate       float64
+	DurationSeconds float64
+	// StartSeconds is the container start_time; negative for e.g. MKV with AAC priming.
+	StartSeconds     float64
 	AudioStreams     []AudioStream
 	SubtitleStreams  []SubtitleStream
 	Chapters         []ChapterInfo
@@ -155,6 +158,7 @@ func ProbeSource(ctx context.Context, mediaPath string) (SourceInfo, error) {
 
 	info := sourceInfoFromProbeOutput(parsed)
 	info.DurationSeconds = parseProbeDuration(parsed.Format.Duration)
+	info.StartSeconds = parseProbeStartTime(parsed.Format.StartTime)
 	info.FormatName = strings.TrimSpace(parsed.Format.FormatName)
 	info.Bitrate = parseProbeBitrate(parsed.Format.BitRate)
 	info.Chapters = mapProbeChapters(parsed.Chapters)

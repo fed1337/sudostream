@@ -2,7 +2,9 @@ package transcode
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -12,11 +14,28 @@ import (
 // watch it. Reaching the bound simply ends the run; the next request restarts one seek later.
 const maxRunSegments = 12
 
+const (
+	// copySeekPreroll puts the demuxer seek safely before the target keyframe. Demuxers do not
+	// agree on where a seek lands (Matroska plus B-frames undershoots by a GOP, MPEG-TS
+	// overshoots to the next keyframe), so the input seek only has to land at or before it.
+	copySeekPreroll = 1.5
+	// copySeekTrim is how far before the target keyframe the output seek cuts. ffmpeg compares
+	// DTS there, and a keyframe's DTS precedes its PTS by the B-frame reorder delay, so a cut
+	// exactly on the keyframe would drop it.
+	copySeekTrim = 0.5
+	// keyframeMatchTolerance absorbs float drift between summed segment lengths and probed PTS.
+	keyframeMatchTolerance = 0.002
+	// audioRenditionKbps is the AAC rate of every audio rendition; variants advertise it too.
+	audioRenditionKbps = 192
+)
+
 // segmentRun describes one on-demand ffmpeg invocation producing a contiguous run of segments.
 type segmentRun struct {
-	mediaPath    string
-	variantDir   string
-	meta         SourceMeta
+	mediaPath  string
+	variantDir string
+	meta       SourceMeta
+	// keyframes are the normalized source keyframe times; only copy runs need them.
+	keyframes    []float64
 	variant      Variant
 	startIndex   int
 	encoder      VideoEncoder
@@ -72,7 +91,31 @@ func (r segmentRun) runSeconds() float64 {
 
 // canCopyVideo reports whether the rung is the untouched source resolution of a copyable stream.
 func (r segmentRun) canCopyVideo() bool {
-	return r.meta.PackagingMode == PackagingRemux && r.variant.Value == r.meta.Height
+	return r.variant.Kind == VariantVideo && r.meta.copiesVideoAt(r.variant.Value)
+}
+
+// copyTrim returns how far before the run start a copy run's output seek cuts, or 0 when the
+// plain input seek must stay: transcoded runs (frame-accurate already), runs from zero, and
+// starts that are not a probed keyframe (equal-length fallback) cannot use the trim.
+func (r segmentRun) copyTrim() float64 {
+	start := r.startSeconds()
+	if !r.canCopyVideo() || start <= 0 {
+		return 0
+	}
+
+	position := sort.SearchFloat64s(r.keyframes, start-keyframeMatchTolerance)
+	if position >= len(r.keyframes) ||
+		math.Abs(r.keyframes[position]-start) > keyframeMatchTolerance {
+		return 0
+	}
+
+	trim := min(copySeekTrim, start)
+	if position > 0 {
+		// The previous keyframe must stay before the cut, or the run starts one GOP early.
+		trim = min(trim, (start-r.keyframes[position-1])/2) //nolint:mnd // midpoint
+	}
+
+	return trim
 }
 
 // buildSegmentArgs renders the ffmpeg argv for one on-demand run.
@@ -92,14 +135,32 @@ func buildSegmentArgs(run segmentRun) []string {
 		args = appendHWGlobalArgs(args, run.encoder, run.render)
 	}
 
-	if start > 0 {
-		args = append(args, "-ss", formatSeconds(start))
+	trim := run.copyTrim()
+	tsOffset := start
+
+	if trim > 0 {
+		// Stream copy can only start on a keyframe, and the demuxer seek alone lands on the
+		// wrong one. Seek early, then drop everything before the target keyframe on output;
+		// copy skips leading non-keyframes, so the first packet is exactly the target. Output
+		// times are rebased to the output seek point, hence the offset is start-trim.
+		inputSeek := max(start-copySeekPreroll, 0)
+		if inputSeek > 0 {
+			args = append(args, "-ss", formatSeconds(inputSeek))
+		}
+
+		args = append(args, "-i", run.mediaPath, "-ss", formatSeconds(start-inputSeek-trim))
+		tsOffset = start - trim
+	} else {
+		if start > 0 {
+			args = append(args, "-ss", formatSeconds(start))
+		}
+
+		args = append(args, "-i", run.mediaPath)
 	}
 
-	args = append(args, "-i", run.mediaPath)
-
 	if length := run.runSeconds(); length > 0 {
-		args = append(args, "-t", formatSeconds(length))
+		// -t counts from the output seek point, which sits trim seconds before the start.
+		args = append(args, "-t", formatSeconds(length+trim))
 	}
 
 	if run.variant.Kind == VariantAudio {
@@ -112,7 +173,7 @@ func buildSegmentArgs(run segmentRun) []string {
 	// mid-file produces the same timestamps as one started at zero. The mpegts muxer would
 	// otherwise add its default 1.4s startup delay on top of that offset.
 	args = append(args,
-		"-output_ts_offset", formatSeconds(start),
+		"-output_ts_offset", formatSeconds(tsOffset),
 		"-muxdelay", "0",
 		"-muxpreload", "0",
 		"-avoid_negative_ts", "disabled",
@@ -164,7 +225,7 @@ func appendAudioRenditionArgs(args []string, run segmentRun) []string {
 	return append(args,
 		"-c:a", "aac",
 		"-ac", "2",
-		"-b:a", "192k",
+		"-b:a", strconv.Itoa(audioRenditionKbps)+"k",
 	)
 }
 

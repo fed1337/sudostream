@@ -8,6 +8,54 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
+func TestBuildMasterPlaylist_RungBandwidth(t *testing.T) {
+	t.Parallel()
+
+	audio := []AudioStream{{Index: 1, Label: testAudioLabelEnglish}}
+
+	for _, tc := range []struct {
+		name string
+		meta SourceMeta
+		want []string
+	}{
+		{
+			name: "copy rung advertises the measured source bitrate plus audio",
+			meta: SourceMeta{
+				Height: 1080, Width: 1920, PackagingMode: PackagingRemux, AudioStreams: audio,
+				VideoPeakBitrate: 30_000_000, VideoAverageBitrate: 18_000_000,
+			},
+			want: []string{
+				"BANDWIDTH=30192000,AVERAGE-BANDWIDTH=18192000,RESOLUTION=1920x1080",
+				"BANDWIDTH=3188000,AVERAGE-BANDWIDTH=2992000,RESOLUTION=1280x720",
+			},
+		},
+		{
+			name: "transcoded native rung keeps the ladder rate",
+			meta: SourceMeta{
+				Height: 1080, Width: 1920, PackagingMode: PackagingTranscode, AudioStreams: audio,
+				VideoPeakBitrate: 30_000_000, VideoAverageBitrate: 18_000_000,
+			},
+			want: []string{"BANDWIDTH=5542000,AVERAGE-BANDWIDTH=5192000,RESOLUTION=1920x1080"},
+		},
+		{
+			name: "unmeasured copy rung falls back to the ladder, no audio added without tracks",
+			meta: SourceMeta{Height: 1080, Width: 1920, PackagingMode: PackagingRemux},
+			want: []string{"BANDWIDTH=5350000,AVERAGE-BANDWIDTH=5000000,RESOLUTION=1920x1080"},
+		},
+	} {
+		allure.Test(t, "master playlist bandwidth — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			master := string(BuildMasterPlaylist(tc.meta, nil))
+
+			for _, fragment := range tc.want {
+				if !strings.Contains(master, fragment) {
+					t.Fatalf("missing %q in:\n%s", fragment, master)
+				}
+			}
+		})
+	}
+}
+
 func TestSegmentTable_CutsOnKeyframes(t *testing.T) {
 	t.Parallel()
 

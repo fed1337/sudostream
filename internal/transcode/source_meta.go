@@ -48,6 +48,10 @@ type SourceMeta struct {
 	// Chapters are container chapter atoms for any video (film, series, other); not series S/E.
 	Chapters []ChapterInfo `json:"chapters"`
 	Segments []float64     `json:"segments,omitempty"`
+	// VideoPeakBitrate / VideoAverageBitrate (bits/s) describe the source video stream, which
+	// the stream-copied rung serves unchanged.
+	VideoPeakBitrate    int64 `json:"videoPeakBitrate,omitempty"`
+	VideoAverageBitrate int64 `json:"videoAverageBitrate,omitempty"`
 }
 
 // NeedsToneMap reports whether segment encodes must apply HDR→SDR conversion.
@@ -102,11 +106,25 @@ func (m SourceMeta) SegmentCount() int {
 	return len(m.Segments)
 }
 
+// copiesVideoAt reports whether the rung at height stream-copies the source video.
+func (m SourceMeta) copiesVideoAt(height int) bool {
+	return m.PackagingMode == PackagingRemux && height == m.Height
+}
+
 // sourceMetaFromProbe builds cache metadata, including the shared segment table.
-func sourceMetaFromProbe(source SourceInfo, keyframes []float64) SourceMeta {
+//
+// packets must already be on the normalized timeline (PacketIndex.normalized).
+func sourceMetaFromProbe(source SourceInfo, packets PacketIndex) SourceMeta {
 	packaging := PackagingTranscode
 	if RemuxEligible(source) {
 		packaging = PackagingRemux
+	}
+
+	segments := SegmentTable(packets.Keyframes, source.DurationSeconds, SegmentTargetSeconds)
+
+	peak, average := packets.segmentBitrates(segments)
+	if peak <= 0 && source.Bitrate > 0 {
+		peak, average = source.Bitrate, source.Bitrate
 	}
 
 	meta := SourceMeta{
@@ -123,7 +141,10 @@ func sourceMetaFromProbe(source SourceInfo, keyframes []float64) SourceMeta {
 		AudioStreams:    source.AudioStreams,
 		SubtitleStreams: source.SubtitleStreams,
 		Chapters:        source.Chapters,
-		Segments:        SegmentTable(keyframes, source.DurationSeconds, SegmentTargetSeconds),
+		Segments:        segments,
+
+		VideoPeakBitrate:    peak,
+		VideoAverageBitrate: average,
 	}
 	if meta.Chapters == nil {
 		meta.Chapters = []ChapterInfo{}
@@ -177,19 +198,20 @@ func ProbeAndPublish(ctx context.Context, outDir, mediaPath string) (SourceMeta,
 	}
 
 	// Keyframe extraction is best effort; equal-length segments are the documented fallback.
-	// ProbeKeyframes applies its own timeout so a full-file packet scan cannot stall publish.
-	keyframes, kfErr := ProbeKeyframes(ctx, mediaPath)
+	// ProbeVideoPackets applies its own timeout so a full-file packet scan cannot stall publish.
+	packets, kfErr := ProbeVideoPackets(ctx, mediaPath)
 	if kfErr != nil {
 		slog.Warn("keyframe probe skipped",
 			slog.String("path", mediaPath),
 			slog.String("error", kfErr.Error()),
 		)
-		keyframes = nil
+		packets = PacketIndex{}
 	} else {
-		_ = WriteKeyframes(outDir, keyframes)
+		packets = packets.normalized(source.StartSeconds)
+		_ = WriteKeyframes(outDir, packets.Keyframes)
 	}
 
-	meta := sourceMetaFromProbe(source, keyframes)
+	meta := sourceMetaFromProbe(source, packets)
 	if len(meta.Segments) == 0 {
 		return SourceMeta{}, fmt.Errorf(
 			"%w: no timeline for %s",

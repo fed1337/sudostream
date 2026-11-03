@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { z } from "zod";
 
 import type { MetadataResponse, VideoFields } from "@/api/metadata";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Field, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { usePatchMetadata } from "@/hooks/use-metadata";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -15,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { usePatchMetadata } from "@/hooks/use-metadata";
+import { translateApiError } from "@/lib/api-error";
 
 type MetadataEditFormProps = {
   path: string;
@@ -95,17 +101,17 @@ function formatReadonly(value: unknown): string | null {
   return null;
 }
 
-function buildDraft(effective: VideoFields | undefined): Record<string, string> {
-  const draft: Record<string, string> = {};
+type DraftValues = Record<(typeof EDITABLE_FIELDS)[number]["key"], string>;
+
+function buildDraft(effective: VideoFields | undefined): DraftValues {
+  const draft = {} as DraftValues;
   for (const field of EDITABLE_FIELDS) {
     draft[field.key] = fieldToInput(effective?.[field.key], field.kind);
   }
   return draft;
 }
 
-function buildPatchFields(
-  draft: Record<string, string>,
-): Record<string, string | number | string[] | null> {
+function buildPatchFields(draft: DraftValues): Record<string, string | number | string[] | null> {
   const fields: Record<string, string | number | string[] | null> = {};
   for (const field of EDITABLE_FIELDS) {
     const raw = draft[field.key]?.trim() ?? "";
@@ -134,26 +140,29 @@ export function MetadataEditForm({ path, metadata, size = "default" }: MetadataE
   const { t } = useTranslation();
   const patchMutation = usePatchMetadata(path);
   const [target, setTarget] = useState<EditTarget>("override");
-  const [draft, setDraft] = useState(() => buildDraft(metadata.effective));
-  const [prevEffective, setPrevEffective] = useState(metadata.effective);
 
-  if (metadata.effective !== prevEffective) {
-    setPrevEffective(metadata.effective);
-    setDraft(buildDraft(metadata.effective));
-  }
+  const schema = useMemo(() => {
+    const shape = {} as { [K in keyof DraftValues]: z.ZodString };
+    for (const field of EDITABLE_FIELDS) {
+      shape[field.key] = z.string();
+    }
+    return z.object(shape);
+  }, []);
+
+  const form = useForm<DraftValues>({
+    resolver: zodResolver(schema),
+    defaultValues: buildDraft(metadata.effective),
+  });
+
+  useEffect(() => {
+    form.reset(buildDraft(metadata.effective));
+  }, [metadata.effective, form]);
 
   const fromFilename =
     metadata.filename_hint?.season != null &&
     metadata.filename_hint?.episode != null &&
     metadata.source?.original?.season == null &&
     metadata.source?.original?.episode == null;
-
-  const save = () => {
-    patchMutation.mutate({
-      target,
-      fields: buildPatchFields(draft),
-    });
-  };
 
   const saveLabel =
     target === "file"
@@ -164,8 +173,18 @@ export function MetadataEditForm({ path, metadata, size = "default" }: MetadataE
         ? t("metadata.saving")
         : t("metadata.saveOverride");
 
+  const errors = form.formState.errors;
+
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <form
+      className="flex min-w-0 flex-col gap-4"
+      onSubmit={form.handleSubmit((values) => {
+        patchMutation.mutate({
+          target,
+          fields: buildPatchFields(values),
+        });
+      })}
+    >
       {fromFilename ? (
         <p
           className={
@@ -230,15 +249,16 @@ export function MetadataEditForm({ path, metadata, size = "default" }: MetadataE
                 {t(field.labelKey)}
               </TableCell>
               <TableCell className="min-w-0">
-                <Input
-                  value={draft[field.key] ?? ""}
-                  inputMode={field.kind === "number" ? "numeric" : undefined}
-                  onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, [field.key]: event.target.value }))
-                  }
-                  disabled={patchMutation.isPending}
-                  className={size === "lg" ? "h-10 text-base" : undefined}
-                />
+                <Field data-invalid={Boolean(errors[field.key])}>
+                  <Input
+                    inputMode={field.kind === "number" ? "numeric" : undefined}
+                    disabled={patchMutation.isPending}
+                    className={size === "lg" ? "h-10 text-base" : undefined}
+                    aria-invalid={Boolean(errors[field.key])}
+                    {...form.register(field.key)}
+                  />
+                  <FieldError errors={[errors[field.key]]} />
+                </Field>
               </TableCell>
             </TableRow>
           ))}
@@ -279,7 +299,8 @@ export function MetadataEditForm({ path, metadata, size = "default" }: MetadataE
       </Table>
 
       <div className="flex items-center gap-2">
-        <Button type="button" size={size} onClick={save} disabled={patchMutation.isPending}>
+        <Button type="submit" size={size} disabled={patchMutation.isPending}>
+          {patchMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
           {saveLabel}
         </Button>
       </div>
@@ -287,12 +308,10 @@ export function MetadataEditForm({ path, metadata, size = "default" }: MetadataE
       {patchMutation.isError ? (
         <Alert variant="destructive">
           <AlertDescription>
-            {patchMutation.error instanceof Error
-              ? patchMutation.error.message
-              : t("metadata.saveFailed")}
+            {translateApiError(patchMutation.error, t, { fallbackKey: "metadata.saveFailed" })}
           </AlertDescription>
         </Alert>
       ) : null}
-    </div>
+    </form>
   );
 }

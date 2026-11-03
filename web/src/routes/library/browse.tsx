@@ -30,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getLibraryViewMode, setLibraryViewMode } from "@/lib/library-view";
 import { MEDIA_PAGE_SIZE, pageToOffset, parsePageParam } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
+import { translateApiError } from "@/lib/api-error";
 
 function folderHref(slug: string, roots: string[], itemPath: string | undefined): string {
   if (!itemPath) {
@@ -258,7 +259,7 @@ export default function LibraryBrowsePage() {
         <Alert variant="destructive">
           <AlertTitle>{t("library.loadError")}</AlertTitle>
           <AlertDescription>
-            {browseQuery.error instanceof Error ? browseQuery.error.message : t("common.error")}
+            {translateApiError(browseQuery.error, t, { fallbackKey: "common.error" })}
           </AlertDescription>
         </Alert>
       </BrowsePageShell>

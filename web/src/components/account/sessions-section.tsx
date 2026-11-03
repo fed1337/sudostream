@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { redirectToLogin } from "@/lib/auth-session";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 function formatDate(value?: string): string {
   if (!value) {
@@ -89,7 +89,9 @@ export function SessionsSection() {
         {sectionError instanceof Error ? (
           <Alert variant="destructive">
             <AlertTitle>{t("common.error")}</AlertTitle>
-            <AlertDescription>{sectionError.message}</AlertDescription>
+            <AlertDescription>
+              {translateApiError(sectionError, t, { fallbackKey: "common.error" })}
+            </AlertDescription>
           </Alert>
         ) : null}
 

@@ -10,10 +10,10 @@ import { postApiAuthAcceptInvite } from "@/client/sdk.gen";
 import { GuestAuthLayout } from "@/components/guest-auth-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { PasswordInput } from "@/components/password-input";
 import { Spinner } from "@/components/ui/spinner";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 export default function AcceptInvitePage() {
   const { t } = useTranslation();
@@ -96,7 +96,7 @@ export default function AcceptInvitePage() {
           <Alert variant="destructive">
             <AlertTitle>{t("common.error")}</AlertTitle>
             <AlertDescription>
-              {mutation.error instanceof Error ? mutation.error.message : t("common.error")}
+              {translateApiError(mutation.error, t, { fallbackKey: "auth.acceptInviteFailed" })}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -109,6 +109,7 @@ export default function AcceptInvitePage() {
               autoComplete="new-password"
               {...form.register("password")}
             />
+            <FieldError errors={[form.formState.errors.password]} />
           </Field>
           <Field data-invalid={Boolean(form.formState.errors.confirmPassword)}>
             <FieldLabel htmlFor="confirmPassword">{t("auth.confirmPassword")}</FieldLabel>
@@ -117,6 +118,7 @@ export default function AcceptInvitePage() {
               autoComplete="new-password"
               {...form.register("confirmPassword")}
             />
+            <FieldError errors={[form.formState.errors.confirmPassword]} />
           </Field>
           <Field>
             <Button type="submit" disabled={mutation.isPending} className="w-full">

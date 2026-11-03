@@ -13,6 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { translateApiError } from "@/lib/api-error";
 
 export default function LibrariesPage() {
   const { t } = useTranslation();
@@ -42,7 +43,7 @@ export default function LibrariesPage() {
       <Alert variant="destructive">
         <AlertTitle>{t("common.error")}</AlertTitle>
         <AlertDescription>
-          {librariesQuery.error instanceof Error ? librariesQuery.error.message : t("common.error")}
+          {translateApiError(librariesQuery.error, t, { fallbackKey: "common.error" })}
         </AlertDescription>
       </Alert>
     );

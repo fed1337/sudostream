@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftIcon, KeyRoundIcon, MailIcon, ShieldOffIcon, Trash2Icon } from "lucide-react";
+import { z } from "zod";
 
 import {
   getApiAdminUsersByIdSessionsOptions,
@@ -18,17 +21,12 @@ import {
 } from "@/client/sdk.gen";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -39,8 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { extractApiErrorMessage } from "@/lib/api-error";
-
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 function formatDate(value?: string): string {
   if (!value) {
     return "—";
@@ -71,7 +68,6 @@ export default function AdminUserDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = "" } = useParams();
-  const [emailDraft, setEmailDraft] = useState("");
 
   const usersQuery = useQuery({
     ...getApiAdminUsersOptions(),
@@ -101,7 +97,6 @@ export default function AdminUserDetailPage() {
     },
     onSuccess: () => {
       void usersQuery.refetch();
-      setEmailDraft("");
     },
   });
 
@@ -215,7 +210,12 @@ export default function AdminUserDetailPage() {
           </Link>
         </Button>
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{user.email}</h1>
+          <div className="flex items-center gap-3">
+            <Avatar className="size-12">
+              <AvatarFallback>{(user.email?.[0] ?? "?").toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <h1 className="text-2xl font-semibold tracking-tight">{user.email}</h1>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="capitalize">
               {user.role}
@@ -237,7 +237,9 @@ export default function AdminUserDetailPage() {
       {actionError instanceof Error ? (
         <Alert variant="destructive">
           <AlertTitle>{t("common.error")}</AlertTitle>
-          <AlertDescription>{actionError.message}</AlertDescription>
+          <AlertDescription>
+            {translateApiError(actionError, t, { fallbackKey: "common.error" })}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -329,52 +331,30 @@ export default function AdminUserDetailPage() {
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-medium">{t("admin.role")}</h2>
-        <Select
+        <NativeSelect
+          className="w-36"
           value={user.role ?? "user"}
           disabled={patchMutation.isPending}
-          onValueChange={(role) => {
-            patchMutation.mutate({ role });
+          onChange={(event) => {
+            patchMutation.mutate({ role: event.target.value });
           }}
         >
-          <SelectTrigger className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="user">{t("admin.roleUser")}</SelectItem>
-            <SelectItem value="admin">{t("admin.roleAdmin")}</SelectItem>
-            <SelectItem value="tv">{t("admin.roleTV")}</SelectItem>
-          </SelectContent>
-        </Select>
+          <NativeSelectOption value="user">{t("admin.roleUser")}</NativeSelectOption>
+          <NativeSelectOption value="admin">{t("admin.roleAdmin")}</NativeSelectOption>
+          <NativeSelectOption value="tv">{t("admin.roleTV")}</NativeSelectOption>
+        </NativeSelect>
       </section>
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-medium">{t("admin.changeEmail")}</h2>
-        <FieldGroup className="max-w-md">
-          <Field>
-            <FieldLabel htmlFor="admin-change-email">{t("admin.email")}</FieldLabel>
-            <div className="flex gap-2">
-              <Input
-                id="admin-change-email"
-                type="email"
-                placeholder={user.email}
-                value={emailDraft}
-                onChange={(event) => {
-                  setEmailDraft(event.target.value);
-                }}
-              />
-              <ConfirmActionButton
-                label={t("admin.saveEmail")}
-                title={t("admin.confirmChangeEmailTitle")}
-                description={t("admin.confirmChangeEmailDescription")}
-                disabled={!emailDraft.trim() || emailDraft.trim() === user.email}
-                pending={patchMutation.isPending}
-                onConfirm={() => {
-                  patchMutation.mutate({ email: emailDraft.trim() });
-                }}
-              />
-            </div>
-          </Field>
-        </FieldGroup>
+        <AdminChangeEmailForm
+          key={user.email}
+          currentEmail={user.email ?? ""}
+          pending={patchMutation.isPending}
+          onSave={(email) => {
+            patchMutation.mutate({ email });
+          }}
+        />
       </section>
 
       <section className="flex flex-col gap-4">
@@ -448,5 +428,67 @@ export default function AdminUserDetailPage() {
         )}
       </section>
     </div>
+  );
+}
+
+type AdminChangeEmailFormProps = {
+  currentEmail: string;
+  pending: boolean;
+  onSave: (email: string) => void;
+};
+
+function AdminChangeEmailForm({ currentEmail, pending, onSave }: AdminChangeEmailFormProps) {
+  const { t } = useTranslation();
+  const schema = useMemo(
+    () =>
+      z.object({
+        email: z.email({ error: t("validation.email") }),
+      }),
+    [t],
+  );
+  type Values = z.infer<typeof schema>;
+
+  const form = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "" },
+  });
+  const email = form.watch("email");
+  const errors = form.formState.errors;
+
+  return (
+    <form
+      className="max-w-md"
+      onSubmit={(event) => {
+        event.preventDefault();
+      }}
+    >
+      <FieldGroup>
+        <Field data-invalid={Boolean(errors.email)}>
+          <FieldLabel htmlFor="admin-change-email">{t("admin.email")}</FieldLabel>
+          <div className="flex gap-2">
+            <Input
+              id="admin-change-email"
+              type="email"
+              placeholder={currentEmail}
+              aria-invalid={Boolean(errors.email)}
+              {...form.register("email")}
+            />
+            <ConfirmActionButton
+              label={t("admin.saveEmail")}
+              title={t("admin.confirmChangeEmailTitle")}
+              description={t("admin.confirmChangeEmailDescription")}
+              disabled={!email.trim() || email.trim() === currentEmail || Boolean(errors.email)}
+              pending={pending}
+              onConfirm={() => {
+                void form.handleSubmit((values) => {
+                  onSave(values.email.trim());
+                })();
+              }}
+            />
+          </div>
+          <FieldError errors={[errors.email]} />
+        </Field>
+      </FieldGroup>
+    </form>
   );
 }

@@ -2,6 +2,7 @@ package transcode
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -53,6 +54,16 @@ func parseProbeDuration(raw string) float64 {
 
 	seconds, err := strconv.ParseFloat(raw, 64)
 	if err != nil || seconds <= 0 {
+		return 0
+	}
+
+	return seconds
+}
+
+// parseProbeStartTime keeps negative values: unlike a duration, a start_time below zero is real.
+func parseProbeStartTime(raw string) float64 {
+	seconds, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
 		return 0
 	}
 

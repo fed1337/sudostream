@@ -280,7 +280,7 @@ func (s *Service) startSession(
 		checkGPUVendor(),
 		meta.NeedsToneMap() && settings.ToneMappingEnabled,
 	)
-	args := buildSegmentArgs(segmentRun{
+	run := segmentRun{
 		mediaPath:    mediaPath,
 		variantDir:   variantDir,
 		meta:         meta,
@@ -292,7 +292,12 @@ func (s *Service) startSession(
 		toneAlgo:     settings.ToneMappingAlgorithm,
 		downmix:      settings.DownmixAlgorithm,
 		downmixBoost: settings.DownmixBoost,
-	})
+	}
+	if run.canCopyVideo() && index > 0 {
+		run.keyframes, _ = ReadKeyframes(s.CacheOutDir(cacheKey))
+	}
+
+	args := buildSegmentArgs(run)
 
 	cmd := exec.CommandContext(sessionCtx, "ffmpeg", args...)
 

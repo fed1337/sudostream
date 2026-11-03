@@ -11,15 +11,16 @@ import { TotpCodeInput } from "@/components/totp-code-input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { PasswordInput } from "@/components/password-input";
 import { Spinner } from "@/components/ui/spinner";
 import { completeLoginSession, useCurrentUser } from "@/hooks/use-auth";
-import { extractApiErrorMessage } from "@/lib/api-error";
-
-const invalidCurrentPasswordError = "invalid current password";
-const twoFactorRequiredError = "two factor required";
-const invalidTwoFactorError = "invalid two factor code";
+import {
+  ApiErrorMessage,
+  extractApiErrorMessage,
+  isApiErrorMessage,
+  translateApiError,
+} from "@/lib/api-error";
 
 type Step = "details" | "totp";
 
@@ -111,9 +112,16 @@ export function ChangePasswordForm() {
     },
   });
 
-  const errorMessage = mutation.error instanceof Error ? mutation.error.message : t("common.error");
-  const isInvalidCurrentPassword = errorMessage === invalidCurrentPasswordError;
-  const isInvalidTotp = errorMessage === invalidTwoFactorError;
+  const isInvalidCurrentPassword = isApiErrorMessage(
+    mutation.error,
+    ApiErrorMessage.invalidCurrentPassword,
+  );
+  const isInvalidTotp = isApiErrorMessage(mutation.error, ApiErrorMessage.invalidTwoFactorCode);
+  const showApiError =
+    mutation.isError && !isApiErrorMessage(mutation.error, ApiErrorMessage.twoFactorRequired);
+  const translatedError = translateApiError(mutation.error, t, {
+    fallbackKey: "account.changePasswordFailed",
+  });
 
   const submitDetails = (values: DetailsValues) => {
     mutation.reset();
@@ -126,7 +134,7 @@ export function ChangePasswordForm() {
       { currentPassword: values.currentPassword, newPassword: values.newPassword },
       {
         onError: (error) => {
-          if (error instanceof Error && error.message === twoFactorRequiredError) {
+          if (isApiErrorMessage(error, ApiErrorMessage.twoFactorRequired)) {
             setStep("totp");
             totpForm.reset({ totp: "" });
             mutation.reset();
@@ -146,6 +154,9 @@ export function ChangePasswordForm() {
     });
   };
 
+  const detailsErrors = detailsForm.formState.errors;
+  const totpErrors = totpForm.formState.errors;
+
   return (
     <Card className="h-full w-full">
       <CardHeader>
@@ -161,7 +172,7 @@ export function ChangePasswordForm() {
           </Alert>
         ) : null}
 
-        {mutation.isError && errorMessage !== twoFactorRequiredError ? (
+        {showApiError ? (
           <Alert variant="destructive">
             <AlertTitle>
               {isInvalidCurrentPassword
@@ -171,7 +182,7 @@ export function ChangePasswordForm() {
                   : t("account.changePasswordFailed")}
             </AlertTitle>
             {!isInvalidCurrentPassword && !isInvalidTotp ? (
-              <AlertDescription>{errorMessage}</AlertDescription>
+              <AlertDescription>{translatedError}</AlertDescription>
             ) : null}
           </Alert>
         ) : null}
@@ -182,29 +193,35 @@ export function ChangePasswordForm() {
             onSubmit={detailsForm.handleSubmit(submitDetails)}
           >
             <FieldGroup>
-              <Field>
+              <Field data-invalid={Boolean(detailsErrors.currentPassword)}>
                 <FieldLabel htmlFor="currentPassword">{t("account.currentPassword")}</FieldLabel>
                 <PasswordInput
                   id="currentPassword"
                   autoComplete="current-password"
+                  aria-invalid={Boolean(detailsErrors.currentPassword)}
                   {...detailsForm.register("currentPassword")}
                 />
+                <FieldError errors={[detailsErrors.currentPassword]} />
               </Field>
-              <Field>
+              <Field data-invalid={Boolean(detailsErrors.newPassword)}>
                 <FieldLabel htmlFor="newPassword">{t("auth.newPassword")}</FieldLabel>
                 <PasswordInput
                   id="newPassword"
                   autoComplete="new-password"
+                  aria-invalid={Boolean(detailsErrors.newPassword)}
                   {...detailsForm.register("newPassword")}
                 />
+                <FieldError errors={[detailsErrors.newPassword]} />
               </Field>
-              <Field>
+              <Field data-invalid={Boolean(detailsErrors.confirmPassword)}>
                 <FieldLabel htmlFor="confirmPassword">{t("auth.confirmPassword")}</FieldLabel>
                 <PasswordInput
                   id="confirmPassword"
                   autoComplete="new-password"
+                  aria-invalid={Boolean(detailsErrors.confirmPassword)}
                   {...detailsForm.register("confirmPassword")}
                 />
+                <FieldError errors={[detailsErrors.confirmPassword]} />
               </Field>
             </FieldGroup>
             <Button type="submit" disabled={mutation.isPending} className="mt-auto w-full">
@@ -221,9 +238,10 @@ export function ChangePasswordForm() {
         {step === "totp" && !mutation.isSuccess ? (
           <form className="flex flex-1 flex-col gap-4" onSubmit={totpForm.handleSubmit(submitTotp)}>
             <FieldGroup>
-              <Field>
+              <Field data-invalid={Boolean(totpErrors.totp)}>
                 <FieldLabel htmlFor="change-password-totp">{t("account.totpCode")}</FieldLabel>
                 <TotpCodeInput control={totpForm.control} name="totp" id="change-password-totp" />
+                <FieldError errors={[totpErrors.totp]} />
               </Field>
             </FieldGroup>
             <div className="mt-auto flex flex-col gap-2">

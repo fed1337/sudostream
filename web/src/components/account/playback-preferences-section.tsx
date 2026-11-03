@@ -1,13 +1,17 @@
+import { useEffect, useMemo } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { Spinner } from "@/components/ui/spinner";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 import { getApiMePlaybackPreferencesOptions } from "@/client/@tanstack/react-query.gen";
 import { patchApiMePlaybackPreferences } from "@/client/sdk.gen";
 
@@ -20,18 +24,37 @@ export function PlaybackPreferencesSection() {
     ...getApiMePlaybackPreferencesOptions(),
   });
 
-  const saved = prefsQuery.data?.audioLanguages ?? [];
-  const [lang1, setLang1] = useState("");
-  const [lang2, setLang2] = useState("");
-  const [lang3, setLang3] = useState("");
-  const seedKey = saved.join("|");
-  const display1 = lang1 || saved[0] || "";
-  const display2 = lang2 || saved[1] || "";
-  const display3 = lang3 || saved[2] || "";
+  const schema = useMemo(
+    () =>
+      z.object({
+        lang1: z.string().max(16),
+        lang2: z.string().max(16),
+        lang3: z.string().max(16),
+      }),
+    [],
+  );
+  type Values = z.infer<typeof schema>;
+
+  const form = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: { lang1: "", lang2: "", lang3: "" },
+  });
+
+  useEffect(() => {
+    const langs = prefsQuery.data?.audioLanguages;
+    if (!langs) {
+      return;
+    }
+    form.reset({
+      lang1: langs[0] ?? "",
+      lang2: langs[1] ?? "",
+      lang3: langs[2] ?? "",
+    });
+  }, [prefsQuery.data, form]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const audioLanguages = [display1, display2, display3]
+    mutationFn: async (values: Values) => {
+      const audioLanguages = [values.lang1, values.lang2, values.lang3]
         .map((value) => value.trim())
         .filter((value) => value.length > 0);
       const response = await patchApiMePlaybackPreferences({
@@ -44,15 +67,20 @@ export function PlaybackPreferencesSection() {
       }
       return response.data;
     },
-    onSuccess: () => {
-      setLang1("");
-      setLang2("");
-      setLang3("");
+    onSuccess: (data) => {
+      const langs = data.audioLanguages ?? [];
+      form.reset({
+        lang1: langs[0] ?? "",
+        lang2: langs[1] ?? "",
+        lang3: langs[2] ?? "",
+      });
       void queryClient.invalidateQueries({
         queryKey: getApiMePlaybackPreferencesOptions().queryKey,
       });
     },
   });
+
+  const errors = form.formState.errors;
 
   return (
     <Card>
@@ -60,22 +88,21 @@ export function PlaybackPreferencesSection() {
         <CardTitle className="text-lg">{t("account.playbackPreferences")}</CardTitle>
         <CardDescription>{t("account.playbackPreferencesDescription")}</CardDescription>
       </CardHeader>
-      <CardContent key={seedKey}>
+      <CardContent>
         <form
           className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
+          onSubmit={form.handleSubmit((values) => {
             saveMutation.reset();
-            saveMutation.mutate();
-          }}
+            saveMutation.mutate(values);
+          })}
         >
           {saveMutation.isError ? (
             <Alert variant="destructive">
               <AlertTitle>{t("account.playbackPreferencesSaveFailed")}</AlertTitle>
               <AlertDescription>
-                {saveMutation.error instanceof Error
-                  ? saveMutation.error.message
-                  : t("common.error")}
+                {translateApiError(saveMutation.error, t, {
+                  fallbackKey: "account.playbackPreferencesSaveFailed",
+                })}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -85,22 +112,25 @@ export function PlaybackPreferencesSection() {
             </Alert>
           ) : null}
           <FieldGroup>
-            {[
-              { id: "audio-lang-1", value: display1, set: setLang1 },
-              { id: "audio-lang-2", value: display2, set: setLang2 },
-              { id: "audio-lang-3", value: display3, set: setLang3 },
-            ].map((field, index) => (
-              <Field key={field.id}>
+            {(
+              [
+                { id: "audio-lang-1", name: "lang1" as const },
+                { id: "audio-lang-2", name: "lang2" as const },
+                { id: "audio-lang-3", name: "lang3" as const },
+              ] as const
+            ).map((field, index) => (
+              <Field key={field.id} data-invalid={Boolean(errors[field.name])}>
                 <FieldLabel htmlFor={field.id}>
                   {t("account.audioLanguagePriority", { rank: index + 1 })}
                 </FieldLabel>
                 <Input
                   id={field.id}
-                  value={field.value}
                   placeholder={t("account.audioLanguagePlaceholder")}
                   maxLength={16}
-                  onChange={(event) => field.set(event.target.value)}
+                  aria-invalid={Boolean(errors[field.name])}
+                  {...form.register(field.name)}
                 />
+                <FieldError errors={[errors[field.name]]} />
               </Field>
             ))}
             <FieldDescription>
@@ -108,6 +138,7 @@ export function PlaybackPreferencesSection() {
             </FieldDescription>
           </FieldGroup>
           <Button type="submit" disabled={saveMutation.isPending || prefsQuery.isLoading}>
+            {saveMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
             {t("common.save")}
           </Button>
         </form>

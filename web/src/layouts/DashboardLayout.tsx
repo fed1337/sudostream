@@ -29,7 +29,7 @@ export function DashboardLayout() {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider storageId="main">
       <AppSidebar />
       <SidebarInset className="min-h-svh text-base">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b md:h-16 md:gap-3">

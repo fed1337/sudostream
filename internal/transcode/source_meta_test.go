@@ -27,7 +27,7 @@ func TestSourceMetaFromProbe_PackagingAndTracks(t *testing.T) {
 				VideoStreamCount: 1,
 				AudioStreams:     []AudioStream{{Index: 0, Label: testAudioLabelEnglish}},
 				SubtitleStreams:  []SubtitleStream{{Index: 2, Label: "Subs"}},
-			}, []float64{0, 6})
+			}, PacketIndex{Keyframes: []float64{0, 6}})
 
 			if remux.PackagingMode != PackagingRemux {
 				t.Fatalf("packaging: got %q", remux.PackagingMode)
@@ -48,12 +48,59 @@ func TestSourceMetaFromProbe_PackagingAndTracks(t *testing.T) {
 				DurationSeconds:  6,
 				VideoCodec:       "hevc",
 				VideoStreamCount: 1,
-			}, nil)
+			}, PacketIndex{})
 			if transcodeMeta.PackagingMode != PackagingTranscode {
 				t.Fatalf("expected transcode packaging, got %q", transcodeMeta.PackagingMode)
 			}
 		},
 	)
+}
+
+func TestSourceMetaFromProbe_VideoBitrate(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		bitrate     int64
+		packets     PacketIndex
+		wantPeak    int64
+		wantAverage int64
+	}{
+		{
+			name:    "measured packets win over the container bit_rate",
+			bitrate: 99_000_000,
+			packets: PacketIndex{
+				Keyframes: []float64{0, 6},
+				packets:   []packetSample{{pts: 0, size: 3_000_000}, {pts: 6, size: 6_000_000}},
+			},
+			wantPeak:    8_000_000,
+			wantAverage: 6_000_000,
+		},
+		{
+			name:        "container bit_rate is the fallback without a packet index",
+			bitrate:     20_000_000,
+			wantPeak:    20_000_000,
+			wantAverage: 20_000_000,
+		},
+		{name: "nothing known leaves bitrates unset"},
+	} {
+		allure.Test(t, "source meta video bitrate — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+
+			meta := sourceMetaFromProbe(SourceInfo{
+				Height:           1080,
+				DurationSeconds:  12,
+				VideoCodec:       codecH264,
+				VideoStreamCount: 1,
+				Bitrate:          tc.bitrate,
+			}, tc.packets)
+
+			if meta.VideoPeakBitrate != tc.wantPeak || meta.VideoAverageBitrate != tc.wantAverage {
+				t.Fatalf("got peak=%d average=%d want peak=%d average=%d",
+					meta.VideoPeakBitrate, meta.VideoAverageBitrate, tc.wantPeak, tc.wantAverage)
+			}
+		})
+	}
 }
 
 func TestWriteReadSourceMeta_RoundTrip(t *testing.T) {

@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 function formatDate(value?: string): string {
   if (!value) {
@@ -199,7 +199,7 @@ export default function AdminTrashPage() {
         <Alert variant="destructive">
           <AlertTitle>{t("common.error")}</AlertTitle>
           <AlertDescription>
-            {error instanceof Error ? error.message : t("common.error")}
+            {translateApiError(error, t, { fallbackKey: "common.error" })}
           </AlertDescription>
         </Alert>
       ) : null}

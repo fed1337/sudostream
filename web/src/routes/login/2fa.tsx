@@ -12,12 +12,12 @@ import { TotpCodeInput } from "@/components/totp-code-input";
 import { TotpQrCode } from "@/components/totp-qr-code";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { completeLoginSession } from "@/hooks/use-auth";
 import { clearLoginRedirectFlag } from "@/lib/auth-session";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 type TwoFactorLocationState = {
   pendingToken?: string;
@@ -205,7 +205,9 @@ export default function LoginTwoFactorPage() {
             <AlertTitle>{t("auth.twoFactorSetupFailed")}</AlertTitle>
             <AlertDescription>
               {setupMutation.error instanceof Error
-                ? setupMutation.error.message
+                ? translateApiError(setupMutation.error, t, {
+                    fallbackKey: "auth.twoFactorSetupFailed",
+                  })
                 : t("common.error")}
             </AlertDescription>
           </Alert>
@@ -216,7 +218,9 @@ export default function LoginTwoFactorPage() {
             <AlertTitle>{t("auth.twoFactorVerifyFailed")}</AlertTitle>
             <AlertDescription>
               {verifyMutation.error instanceof Error
-                ? verifyMutation.error.message
+                ? translateApiError(verifyMutation.error, t, {
+                    fallbackKey: "auth.twoFactorVerifyFailed",
+                  })
                 : t("common.error")}
             </AlertDescription>
           </Alert>
@@ -264,6 +268,7 @@ export default function LoginTwoFactorPage() {
             ) : (
               <TotpCodeInput control={form.control} name="code" id="code" />
             )}
+            <FieldError errors={[form.formState.errors.code]} />
           </Field>
           {!isSetupRequired ? (
             <Field>

@@ -1,3 +1,4 @@
+import { extractApiErrorMessage } from "@/lib/api-error";
 import { client } from "@/api/client";
 import { catchAllUrl } from "@/api/catch-all-url";
 import { getApiBrowse, getApiLibraries } from "@/client/sdk.gen";
@@ -36,7 +37,7 @@ export async function fetchBrowse(
       });
 
   if (response.error || !response.data) {
-    throw new Error(getErrorMessage(response.error) ?? "browse failed");
+    throw new Error(extractApiErrorMessage(response.error) ?? "browse failed");
   }
 
   return response.data;
@@ -46,7 +47,7 @@ export async function fetchLibraries(): Promise<Library[]> {
   const response = await getApiLibraries();
 
   if (response.error || !response.data) {
-    throw new Error(getErrorMessage(response.error) ?? "list libraries failed");
+    throw new Error(extractApiErrorMessage(response.error) ?? "list libraries failed");
   }
 
   return response.data.libraries ?? [];
@@ -86,16 +87,4 @@ export function libraryBrowsePath(library: Library, subPath?: string): string {
   }
 
   return nested;
-}
-
-function getErrorMessage(error: unknown): string | undefined {
-  if (!error || typeof error !== "object") {
-    return undefined;
-  }
-
-  if ("error" in error && typeof error.error === "string") {
-    return error.error;
-  }
-
-  return undefined;
 }

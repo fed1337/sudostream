@@ -7,7 +7,7 @@ import { NewPasswordForm } from "@/components/auth/new-password-form";
 import { GuestAuthLayout } from "@/components/guest-auth-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation();
@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
         errorMessage={
           mutation.isError
             ? mutation.error instanceof Error
-              ? mutation.error.message
+              ? translateApiError(mutation.error, t, { fallbackKey: "auth.resetPasswordFailed" })
               : t("common.error")
             : null
         }

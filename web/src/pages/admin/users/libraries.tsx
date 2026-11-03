@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 type GrantInput = SudoStreamInternalAccessGrantInput;
 type LibraryPermissions = SudoStreamInternalAccessLibraryPermissions;
@@ -139,7 +139,7 @@ export default function AdminUserLibrariesPage() {
         <Alert variant="destructive">
           <AlertTitle>{t("admin.saveGrantsFailed")}</AlertTitle>
           <AlertDescription>
-            {saveMutation.error instanceof Error ? saveMutation.error.message : t("common.error")}
+            {translateApiError(saveMutation.error, t, { fallbackKey: "admin.saveGrantsFailed" })}
           </AlertDescription>
         </Alert>
       ) : null}

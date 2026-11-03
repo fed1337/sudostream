@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { PasswordInput } from "@/components/password-input";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -68,15 +68,23 @@ export function NewPasswordForm({
       <FieldGroup>
         <Field data-invalid={Boolean(form.formState.errors.password)}>
           <FieldLabel htmlFor="password">{t("auth.newPassword")}</FieldLabel>
-          <PasswordInput id="password" autoComplete="new-password" {...form.register("password")} />
+          <PasswordInput
+            id="password"
+            autoComplete="new-password"
+            aria-invalid={Boolean(form.formState.errors.password)}
+            {...form.register("password")}
+          />
+          <FieldError errors={[form.formState.errors.password]} />
         </Field>
         <Field data-invalid={Boolean(form.formState.errors.confirmPassword)}>
           <FieldLabel htmlFor="confirmPassword">{t("auth.confirmPassword")}</FieldLabel>
           <PasswordInput
             id="confirmPassword"
             autoComplete="new-password"
+            aria-invalid={Boolean(form.formState.errors.confirmPassword)}
             {...form.register("confirmPassword")}
           />
+          <FieldError errors={[form.formState.errors.confirmPassword]} />
         </Field>
         <Field>
           <Button type="submit" disabled={isPending} className="w-full">

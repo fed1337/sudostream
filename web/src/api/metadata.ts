@@ -1,3 +1,4 @@
+import { extractApiErrorMessage } from "@/lib/api-error";
 import { client } from "@/api/client";
 import { catchAllUrl } from "@/api/catch-all-url";
 import type {
@@ -23,7 +24,7 @@ export async function fetchMetadata(path: string): Promise<MetadataResponse> {
   });
 
   if (response.error || !response.data) {
-    throw new Error(getErrorMessage(response.error) ?? "metadata fetch failed");
+    throw new Error(extractApiErrorMessage(response.error) ?? "metadata fetch failed");
   }
 
   return response.data;
@@ -40,20 +41,8 @@ export async function patchMetadata(path: string, body: PatchRequest): Promise<M
   });
 
   if (response.error || !response.data) {
-    throw new Error(getErrorMessage(response.error) ?? "metadata patch failed");
+    throw new Error(extractApiErrorMessage(response.error) ?? "metadata patch failed");
   }
 
   return response.data;
-}
-
-function getErrorMessage(error: unknown): string | undefined {
-  if (!error || typeof error !== "object") {
-    return undefined;
-  }
-
-  if ("error" in error && typeof error.error === "string") {
-    return error.error;
-  }
-
-  return undefined;
 }

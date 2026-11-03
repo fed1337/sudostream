@@ -12,11 +12,11 @@ import { TotpQrCode } from "@/components/totp-qr-code";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { PasswordInput } from "@/components/password-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useCurrentUser } from "@/hooks/use-auth";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 export function TwoFactorSection() {
   const { t } = useTranslation();
@@ -161,7 +161,9 @@ export function TwoFactorSection() {
             <AlertTitle>{t("auth.twoFactorSetupFailed")}</AlertTitle>
             <AlertDescription>
               {setupMutation.error instanceof Error
-                ? setupMutation.error.message
+                ? translateApiError(setupMutation.error, t, {
+                    fallbackKey: "auth.twoFactorSetupFailed",
+                  })
                 : t("common.error")}
             </AlertDescription>
           </Alert>
@@ -172,7 +174,9 @@ export function TwoFactorSection() {
             <AlertTitle>{t("auth.twoFactorVerifyFailed")}</AlertTitle>
             <AlertDescription>
               {confirmMutation.error instanceof Error
-                ? confirmMutation.error.message
+                ? translateApiError(confirmMutation.error, t, {
+                    fallbackKey: "auth.twoFactorVerifyFailed",
+                  })
                 : t("common.error")}
             </AlertDescription>
           </Alert>
@@ -183,7 +187,9 @@ export function TwoFactorSection() {
             <AlertTitle>{t("account.disable2FAFailed")}</AlertTitle>
             <AlertDescription>
               {disableMutation.error instanceof Error
-                ? disableMutation.error.message
+                ? translateApiError(disableMutation.error, t, {
+                    fallbackKey: "account.disable2FAFailed",
+                  })
                 : t("common.error")}
             </AlertDescription>
           </Alert>
@@ -228,6 +234,7 @@ export function TwoFactorSection() {
                 <Field data-invalid={Boolean(confirmForm.formState.errors.code)}>
                   <FieldLabel htmlFor="confirm-code">{t("auth.twoFactorCode")}</FieldLabel>
                   <TotpCodeInput control={confirmForm.control} name="code" id="confirm-code" />
+                  <FieldError errors={[confirmForm.formState.errors.code]} />
                 </Field>
                 <Field>
                   <Button type="submit" disabled={confirmMutation.isPending}>
@@ -255,17 +262,20 @@ export function TwoFactorSection() {
                 })}
               >
                 <FieldGroup>
-                  <Field>
+                  <Field data-invalid={Boolean(disableForm.formState.errors.password)}>
                     <FieldLabel htmlFor="disable-password">{t("auth.password")}</FieldLabel>
                     <PasswordInput
                       id="disable-password"
                       autoComplete="current-password"
+                      aria-invalid={Boolean(disableForm.formState.errors.password)}
                       {...disableForm.register("password")}
                     />
+                    <FieldError errors={[disableForm.formState.errors.password]} />
                   </Field>
                   <Field data-invalid={Boolean(disableForm.formState.errors.code)}>
                     <FieldLabel htmlFor="disable-code">{t("auth.twoFactorCode")}</FieldLabel>
                     <TotpCodeInput control={disableForm.control} name="code" id="disable-code" />
+                    <FieldError errors={[disableForm.formState.errors.code]} />
                   </Field>
                   <Field>
                     <Button

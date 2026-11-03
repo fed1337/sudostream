@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { CpuIcon, CircleHelpIcon, NetworkIcon, SettingsIcon, TvIcon } from "lucide-react";
+import { CpuIcon, NetworkIcon, SettingsIcon, TvIcon } from "lucide-react";
 
 import type {
   SudoStreamInternalAuthSettings,
@@ -30,18 +30,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { FieldHelp } from "@/components/field-help";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 type Settings = SudoStreamInternalAuthSettings;
 type TranscodeSettings = SudoStreamInternalTranscodeTranscodeSettings;
@@ -53,8 +47,6 @@ type DownmixValue = NonNullable<TranscodeSettings["downmixAlgorithm"]>;
 type ToneAlgoValue = NonNullable<TranscodeSettings["toneMappingAlgorithm"]>;
 
 const hwAccelOptions: HwAccelValue[] = ["off", "qsv", "vaapi", "nvenc", "rockchip"];
-const downmixOptions: DownmixValue[] = ["none", "ac4", "dave750", "nightmodeDialogue", "rfc7845"];
-const toneAlgoOptions: ToneAlgoValue[] = ["bt2390", "hable", "reinhard", "mobius"];
 
 export default function AdminSettingsPage() {
   const { t } = useTranslation();
@@ -293,7 +285,9 @@ export default function AdminSettingsPage() {
                 <AlertTitle>{t("admin.saveSettingsFailed")}</AlertTitle>
                 <AlertDescription>
                   {saveMutation.error instanceof Error
-                    ? saveMutation.error.message
+                    ? translateApiError(saveMutation.error, t, {
+                        fallbackKey: "admin.saveSettingsFailed",
+                      })
                     : t("common.error")}
                 </AlertDescription>
               </Alert>
@@ -379,7 +373,9 @@ export default function AdminSettingsPage() {
                 <AlertTitle>{t("admin.saveNetworkSettingsFailed")}</AlertTitle>
                 <AlertDescription>
                   {saveNetworkMutation.error instanceof Error
-                    ? saveNetworkMutation.error.message
+                    ? translateApiError(saveNetworkMutation.error, t, {
+                        fallbackKey: "admin.saveNetworkSettingsFailed",
+                      })
                     : t("common.error")}
                 </AlertDescription>
               </Alert>
@@ -396,7 +392,9 @@ export default function AdminSettingsPage() {
                 <AlertTitle>{t("admin.testNetworkSettingsFailed")}</AlertTitle>
                 <AlertDescription>
                   {testNetworkMutation.error instanceof Error
-                    ? testNetworkMutation.error.message
+                    ? translateApiError(testNetworkMutation.error, t, {
+                        fallbackKey: "admin.testNetworkSettingsFailed",
+                      })
                     : t("common.error")}
                 </AlertDescription>
               </Alert>
@@ -425,20 +423,9 @@ export default function AdminSettingsPage() {
               <Field>
                 <div className="flex items-center gap-2">
                   <FieldLabel htmlFor="proxyUrl">{t("admin.proxyUrl")}</FieldLabel>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground"
-                        aria-label={t("admin.proxyUrlHelp")}
-                      >
-                        <CircleHelpIcon className="size-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-sm whitespace-pre-line" sideOffset={6}>
-                      {t("admin.proxyUrlTooltip")}
-                    </TooltipContent>
-                  </Tooltip>
+                  <FieldHelp label={t("admin.proxyUrlHelp")}>
+                    {t("admin.proxyUrlTooltip")}
+                  </FieldHelp>
                 </div>
                 <Input
                   id="proxyUrl"
@@ -554,7 +541,9 @@ export default function AdminSettingsPage() {
                 <AlertTitle>{t("admin.saveTranscodeSettingsFailed")}</AlertTitle>
                 <AlertDescription>
                   {saveTranscodeMutation.error instanceof Error
-                    ? saveTranscodeMutation.error.message
+                    ? translateApiError(saveTranscodeMutation.error, t, {
+                        fallbackKey: "admin.saveTranscodeSettingsFailed",
+                      })
                     : t("common.error")}
                 </AlertDescription>
               </Alert>
@@ -570,82 +559,57 @@ export default function AdminSettingsPage() {
               <Field>
                 <div className="flex items-center gap-2">
                   <FieldLabel htmlFor="hwAccel">{t("admin.hwAccel")}</FieldLabel>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground"
-                        aria-label={t("admin.hwAccelHelp")}
-                      >
-                        <CircleHelpIcon className="size-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs whitespace-pre-line" sideOffset={6}>
-                      {t("admin.hwAccelTooltip")}
-                    </TooltipContent>
-                  </Tooltip>
+                  <FieldHelp label={t("admin.hwAccelHelp")}>{t("admin.hwAccelTooltip")}</FieldHelp>
                 </div>
-                <Select
+                <NativeSelect
+                  id="hwAccel"
+                  className="w-full max-w-md"
                   value={hwAccel}
-                  onValueChange={(value) => {
-                    if (hwAccelOptions.includes(value as HwAccelValue)) {
-                      setHwAccel(value as HwAccelValue);
+                  onChange={(event) => {
+                    const value = event.target.value as HwAccelValue;
+                    if (hwAccelOptions.includes(value)) {
+                      setHwAccel(value);
                     }
                   }}
                 >
-                  <SelectTrigger id="hwAccel" className="w-full max-w-md">
-                    <SelectValue placeholder={t("admin.hwAccel")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="off">{t("admin.hwAccelOff")}</SelectItem>
-                    <SelectItem value="qsv">{t("admin.hwAccelQsv")}</SelectItem>
-                    <SelectItem value="vaapi">{t("admin.hwAccelVaapi")}</SelectItem>
-                    <SelectItem value="nvenc">{t("admin.hwAccelNvenc")}</SelectItem>
-                    <SelectItem value="rockchip">{t("admin.hwAccelRockchip")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <NativeSelectOption value="off">{t("admin.hwAccelOff")}</NativeSelectOption>
+                  <NativeSelectOption value="qsv">{t("admin.hwAccelQsv")}</NativeSelectOption>
+                  <NativeSelectOption value="vaapi">{t("admin.hwAccelVaapi")}</NativeSelectOption>
+                  <NativeSelectOption value="nvenc">{t("admin.hwAccelNvenc")}</NativeSelectOption>
+                  <NativeSelectOption value="rockchip">
+                    {t("admin.hwAccelRockchip")}
+                  </NativeSelectOption>
+                </NativeSelect>
                 <FieldDescription>{t("admin.hwAccelDescription")}</FieldDescription>
               </Field>
 
               <Field>
                 <div className="flex items-center gap-2">
                   <FieldLabel htmlFor="downmixAlgorithm">{t("admin.downmixAlgorithm")}</FieldLabel>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground"
-                        aria-label={t("admin.downmixAlgorithmHelp")}
-                      >
-                        <CircleHelpIcon className="size-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs whitespace-pre-line" sideOffset={6}>
-                      {t("admin.downmixAlgorithmTooltip")}
-                    </TooltipContent>
-                  </Tooltip>
+                  <FieldHelp label={t("admin.downmixAlgorithmHelp")}>
+                    {t("admin.downmixAlgorithmTooltip")}
+                  </FieldHelp>
                 </div>
-                <Select
+                <NativeSelect
+                  id="downmixAlgorithm"
+                  className="w-full max-w-md"
                   value={downmixAlgorithm}
-                  onValueChange={(value) => {
-                    if (downmixOptions.includes(value as DownmixValue)) {
-                      setDownmixAlgorithm(value as DownmixValue);
-                    }
+                  onChange={(event) => {
+                    setDownmixAlgorithm(event.target.value as typeof downmixAlgorithm);
                   }}
                 >
-                  <SelectTrigger id="downmixAlgorithm" className="w-full max-w-md">
-                    <SelectValue placeholder={t("admin.downmixAlgorithm")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ac4">{t("admin.downmixAc4")}</SelectItem>
-                    <SelectItem value="none">{t("admin.downmixNone")}</SelectItem>
-                    <SelectItem value="dave750">{t("admin.downmixDave750")}</SelectItem>
-                    <SelectItem value="nightmodeDialogue">
-                      {t("admin.downmixNightmodeDialogue")}
-                    </SelectItem>
-                    <SelectItem value="rfc7845">{t("admin.downmixRfc7845")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <NativeSelectOption value="ac4">{t("admin.downmixAc4")}</NativeSelectOption>
+                  <NativeSelectOption value="none">{t("admin.downmixNone")}</NativeSelectOption>
+                  <NativeSelectOption value="dave750">
+                    {t("admin.downmixDave750")}
+                  </NativeSelectOption>
+                  <NativeSelectOption value="nightmodeDialogue">
+                    {t("admin.downmixNightmodeDialogue")}
+                  </NativeSelectOption>
+                  <NativeSelectOption value="rfc7845">
+                    {t("admin.downmixRfc7845")}
+                  </NativeSelectOption>
+                </NativeSelect>
                 <FieldDescription>{t("admin.downmixAlgorithmDescription")}</FieldDescription>
               </Field>
 
@@ -674,20 +638,9 @@ export default function AdminSettingsPage() {
                   <FieldLabel htmlFor="toneMappingEnabled">
                     {t("admin.toneMappingEnabled")}
                   </FieldLabel>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground"
-                        aria-label={t("admin.toneMappingEnabledHelp")}
-                      >
-                        <CircleHelpIcon className="size-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs whitespace-pre-line" sideOffset={6}>
-                      {t("admin.toneMappingEnabledTooltip")}
-                    </TooltipContent>
-                  </Tooltip>
+                  <FieldHelp label={t("admin.toneMappingEnabledHelp")}>
+                    {t("admin.toneMappingEnabledTooltip")}
+                  </FieldHelp>
                 </div>
               </Field>
               <FieldDescription>{t("admin.toneMappingEnabledDescription")}</FieldDescription>
@@ -697,40 +650,30 @@ export default function AdminSettingsPage() {
                   <FieldLabel htmlFor="toneMappingAlgorithm">
                     {t("admin.toneMappingAlgorithm")}
                   </FieldLabel>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground hover:text-foreground"
-                        aria-label={t("admin.toneMappingAlgorithmHelp")}
-                      >
-                        <CircleHelpIcon className="size-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs whitespace-pre-line" sideOffset={6}>
-                      {t("admin.toneMappingAlgorithmTooltip")}
-                    </TooltipContent>
-                  </Tooltip>
+                  <FieldHelp label={t("admin.toneMappingAlgorithmHelp")}>
+                    {t("admin.toneMappingAlgorithmTooltip")}
+                  </FieldHelp>
                 </div>
-                <Select
+                <NativeSelect
+                  id="toneMappingAlgorithm"
+                  className="w-full max-w-md"
                   value={toneMappingAlgorithm}
                   disabled={!toneMappingEnabled}
-                  onValueChange={(value) => {
-                    if (toneAlgoOptions.includes(value as ToneAlgoValue)) {
-                      setToneMappingAlgorithm(value as ToneAlgoValue);
-                    }
+                  onChange={(event) => {
+                    setToneMappingAlgorithm(event.target.value as typeof toneMappingAlgorithm);
                   }}
                 >
-                  <SelectTrigger id="toneMappingAlgorithm" className="w-full max-w-md">
-                    <SelectValue placeholder={t("admin.toneMappingAlgorithm")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bt2390">{t("admin.toneAlgoBt2390")}</SelectItem>
-                    <SelectItem value="hable">{t("admin.toneAlgoHable")}</SelectItem>
-                    <SelectItem value="reinhard">{t("admin.toneAlgoReinhard")}</SelectItem>
-                    <SelectItem value="mobius">{t("admin.toneAlgoMobius")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <NativeSelectOption value="bt2390">
+                    {t("admin.toneAlgoBt2390")}
+                  </NativeSelectOption>
+                  <NativeSelectOption value="hable">{t("admin.toneAlgoHable")}</NativeSelectOption>
+                  <NativeSelectOption value="reinhard">
+                    {t("admin.toneAlgoReinhard")}
+                  </NativeSelectOption>
+                  <NativeSelectOption value="mobius">
+                    {t("admin.toneAlgoMobius")}
+                  </NativeSelectOption>
+                </NativeSelect>
                 <FieldDescription>{t("admin.toneMappingAlgorithmDescription")}</FieldDescription>
               </Field>
 
@@ -760,7 +703,11 @@ export default function AdminSettingsPage() {
           {saveDlnaMutation.isError ? (
             <Alert variant="destructive" className="mb-4">
               <AlertTitle>{t("admin.saveDLNASettingsFailed")}</AlertTitle>
-              <AlertDescription>{saveDlnaMutation.error.message}</AlertDescription>
+              <AlertDescription>
+                {translateApiError(saveDlnaMutation.error, t, {
+                  fallbackKey: "admin.saveDLNASettingsFailed",
+                })}
+              </AlertDescription>
             </Alert>
           ) : null}
           {saveDlnaMutation.isSuccess ? (
@@ -788,18 +735,21 @@ export default function AdminSettingsPage() {
 
               <Field>
                 <FieldLabel htmlFor="dlnaUser">{t("admin.dlnaUser")}</FieldLabel>
-                <Select value={dlnaUserId || undefined} onValueChange={setDlnaUserId}>
-                  <SelectTrigger id="dlnaUser" className="w-full max-w-md">
-                    <SelectValue placeholder={t("admin.dlnaUser")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tvUsers.map((user) => (
-                      <SelectItem key={user.id} value={user.id ?? ""}>
-                        {user.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  id="dlnaUser"
+                  className="w-full max-w-md"
+                  value={dlnaUserId}
+                  onChange={(event) => {
+                    setDlnaUserId(event.target.value);
+                  }}
+                >
+                  <NativeSelectOption value="">{t("admin.dlnaUser")}</NativeSelectOption>
+                  {tvUsers.map((user) => (
+                    <NativeSelectOption key={user.id} value={user.id ?? ""}>
+                      {user.email}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
                 <FieldDescription>{t("admin.dlnaUserDescription")}</FieldDescription>
               </Field>
 

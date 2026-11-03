@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { TFunction } from "i18next";
+
+import { ApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 type DeleteMediaButtonProps = {
   item: MediaItem;
@@ -24,10 +27,13 @@ type DeleteMediaButtonProps = {
   iconOnly?: boolean;
 };
 
-function deleteErrorMessage(error: unknown, t: (key: string) => string): string {
+function deleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof DeleteMediaError) {
-    if (error.message && error.message !== "delete failed") {
-      return error.message;
+    if (error.message && error.message !== ApiErrorMessage.deleteFailed) {
+      return translateApiError(error, t, {
+        status: error.status,
+        fallbackKey: "media.deleteFailed",
+      });
     }
     if (error.status === 403) {
       return t("media.deleteForbidden");

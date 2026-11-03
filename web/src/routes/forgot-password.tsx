@@ -10,10 +10,10 @@ import { postApiAuthForgotPassword } from "@/client/sdk.gen";
 import { GuestAuthLayout } from "@/components/guest-auth-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
           <Alert variant="destructive">
             <AlertTitle>{t("common.error")}</AlertTitle>
             <AlertDescription>
-              {mutation.error instanceof Error ? mutation.error.message : t("common.error")}
+              {translateApiError(mutation.error, t, { fallbackKey: "auth.forgotPasswordFailed" })}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -93,6 +93,7 @@ export default function ForgotPasswordPage() {
               aria-invalid={Boolean(form.formState.errors.email)}
               {...form.register("email")}
             />
+            <FieldError errors={[form.formState.errors.email]} />
           </Field>
           <Field>
             <Button type="submit" disabled={mutation.isPending} className="w-full">

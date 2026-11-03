@@ -11,13 +11,14 @@ import { postApiAuthLogin } from "@/client/sdk.gen";
 import { clearLoginRedirectFlag } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 import { completeLoginSession } from "@/hooks/use-auth";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -101,27 +102,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
   const alerts: LoginAlert[] = [];
 
-  if (errors.email?.message) {
-    alerts.push({
-      id: "email",
-      variant: "destructive",
-      message: errors.email.message,
-    });
-  }
-
-  if (errors.password?.message) {
-    alerts.push({
-      id: "password",
-      variant: "destructive",
-      message: errors.password.message,
-    });
-  }
-
   if (loginMutation.error instanceof Error) {
     alerts.push({
       id: "root",
       variant: "destructive",
-      message: loginMutation.error.message,
+      message: translateApiError(loginMutation.error, t, { fallbackKey: "auth.loginFailed" }),
     });
   } else if (errors.root?.message) {
     alerts.push({
@@ -154,13 +139,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 {alerts.map((alert) => (
                   <Alert key={alert.id} variant={alert.variant}>
                     {alert.variant === "destructive" ? <AlertCircleIcon /> : <InfoIcon />}
-                    <AlertTitle>
-                      {alert.id === "root"
-                        ? t("auth.loginError")
-                        : alert.id === "email"
-                          ? t("auth.email")
-                          : t("auth.password")}
-                    </AlertTitle>
+                    <AlertTitle>{t("auth.loginError")}</AlertTitle>
                     <AlertDescription>{alert.message}</AlertDescription>
                   </Alert>
                 ))}
@@ -168,24 +147,26 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
             ) : null}
 
             <FieldGroup>
-              <Field data-invalid={Boolean(form.formState.errors.email)}>
+              <Field data-invalid={Boolean(errors.email)}>
                 <FieldLabel htmlFor="email">{t("auth.email")}</FieldLabel>
                 <Input
                   id="email"
                   type="email"
                   autoComplete="email"
-                  aria-invalid={Boolean(form.formState.errors.email)}
+                  aria-invalid={Boolean(errors.email)}
                   {...form.register("email")}
                 />
+                <FieldError errors={[errors.email]} />
               </Field>
-              <Field data-invalid={Boolean(form.formState.errors.password)}>
+              <Field data-invalid={Boolean(errors.password)}>
                 <FieldLabel htmlFor="password">{t("auth.password")}</FieldLabel>
                 <PasswordInput
                   id="password"
                   autoComplete="current-password"
-                  aria-invalid={Boolean(form.formState.errors.password)}
+                  aria-invalid={Boolean(errors.password)}
                   {...form.register("password")}
                 />
+                <FieldError errors={[errors.password]} />
               </Field>
               <FieldSeparator />
               <Field>

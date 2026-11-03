@@ -23,15 +23,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -42,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 
 function formatDate(value?: string): string {
   if (!value) {
@@ -164,7 +158,9 @@ export default function AdminInvitesPage() {
                 <AlertTitle>{t("admin.createInviteFailed")}</AlertTitle>
                 <AlertDescription>
                   {createMutation.error instanceof Error
-                    ? createMutation.error.message
+                    ? translateApiError(createMutation.error, t, {
+                        fallbackKey: "admin.createInviteFailed",
+                      })
                     : t("common.error")}
                 </AlertDescription>
               </Alert>
@@ -177,36 +173,43 @@ export default function AdminInvitesPage() {
             ) : null}
 
             <FieldGroup>
-              <Field>
+              <Field data-invalid={Boolean(form.formState.errors.email)}>
                 <FieldLabel htmlFor="invite-email">{t("admin.email")}</FieldLabel>
-                <Input id="invite-email" type="email" {...form.register("email")} />
+                <Input
+                  id="invite-email"
+                  type="email"
+                  aria-invalid={Boolean(form.formState.errors.email)}
+                  {...form.register("email")}
+                />
+                <FieldError errors={[form.formState.errors.email]} />
               </Field>
-              <Field>
+              <Field data-invalid={Boolean(form.formState.errors.role)}>
                 <FieldLabel htmlFor="invite-role">{t("admin.role")}</FieldLabel>
-                <Select
+                <NativeSelect
+                  id="invite-role"
+                  className="w-full"
+                  aria-invalid={Boolean(form.formState.errors.role)}
                   value={inviteRole}
-                  onValueChange={(value) => {
-                    form.setValue("role", value);
+                  onChange={(event) => {
+                    form.setValue("role", event.target.value);
                   }}
                 >
-                  <SelectTrigger id="invite-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">{t("admin.roleUser")}</SelectItem>
-                    <SelectItem value="admin">{t("admin.roleAdmin")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <NativeSelectOption value="user">{t("admin.roleUser")}</NativeSelectOption>
+                  <NativeSelectOption value="admin">{t("admin.roleAdmin")}</NativeSelectOption>
+                </NativeSelect>
+                <FieldError errors={[form.formState.errors.role]} />
               </Field>
-              <Field>
+              <Field data-invalid={Boolean(form.formState.errors.expiresInHours)}>
                 <FieldLabel htmlFor="invite-expires">{t("admin.inviteExpiresHours")}</FieldLabel>
                 <Input
                   id="invite-expires"
                   type="number"
                   min={1}
                   placeholder={t("admin.inviteExpiresPlaceholder")}
+                  aria-invalid={Boolean(form.formState.errors.expiresInHours)}
                   {...form.register("expiresInHours")}
                 />
+                <FieldError errors={[form.formState.errors.expiresInHours]} />
               </Field>
               <Field>
                 <Button type="submit" disabled={createMutation.isPending}>
@@ -228,7 +231,9 @@ export default function AdminInvitesPage() {
           <AlertTitle>{t("admin.resendInviteFailed")}</AlertTitle>
           <AlertDescription>
             {resendMutation.error instanceof Error
-              ? resendMutation.error.message
+              ? translateApiError(resendMutation.error, t, {
+                  fallbackKey: "admin.resendInviteFailed",
+                })
               : t("common.error")}
           </AlertDescription>
         </Alert>
@@ -239,7 +244,9 @@ export default function AdminInvitesPage() {
           <AlertTitle>{t("admin.revokeInviteFailed")}</AlertTitle>
           <AlertDescription>
             {revokeMutation.error instanceof Error
-              ? revokeMutation.error.message
+              ? translateApiError(revokeMutation.error, t, {
+                  fallbackKey: "admin.revokeInviteFailed",
+                })
               : t("common.error")}
           </AlertDescription>
         </Alert>

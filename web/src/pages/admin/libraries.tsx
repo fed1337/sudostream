@@ -55,7 +55,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 import { LIBRARY_TYPES } from "@/lib/library-types";
 
 export default function AdminLibrariesPage() {
@@ -232,7 +232,9 @@ export default function AdminLibrariesPage() {
               <AlertTitle>{t("admin.createLibraryFailed")}</AlertTitle>
               <AlertDescription>
                 {createMutation.error instanceof Error
-                  ? createMutation.error.message
+                  ? translateApiError(createMutation.error, t, {
+                      fallbackKey: "admin.createLibraryFailed",
+                    })
                   : t("common.error")}
               </AlertDescription>
             </Alert>

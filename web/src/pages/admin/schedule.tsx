@@ -36,6 +36,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaintenanceActionCard } from "@/pages/admin/libraries/maintenance-cards";
 import { formatFileSize } from "@/lib/media-item";
+import { translateApiError } from "@/lib/api-error";
 
 type ScheduleInput = SudoStreamInternalMaintenanceScheduleInput;
 
@@ -335,7 +336,7 @@ export default function AdminSchedulePage() {
               <AlertTitle>{t("common.error")}</AlertTitle>
               <AlertDescription>
                 {cancelMutation.error instanceof Error
-                  ? cancelMutation.error.message
+                  ? translateApiError(cancelMutation.error, t, { fallbackKey: "common.error" })
                   : t("common.error")}
               </AlertDescription>
             </Alert>

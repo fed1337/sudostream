@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
 import { usePatchMetadata } from "@/hooks/use-metadata";
+import { translateApiError } from "@/lib/api-error";
 import {
   Table,
   TableBody,
@@ -288,7 +289,7 @@ export function MetadataEditForm({ path, metadata, size = "default" }: MetadataE
         <Alert variant="destructive">
           <AlertDescription>
             {patchMutation.error instanceof Error
-              ? patchMutation.error.message
+              ? translateApiError(patchMutation.error, t, { fallbackKey: "common.error" })
               : t("metadata.saveFailed")}
           </AlertDescription>
         </Alert>

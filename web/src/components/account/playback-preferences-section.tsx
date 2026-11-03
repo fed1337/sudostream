@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 import { getApiMePlaybackPreferencesOptions } from "@/client/@tanstack/react-query.gen";
 import { patchApiMePlaybackPreferences } from "@/client/sdk.gen";
 
@@ -74,7 +74,9 @@ export function PlaybackPreferencesSection() {
               <AlertTitle>{t("account.playbackPreferencesSaveFailed")}</AlertTitle>
               <AlertDescription>
                 {saveMutation.error instanceof Error
-                  ? saveMutation.error.message
+                  ? translateApiError(saveMutation.error, t, {
+                      fallbackKey: "account.playbackPreferencesSaveFailed",
+                    })
                   : t("common.error")}
               </AlertDescription>
             </Alert>

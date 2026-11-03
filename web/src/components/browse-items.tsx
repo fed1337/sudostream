@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMetadata } from "@/hooks/use-metadata";
 import {
@@ -279,7 +280,7 @@ function VideoDuration({ path }: { path: string }) {
   const duration = metadataQuery.data?.effective?.duration_seconds;
 
   if (metadataQuery.isLoading) {
-    return <>…</>;
+    return <Skeleton className="h-4 w-10" />;
   }
 
   if (duration === undefined || duration === null) {
@@ -308,7 +309,11 @@ function PhotoResolution({ src }: { src: string }) {
     };
   }, [src]);
 
-  return <>{resolution ?? "…"}</>;
+  if (!resolution) {
+    return <Skeleton className="h-4 w-16" />;
+  }
+
+  return <>{resolution}</>;
 }
 
 type BrowseBreadcrumbsProps = {

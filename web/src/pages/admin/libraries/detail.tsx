@@ -54,7 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { extractApiErrorMessage } from "@/lib/api-error";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 import { LIBRARY_TYPES } from "@/lib/library-types";
 import {
   LIBRARY_CARD_TITLE_CLASS,
@@ -390,7 +390,7 @@ export default function AdminLibraryDetailPage() {
       }
       await saveScheduleMutation.mutateAsync([schedule]);
     } catch (error) {
-      setValidationError(error instanceof Error ? error.message : t("common.error"));
+      setValidationError(translateApiError(error, t, { fallbackKey: "common.error" }));
     }
   };
 
@@ -504,7 +504,7 @@ export default function AdminLibraryDetailPage() {
               <AlertTitle>{t("admin.updateLibraryFailed")}</AlertTitle>
               <AlertDescription>
                 {saveLibraryMutation.error instanceof Error
-                  ? saveLibraryMutation.error.message
+                  ? translateApiError(saveLibraryMutation.error, t, { fallbackKey: "common.error" })
                   : t("common.error")}
               </AlertDescription>
             </Alert>
@@ -601,7 +601,7 @@ export default function AdminLibraryDetailPage() {
                 <AlertTitle>{t("admin.addFolderFailed")}</AlertTitle>
                 <AlertDescription>
                   {addRootMutation.error instanceof Error
-                    ? addRootMutation.error.message
+                    ? translateApiError(addRootMutation.error, t, { fallbackKey: "common.error" })
                     : t("common.error")}
                 </AlertDescription>
               </Alert>

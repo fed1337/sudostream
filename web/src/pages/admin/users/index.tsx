@@ -27,16 +27,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/password-input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -47,8 +40,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { extractApiErrorMessage } from "@/lib/api-error";
-
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { extractApiErrorMessage, translateApiError } from "@/lib/api-error";
 function formatDate(value?: string): string {
   if (!value) {
     return "—";
@@ -206,7 +201,9 @@ export default function AdminUsersPage() {
       {formError instanceof Error ? (
         <Alert variant="destructive">
           <AlertTitle>{t("common.error")}</AlertTitle>
-          <AlertDescription>{formError.message}</AlertDescription>
+          <AlertDescription>
+            {translateApiError(formError, t, { fallbackKey: "common.error" })}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -237,9 +234,12 @@ export default function AdminUsersPage() {
                 <TableCell>
                   <Link
                     to={`/admin/users/${user.id}`}
-                    className="font-medium text-primary hover:underline"
+                    className="flex items-center gap-3 font-medium text-primary hover:underline"
                   >
-                    {user.email}
+                    <Avatar className="size-8">
+                      <AvatarFallback>{(user.email?.[0] ?? "?").toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="truncate">{user.email}</span>
                   </Link>
                 </TableCell>
                 <TableCell className="capitalize">{user.role}</TableCell>
@@ -275,27 +275,30 @@ export default function AdminUsersPage() {
             })}
           >
             <FieldGroup>
-              <Field>
+              <Field data-invalid={Boolean(inviteForm.formState.errors.email)}>
                 <FieldLabel htmlFor="invite-email">{t("admin.email")}</FieldLabel>
-                <Input id="invite-email" type="email" {...inviteForm.register("email")} />
+                <Input
+                  id="invite-email"
+                  type="email"
+                  aria-invalid={Boolean(inviteForm.formState.errors.email)}
+                  {...inviteForm.register("email")}
+                />
+                <FieldError errors={[inviteForm.formState.errors.email]} />
               </Field>
               <Field>
-                <FieldLabel>{t("admin.role")}</FieldLabel>
-                <Select
+                <FieldLabel htmlFor="invite-role">{t("admin.role")}</FieldLabel>
+                <NativeSelect
+                  id="invite-role"
+                  className="w-full"
                   value={inviteRole}
-                  onValueChange={(role) => {
-                    inviteForm.setValue("role", role);
+                  onChange={(event) => {
+                    inviteForm.setValue("role", event.target.value);
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">{t("admin.roleUser")}</SelectItem>
-                    <SelectItem value="admin">{t("admin.roleAdmin")}</SelectItem>
-                    <SelectItem value="tv">{t("admin.roleTV")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <NativeSelectOption value="user">{t("admin.roleUser")}</NativeSelectOption>
+                  <NativeSelectOption value="admin">{t("admin.roleAdmin")}</NativeSelectOption>
+                  <NativeSelectOption value="tv">{t("admin.roleTV")}</NativeSelectOption>
+                </NativeSelect>
               </Field>
             </FieldGroup>
             <DialogFooter>
@@ -321,35 +324,40 @@ export default function AdminUsersPage() {
             })}
           >
             <FieldGroup>
-              <Field>
+              <Field data-invalid={Boolean(createForm.formState.errors.email)}>
                 <FieldLabel htmlFor="create-email">{t("admin.email")}</FieldLabel>
-                <Input id="create-email" type="email" {...createForm.register("email")} />
+                <Input
+                  id="create-email"
+                  type="email"
+                  aria-invalid={Boolean(createForm.formState.errors.email)}
+                  {...createForm.register("email")}
+                />
+                <FieldError errors={[createForm.formState.errors.email]} />
               </Field>
-              <Field>
+              <Field data-invalid={Boolean(createForm.formState.errors.password)}>
                 <FieldLabel htmlFor="create-password">{t("auth.password")}</FieldLabel>
                 <PasswordInput
                   id="create-password"
                   autoComplete="new-password"
+                  aria-invalid={Boolean(createForm.formState.errors.password)}
                   {...createForm.register("password")}
                 />
+                <FieldError errors={[createForm.formState.errors.password]} />
               </Field>
               <Field>
-                <FieldLabel>{t("admin.role")}</FieldLabel>
-                <Select
+                <FieldLabel htmlFor="create-role">{t("admin.role")}</FieldLabel>
+                <NativeSelect
+                  id="create-role"
+                  className="w-full"
                   value={createRole}
-                  onValueChange={(role) => {
-                    createForm.setValue("role", role);
+                  onChange={(event) => {
+                    createForm.setValue("role", event.target.value);
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">{t("admin.roleUser")}</SelectItem>
-                    <SelectItem value="admin">{t("admin.roleAdmin")}</SelectItem>
-                    <SelectItem value="tv">{t("admin.roleTV")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <NativeSelectOption value="user">{t("admin.roleUser")}</NativeSelectOption>
+                  <NativeSelectOption value="admin">{t("admin.roleAdmin")}</NativeSelectOption>
+                  <NativeSelectOption value="tv">{t("admin.roleTV")}</NativeSelectOption>
+                </NativeSelect>
               </Field>
             </FieldGroup>
             <DialogFooter>

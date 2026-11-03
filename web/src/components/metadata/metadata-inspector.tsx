@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { useMetadata } from "@/hooks/use-metadata";
 import { cn } from "@/lib/utils";
+import { translateApiError } from "@/lib/api-error";
 
 type MetadataInspectorProps = {
   path: string;
@@ -167,7 +168,7 @@ export function MetadataInspector({
         <Alert variant="destructive">
           <AlertDescription>
             {metadataQuery.error instanceof Error
-              ? metadataQuery.error.message
+              ? translateApiError(metadataQuery.error, t, { fallbackKey: "common.error" })
               : t("metadata.loadError")}
           </AlertDescription>
         </Alert>

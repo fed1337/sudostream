@@ -12,13 +12,15 @@ import { GuestAuthLayout } from "@/components/guest-auth-layout";
 import { TotpCodeInput } from "@/components/totp-code-input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { completeLoginSession, useCurrentUser } from "@/hooks/use-auth";
-import { extractApiErrorMessage } from "@/lib/api-error";
-
-const twoFactorRequiredError = "two factor required";
-const invalidTwoFactorError = "invalid two factor code";
+import {
+  ApiErrorMessage,
+  extractApiErrorMessage,
+  isApiErrorMessage,
+  translateApiError,
+} from "@/lib/api-error";
 
 type Step = "password" | "totp";
 
@@ -87,8 +89,13 @@ export default function UserChangePasswordPage() {
     },
   });
 
-  const errorMessage = mutation.error instanceof Error ? mutation.error.message : t("common.error");
-  const isInvalidTotp = errorMessage === invalidTwoFactorError;
+  const isInvalidTotp = isApiErrorMessage(mutation.error, ApiErrorMessage.invalidTwoFactorCode);
+  const showApiError =
+    mutation.isError && !isApiErrorMessage(mutation.error, ApiErrorMessage.twoFactorRequired);
+  const translatedError = translateApiError(mutation.error, t, {
+    fallbackKey: "account.changePasswordFailed",
+  });
+  const totpErrors = totpForm.formState.errors;
 
   return (
     <GuestAuthLayout
@@ -104,9 +111,7 @@ export default function UserChangePasswordPage() {
           submitLabel={has2FA ? t("account.continueToTwoFactor") : t("auth.resetPassword")}
           pendingLabel={t("auth.resetting")}
           isPending={mutation.isPending}
-          errorMessage={
-            mutation.isError && errorMessage !== twoFactorRequiredError ? errorMessage : null
-          }
+          errorMessage={showApiError ? translatedError : null}
           onSubmit={(values) => {
             mutation.reset();
             if (has2FA) {
@@ -119,7 +124,7 @@ export default function UserChangePasswordPage() {
               { password: values.password },
               {
                 onError: (error) => {
-                  if (error instanceof Error && error.message === twoFactorRequiredError) {
+                  if (isApiErrorMessage(error, ApiErrorMessage.twoFactorRequired)) {
                     setPendingPassword(values.password);
                     setStep("totp");
                     totpForm.reset({ totp: "" });
@@ -138,19 +143,20 @@ export default function UserChangePasswordPage() {
             mutation.mutate({ password: pendingPassword, totp: values.totp });
           })}
         >
-          {mutation.isError && errorMessage !== twoFactorRequiredError ? (
+          {showApiError ? (
             <Alert variant="destructive">
               <AlertTitle>
                 {isInvalidTotp ? t("account.invalidTotp") : t("account.changePasswordFailed")}
               </AlertTitle>
-              {!isInvalidTotp ? <AlertDescription>{errorMessage}</AlertDescription> : null}
+              {!isInvalidTotp ? <AlertDescription>{translatedError}</AlertDescription> : null}
             </Alert>
           ) : null}
 
           <FieldGroup>
-            <Field>
+            <Field data-invalid={Boolean(totpErrors.totp)}>
               <FieldLabel htmlFor="forced-change-totp">{t("account.totpCode")}</FieldLabel>
               <TotpCodeInput control={totpForm.control} name="totp" id="forced-change-totp" />
+              <FieldError errors={[totpErrors.totp]} />
             </Field>
           </FieldGroup>
           <Button type="submit" disabled={mutation.isPending} className="w-full">

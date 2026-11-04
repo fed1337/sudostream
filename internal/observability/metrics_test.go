@@ -67,6 +67,8 @@ func seedMetrics() {
 	observability.RecordHLSCacheLookup("miss")
 	observability.SetHLSCacheStats(3, 4096)
 	observability.RecordHLSSegmentRequest("hit")
+	observability.RecordHLSThrottle("pause")
+	observability.RecordHLSThrottle("resume")
 	observability.RecordDLNASOAPRequest("Browse", "success")
 	observability.RecordDLNAStreamRequest("success")
 	observability.RecordAuthLoginAttempt("success")
@@ -81,7 +83,7 @@ func requiredMetrics() []string {
 	return []string{
 		"http_requests_total", "playback_decisions_total", "playback_streams_active",
 		"playback_stream_bytes_total", "transcode_timeline_jobs_total", "transcode_segment_jobs_total",
-		"hls_cache_lookups_total", "hls_cache_bytes", "dlna_soap_requests_total",
+		"hls_cache_lookups_total", "hls_cache_bytes", "hls_throttle_events_total", "dlna_soap_requests_total",
 		"auth_login_attempts_total", "provider_task_items_total", "library_media_files", "trash_items",
 	}
 }

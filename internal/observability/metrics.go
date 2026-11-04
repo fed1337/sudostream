@@ -186,6 +186,13 @@ var (
 		},
 		[]string{metricLabelResult},
 	)
+	hlsThrottleEventsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hls_throttle_events_total",
+			Help: "HLS segment-encoder pause/resume throttle events.",
+		},
+		[]string{"action"},
+	)
 
 	maintenanceRunsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
@@ -466,6 +473,11 @@ func SetHLSCacheStats(entries int, bytes int64) {
 // RecordHLSSegmentRequest counts a segment resolution as hit, wait or restart.
 func RecordHLSSegmentRequest(result string) {
 	hlsSegmentRequestsTotal.WithLabelValues(labelOrUnknown(result)).Inc()
+}
+
+// RecordHLSThrottle counts an encoder pause or resume from the segment session throttle.
+func RecordHLSThrottle(action string) {
+	hlsThrottleEventsTotal.WithLabelValues(labelOrUnknown(action)).Inc()
 }
 
 // RecordMaintenanceRun records a finished maintenance run.

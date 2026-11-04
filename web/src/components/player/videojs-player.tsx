@@ -100,6 +100,13 @@ export function VideoJSPlayer({
         hlsJs: {
           preferManagedMediaSource: false,
           renderTextTracksNatively: true,
+          // Auto = original-first: start from a high bandwidth estimate so firstAutoLevel
+          // prefers the source/top rung; stock ABR may still down-switch under Auto only.
+          // Manual quality picks pin via videoRenditions.selectedIndex → hls.js nextLevel.
+          abrEwmaDefaultEstimate: 40_000_000,
+          abrEwmaDefaultEstimateMax: 50_000_000,
+          capLevelToPlayerSize: false,
+          capLevelOnFPSDrop: false,
           ...(startPosition !== undefined && startPosition > 0 ? { startPosition } : {}),
           xhrSetup: createHlsAuthXhrSetup(onHlsAuthFailure),
         },

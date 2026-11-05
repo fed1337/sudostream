@@ -111,14 +111,14 @@ TVmaze / AniList need no key in the sample compose for basic use.
 
 ## Admin UI settings
 
-### Auth (`Admin → Settings → Auth`)
+### Authentication (`Admin → Settings`)
 
 | Setting                     | Description                                                 |
 |-----------------------------|-------------------------------------------------------------|
 | Email confirmation required | New accounts start disabled until confirm (or admin Enable) |
 | Two-factor required         | Users must set up TOTP before normal use                    |
 
-### Network (`Admin → Settings → Network`)
+### Provider proxy (`Admin → Settings`)
 
 | Setting               | Description                                                                  |
 |-----------------------|------------------------------------------------------------------------------|
@@ -127,7 +127,7 @@ TVmaze / AniList need no key in the sample compose for basic use.
 | No-proxy              | Host/suffix list that bypasses the proxy                                     |
 | Test                  | Probes connectivity through the current draft settings                       |
 
-### Transcoding (`Admin → Settings → Transcoding`)
+### Transcoding (`Admin → Settings`)
 
 | Setting                | Description                                                                         |
 |------------------------|-------------------------------------------------------------------------------------|
@@ -139,7 +139,7 @@ TVmaze / AniList need no key in the sample compose for basic use.
 
 Direct Play does not force stereo downmix — multi-channel audio stays as-is until remux/encode.
 
-### DLNA (`Admin → Settings → DLNA`)
+### DLNA / UPnP (`Admin → Settings`)
 
 | Setting | Description                                                               |
 |---------|---------------------------------------------------------------------------|
@@ -154,12 +154,3 @@ Direct Play does not force stereo downmix — multi-channel audio stays as-is un
 | Retention days | Keep soft-deleted items this many days after delete (integer ≥ 1)                             |
 
 Manual Empty all remains on **Admin → Deleted items**. Turn retention off to keep items until emptied manually.
-
-### Libraries & providers (not cron)
-
-| Where                   | Settings                                                                        |
-|-------------------------|---------------------------------------------------------------------------------|
-| Library create / detail | Name, type (`film` / `series` / …), folder roots                                |
-| Library → providers     | Metadata / poster / subtitle provider, apply mode, write target, override flags |
-| Users → Libraries       | Per-library `create` / `read` / `update` / `delete` grants                      |
-| Users                   | Role (`admin` / `user` / `tv`), enable/disable, invites, 2FA reset              |

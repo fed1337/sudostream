@@ -1,8 +1,9 @@
-# First library
+# First Steps
 
-## 1. Sign in as admin
+## 1. Login as admin
 
-Open the UI (`SUDOSTREAM_BASE_URL`, usually `http://localhost:8080`). Change the bootstrap password immediately.
+Open the UI at `SUDOSTREAM_BASE_URL`. Login with `SUDOSTREAM_ADMIN_EMAIL` and `SUDOSTREAM_ADMIN_PASSWORD`.
+Change the bootstrap password immediately.
 
 ## 2. Create a library
 
@@ -32,7 +33,20 @@ Open the library → **Folders** → add paths from the folder picker (relative 
 
 Unassigned folders stay on disk but **do not** appear in browse or search.
 
-## 4. Grant users (optional)
+## 4. Create users (optional)
+
+### Invite
+
+1. Go to **Admin → Users** and click **Invite**.
+2. Enter the email address, choose a role and click **Send**.
+3. Open the user from the user list on the same page to grant access to libraries, activcate/deactivate, etc
+
+### Create
+
+You can also create a user by clicking **Create** and filling in their password. Useful if SMTP is unavailable.
+The password must be changed on the first login.
+
+### Grant access to libraries
 
 **Admin → Users → (user) → Libraries**
 
@@ -44,22 +58,27 @@ Non-admins need explicit `read` (and optionally `create` / `update` / `delete`).
 
 ## 5. Run a metadata scan
 
-On the library detail page, run **metadata scan** once (`metadata.scan` — ffprobe index into SQL).
+Go to **Admin → Libraries → (your library)** to open the details page, find **scan metadata** and run it once.
+It will index files into DB.
+Once it's finished (**Admin -> Schedule tasks -> Execution history**) you may set up a periodic metadata scan.
 
-Until that finishes, catalog shelves may look empty even though **browse** still shows files.
+Until that finishes, catalog shelves may look empty even though **browse** view still shows files.
 
 !!! tip "Other jobs later"
-    Thumbnails, providers, skip-intro detect, and global schedules are separate admin maintenance
-    actions — run them from **Admin → Schedule** when you need them. Recycle-bin retention is under **Admin → Settings**.
+    Once metadata is scanned you can setup warm thumbnails, skip-intro detect, automation and global jobs
+
+!!! tip "Scheduling jobs"
+    Run each job manually once to get the idea of how much time is needed for the next step
+    (i.e. metadata must be present before running automations).
+    Then setup a schedule. If you are unfamiliar with cron format use [crontab.guru](https://crontab.guru/)
 
 ## 6. Browse vs Tiles
 
-| Surface    | What you see                                                       |
-|------------|--------------------------------------------------------------------|
-| **Browse** | Real directories and files                                         |
-| **Tiles**  | Film/series views from the SQL index (titles, posters / thumbnails |
-| **Search** | ACL-filtered; scene-release-friendly matching                      |
-
+| Surface    | What you see                                        |
+|------------|-----------------------------------------------------|
+| **Browse** | Real directories and files                          |
+| **Tiles**  | Film/series views from the scanned metadata         |
+| **Search** | ACL-filtered; scene-release-friendly title matching |
 
 ## Checklist
 

@@ -14,7 +14,6 @@ const (
 	ActionMetadataScan       = "metadata.scan"
 	ActionThumbnailsWarm     = "thumbnails.warm"
 	ActionPlaybackCachePurge = "playback.cache.purge"
-	ActionTrashPurge         = "trash.purge"
 	// ActionProvidersMetadata runs the metadata provider task for a library.
 	ActionProvidersMetadata = "providers.metadata"
 	// ActionProvidersPosters runs the poster provider task for a library.
@@ -112,7 +111,7 @@ var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month 
 // IsGlobalAction reports whether action has no library scope.
 func IsGlobalAction(action string) bool {
 	switch action {
-	case ActionLibrariesScan, ActionPlaybackCachePurge, ActionTrashPurge:
+	case ActionLibrariesScan, ActionPlaybackCachePurge:
 		return true
 	default:
 		return false

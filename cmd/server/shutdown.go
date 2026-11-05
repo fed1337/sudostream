@@ -12,6 +12,7 @@ import (
 	"sudoStream/internal/httpapi"
 	"sudoStream/internal/maintenance"
 	"sudoStream/internal/metadata"
+	"sudoStream/internal/trash"
 	"syscall"
 	"time"
 )
@@ -59,6 +60,7 @@ func shutdownBackground( //nolint:cyclop // sequential optional shutdown steps
 	workers *httpapi.Workers,
 	metadataService *metadata.Service,
 	maintenanceService *maintenance.Service,
+	trashService *trash.Service,
 	database *db.Database,
 	dlnaController *dlna.Controller,
 ) {
@@ -74,6 +76,10 @@ func shutdownBackground( //nolint:cyclop // sequential optional shutdown steps
 		if indexer != nil {
 			indexer.Shutdown()
 		}
+	}
+
+	if trashService != nil {
+		trashService.Shutdown()
 	}
 
 	if maintenanceService != nil {

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"sudoStream/internal/access"
 	"sudoStream/internal/mediafs"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +21,10 @@ type Service struct {
 	access  *access.Service
 	kv      SettingsKV
 	cleaner Cleaner
+
+	autoStop     chan struct{}
+	autoOnce     sync.Once
+	autoStopOnce sync.Once
 }
 
 // NewService constructs a recycle-bin service.
@@ -30,10 +35,11 @@ func NewService(
 	kv SettingsKV,
 ) *Service {
 	return &Service{
-		media:  media,
-		store:  store,
-		access: accessService,
-		kv:     kv,
+		media:    media,
+		store:    store,
+		access:   accessService,
+		kv:       kv,
+		autoStop: make(chan struct{}),
 	}
 }
 
@@ -218,13 +224,14 @@ func (s *Service) OriginalPrefixes(ctx context.Context) ([]string, error) {
 	return prefixes, nil
 }
 
-// PurgeExpired permanently deletes items older than retentionDays. No-op when 0.
+// PurgeExpired permanently deletes items older than deletedAt+retentionDays.
+// No-op when recycle-bin retention is disabled.
 func (s *Service) PurgeExpired(ctx context.Context) (int, error) {
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
 		return 0, err
 	}
-	if settings.RetentionDays <= 0 {
+	if !settings.Enabled {
 		return 0, nil
 	}
 
@@ -233,10 +240,11 @@ func (s *Service) PurgeExpired(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
-	cutoff := time.Now().UTC().AddDate(0, 0, -settings.RetentionDays)
+	now := time.Now().UTC()
 	purged := 0
 	for _, item := range items {
-		if item.DeletedAt.After(cutoff) {
+		expiresAt := item.DeletedAt.UTC().AddDate(0, 0, settings.RetentionDays)
+		if now.Before(expiresAt) {
 			continue
 		}
 		delErr := s.DeleteForever(ctx, item.ID)
@@ -267,6 +275,9 @@ func (s *Service) GetSettings(ctx context.Context) (Settings, error) {
 		//nolint:nilerr // corrupt value falls back to safe defaults
 		return DefaultSettings(), nil
 	}
+	if settings.RetentionDays < 1 {
+		settings.RetentionDays = defaultRetentionDays
+	}
 
 	return NormalizeSettings(settings)
 }
@@ -295,9 +306,9 @@ func (s *Service) SaveSettings(ctx context.Context, settings Settings) (Settings
 	return normalized, nil
 }
 
-// NormalizeSettings clamps retentionDays to [0, maxRetentionDays].
+// NormalizeSettings requires retentionDays in [1, maxRetentionDays].
 func NormalizeSettings(settings Settings) (Settings, error) {
-	if settings.RetentionDays < 0 || settings.RetentionDays > maxRetentionDays {
+	if settings.RetentionDays < 1 || settings.RetentionDays > maxRetentionDays {
 		return Settings{}, ErrInvalidRetention
 	}
 

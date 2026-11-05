@@ -72,15 +72,6 @@ func (okPurger) PurgeStaleCache(_ time.Duration) (int, int64, error) {
 
 func (okPurger) CacheDirBytes() int64 { return 42 }
 
-type stubTrash struct {
-	purged int
-	err    error
-}
-
-func (s stubTrash) PurgeExpired(_ context.Context) (int, error) {
-	return s.purged, s.err
-}
-
 type stubSkipIntro struct {
 	summary map[string]any
 	err     error
@@ -143,7 +134,6 @@ func TestRunAction_CoversRunners(t *testing.T) {
 				Indexer:   stubIndexer{files: 4},
 				Thumbs:    stubThumbs{generated: 3},
 				Purger:    okPurger{},
-				Trash:     stubTrash{purged: 5},
 			})
 
 			assertRunSummary(ctx, t, svc, ActionLibrariesScan, "", "added", 1)
@@ -164,8 +154,6 @@ func TestRunAction_CoversRunners(t *testing.T) {
 				summary[ConfigKeyMaxAgeHours] != PurgeRetentionHours {
 				t.Fatalf("purge: summary=%v err=%v", summary, err)
 			}
-
-			assertRunSummary(ctx, t, svc, ActionTrashPurge, "", "purged", 5)
 
 			providerSvc := NewService(store, Deps{
 				Access: stubLibraryAccess{library: lib},

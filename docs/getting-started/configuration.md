@@ -146,11 +146,14 @@ Direct Play does not force stereo downmix — multi-channel audio stays as-is un
 | Enabled | Turns the LAN Media Server on/off                                         |
 | TV user | Principal with role **TV** whose library grants define the published tree |
 
-### Trash (`Admin → Deleted items` / trash settings)
+### Recycle bin retention (`Admin → Settings`)
 
-| Setting        | Description                                                                                        |
-|----------------|----------------------------------------------------------------------------------------------------|
-| Retention days | How long soft-deleted items stay before purge jobs may remove them (`0` = keep until manual purge) |
+| Setting        | Description                                                                                   |
+|----------------|-----------------------------------------------------------------------------------------------|
+| Enabled        | When on, items past retention are removed at midnight UTC                                     |
+| Retention days | Keep soft-deleted items this many days after delete (integer ≥ 1)                             |
+
+Manual Empty all remains on **Admin → Deleted items**. Turn retention off to keep items until emptied manually.
 
 ### Libraries & providers (not cron)
 

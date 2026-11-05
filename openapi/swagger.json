@@ -731,6 +731,9 @@
             },
             "internal_httpapi.TrashSettingsResponse": {
                 "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
                     "retentionDays": {
                         "type": "integer"
                     }
@@ -2050,7 +2053,7 @@
     "info": {
         "description": "HTTP API for browsing and streaming media files.",
         "title": "sudoStream API",
-        "version": "0.1.0"
+        "version": "0.3.0"
     },
     "externalDocs": {
         "description": "",

@@ -160,7 +160,7 @@ func TestService_MoveRestoreDeleteForever(t *testing.T) { //nolint:cyclop
 func TestService_PurgeExpiredNoopWhenRetentionOff(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "purge is a no-op when retentionDays is 0", func(a *allure.Context) {
+	allure.Test(t, "purge runs only when retention is enabled", func(a *allure.Context) {
 		t := a.T()
 		root := t.TempDir()
 		media, err := mediafs.New(root)
@@ -190,12 +190,22 @@ func TestService_PurgeExpiredNoopWhenRetentionOff(t *testing.T) {
 			t.Fatalf("purge default: n=%d err=%v", purged, err)
 		}
 
-		err = settingsKV.SaveSettingValue(ctx, settingsKey, []byte(`{"retentionDays":1}`))
+		err = settingsKV.SaveSettingValue(ctx, settingsKey, []byte(`{"enabled":false,"retentionDays":1}`))
 		if err != nil {
 			t.Fatalf("save settings: %v", err)
 		}
 		item.DeletedAt = time.Now().UTC().Add(-48 * time.Hour)
 		store.items[item.ID] = item
+
+		purged, err = svc.PurgeExpired(ctx)
+		if err != nil || purged != 0 {
+			t.Fatalf("purge disabled: n=%d err=%v", purged, err)
+		}
+
+		err = settingsKV.SaveSettingValue(ctx, settingsKey, []byte(`{"enabled":true,"retentionDays":1}`))
+		if err != nil {
+			t.Fatalf("enable settings: %v", err)
+		}
 
 		purged, err = svc.PurgeExpired(ctx)
 		if err != nil || purged != 1 {
@@ -207,15 +217,19 @@ func TestService_PurgeExpiredNoopWhenRetentionOff(t *testing.T) {
 func TestNormalizeSettings(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "retentionDays 0 is valid; negatives are rejected", func(a *allure.Context) {
+	allure.Test(t, "retentionDays must be >= 1", func(a *allure.Context) {
 		t := a.T()
-		got, err := NormalizeSettings(Settings{RetentionDays: 0})
-		if err != nil || got.RetentionDays != 0 {
-			t.Fatalf("zero: %v %+v", err, got)
+		got, err := NormalizeSettings(Settings{RetentionDays: 1})
+		if err != nil || got.RetentionDays != 1 {
+			t.Fatalf("one: %v %+v", err, got)
+		}
+		_, err = NormalizeSettings(Settings{RetentionDays: 0})
+		if err == nil {
+			t.Fatal("expected invalid zero")
 		}
 		_, err = NormalizeSettings(Settings{RetentionDays: -1})
 		if err == nil {
-			t.Fatal("expected invalid")
+			t.Fatal("expected invalid negative")
 		}
 	})
 }

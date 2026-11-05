@@ -49,8 +49,8 @@ On the library detail page, run **metadata scan** once (`metadata.scan` — ffpr
 Until that finishes, catalog shelves may look empty even though **browse** still shows files.
 
 !!! tip "Other jobs later"
-    Thumbnails, providers, trash purge, skip-intro detect, and global schedules are separate admin maintenance
-    actions — run them from **Admin → Maintenance** when you need them.
+    Thumbnails, providers, skip-intro detect, and global schedules are separate admin maintenance
+    actions — run them from **Admin → Schedule** when you need them. Recycle-bin retention is under **Admin → Settings**.
 
 ## 6. Browse vs Tiles
 

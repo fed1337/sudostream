@@ -2,19 +2,15 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { RotateCcwIcon, Trash2Icon } from "lucide-react";
 
-import {
-  getApiAdminTrashOptions,
-  getApiAdminTrashSettingsOptions,
-} from "@/client/@tanstack/react-query.gen";
+import { getApiAdminTrashOptions } from "@/client/@tanstack/react-query.gen";
 import {
   deleteApiAdminTrash,
   deleteApiAdminTrashById,
-  patchApiAdminTrashSettings,
   postApiAdminTrashByIdRestore,
 } from "@/client/sdk.gen";
+import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -24,7 +20,6 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { TrashSettingsForm } from "@/pages/admin/trash-settings-form";
 import {
   Table,
   TableBody,
@@ -47,9 +42,6 @@ export default function AdminTrashPage() {
   const { t } = useTranslation();
   const trashQuery = useQuery({
     ...getApiAdminTrashOptions(),
-  });
-  const settingsQuery = useQuery({
-    ...getApiAdminTrashSettingsOptions(),
   });
   const restoreMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -91,22 +83,7 @@ export default function AdminTrashPage() {
     },
   });
 
-  const saveSettingsMutation = useMutation({
-    mutationFn: async (days: number) => {
-      const response = await patchApiAdminTrashSettings({
-        body: { retentionDays: days },
-      });
-      if (response.error || !response.data) {
-        throw new Error(extractApiErrorMessage(response.error) ?? t("admin.trashSettingsFailed"));
-      }
-      return response.data;
-    },
-    onSuccess: () => {
-      void settingsQuery.refetch();
-    },
-  });
-
-  if (trashQuery.isLoading || settingsQuery.isLoading) {
+  if (trashQuery.isLoading) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-8 w-72" />
@@ -116,17 +93,9 @@ export default function AdminTrashPage() {
   }
 
   const items = trashQuery.data?.items ?? [];
-  const busy =
-    restoreMutation.isPending ||
-    deleteMutation.isPending ||
-    emptyMutation.isPending ||
-    saveSettingsMutation.isPending;
+  const busy = restoreMutation.isPending || deleteMutation.isPending || emptyMutation.isPending;
   const error =
-    restoreMutation.error ??
-    deleteMutation.error ??
-    emptyMutation.error ??
-    saveSettingsMutation.error ??
-    trashQuery.error;
+    restoreMutation.error ?? deleteMutation.error ?? emptyMutation.error ?? trashQuery.error;
 
   return (
     <div className="flex flex-col gap-6">
@@ -135,33 +104,21 @@ export default function AdminTrashPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("admin.trashTitle")}</h1>
           <p className="text-muted-foreground">{t("admin.trashDescription")}</p>
         </div>
-        <Button
+        <ConfirmActionButton
+          label={t("admin.trashEmpty")}
+          title={t("admin.trashEmptyConfirmTitle")}
+          description={t("admin.trashEmptyConfirmDescription")}
+          confirmLabel={t("admin.trashEmpty")}
           variant="destructive"
           disabled={busy || items.length === 0}
-          onClick={() => {
+          pending={emptyMutation.isPending}
+          onConfirm={() => {
             emptyMutation.mutate();
           }}
         >
-          {emptyMutation.isPending ? <Spinner /> : null}
-          {t("admin.trashEmpty")}
-        </Button>
+          {emptyMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+        </ConfirmActionButton>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("admin.trashRetentionTitle")}</CardTitle>
-          <CardDescription>{t("admin.trashRetentionDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TrashSettingsForm
-            retentionDays={settingsQuery.data?.retentionDays ?? 0}
-            pending={busy}
-            onSave={(days) => {
-              saveSettingsMutation.mutate(days);
-            }}
-          />
-        </CardContent>
-      </Card>
 
       {error ? (
         <Alert variant="destructive">

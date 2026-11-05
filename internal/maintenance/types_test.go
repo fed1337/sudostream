@@ -32,11 +32,14 @@ func TestLockKeyAndActionHelpers(t *testing.T) {
 
 	allure.Test(t, "action catalog helpers", func(a *allure.Context) {
 		t := a.T()
-		if !IsGlobalAction(ActionTrashPurge) || IsLibraryAction(ActionTrashPurge) {
-			t.Fatal("trash.purge scope")
+		if !IsGlobalAction(ActionLibrariesScan) || IsLibraryAction(ActionLibrariesScan) {
+			t.Fatal("libraries.scan scope")
 		}
 		if !IsLibraryAction(ActionMetadataScan) || IsGlobalAction(ActionMetadataScan) {
 			t.Fatal("metadata.scan scope")
+		}
+		if ValidAction("trash.purge") {
+			t.Fatal("trash.purge must not be a maintenance action")
 		}
 		for _, action := range []string{
 			ActionProvidersMetadata, ActionProvidersPosters, ActionProvidersSubtitles,

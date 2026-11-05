@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { CpuIcon, NetworkIcon, SettingsIcon, TvIcon } from "lucide-react";
+import { CpuIcon, NetworkIcon, SettingsIcon, Trash2Icon, TvIcon } from "lucide-react";
 import { z } from "zod";
 
 import type {
@@ -18,6 +18,7 @@ import {
   getApiAdminNetworkSettingsOptions,
   getApiAdminSettingsOptions,
   getApiAdminTranscodeSettingsOptions,
+  getApiAdminTrashSettingsOptions,
   getApiAdminUsersOptions,
 } from "@/client/@tanstack/react-query.gen";
 import {
@@ -25,8 +26,10 @@ import {
   patchApiAdminNetworkSettings,
   patchApiAdminSettings,
   patchApiAdminTranscodeSettings,
+  patchApiAdminTrashSettings,
   postApiAdminNetworkSettingsTest,
 } from "@/client/sdk.gen";
+import { TrashSettingsForm, type TrashSettingsValues } from "@/pages/admin/trash-settings-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +66,9 @@ export default function AdminSettingsPage() {
   });
   const dlnaQuery = useQuery({
     ...getApiAdminDlnaSettingsOptions(),
+  });
+  const trashSettingsQuery = useQuery({
+    ...getApiAdminTrashSettingsOptions(),
   });
   const usersQuery = useQuery({
     ...getApiAdminUsersOptions(),
@@ -291,6 +297,20 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const saveTrashMutation = useMutation({
+    mutationFn: async (body: TrashSettingsValues) => {
+      const response = await patchApiAdminTrashSettings({ body });
+      if (response.error || !response.data) {
+        throw new Error(extractApiErrorMessage(response.error) ?? t("admin.trashSettingsFailed"));
+      }
+
+      return response.data;
+    },
+    onSuccess: () => {
+      void trashSettingsQuery.refetch();
+    },
+  });
+
   const tvUsers = (usersQuery.data?.users ?? []).filter((user) => user.role === "tv");
 
   const testNetworkMutation = useMutation({
@@ -309,7 +329,12 @@ export default function AdminSettingsPage() {
     },
   });
 
-  if (settingsQuery.isLoading || transcodeQuery.isLoading || networkQuery.isLoading) {
+  if (
+    settingsQuery.isLoading ||
+    transcodeQuery.isLoading ||
+    networkQuery.isLoading ||
+    trashSettingsQuery.isLoading
+  ) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-8 w-72" />
@@ -876,6 +901,41 @@ export default function AdminSettingsPage() {
               </Field>
             </FieldGroup>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trash2Icon className="size-5" />
+            {t("admin.trashRetentionTitle")}
+          </CardTitle>
+          <CardDescription>{t("admin.trashRetentionDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {saveTrashMutation.isError ? (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>{t("admin.trashSettingsFailed")}</AlertTitle>
+              <AlertDescription>
+                {translateApiError(saveTrashMutation.error, t, {
+                  fallbackKey: "admin.trashSettingsFailed",
+                })}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {saveTrashMutation.isSuccess ? (
+            <Alert variant="success" className="mb-4">
+              <AlertTitle>{t("admin.saveTrashSettingsSuccess")}</AlertTitle>
+            </Alert>
+          ) : null}
+          <TrashSettingsForm
+            enabled={Boolean(trashSettingsQuery.data?.enabled)}
+            retentionDays={trashSettingsQuery.data?.retentionDays ?? 1}
+            pending={saveTrashMutation.isPending}
+            onSave={(values) => {
+              saveTrashMutation.mutate(values);
+            }}
+          />
         </CardContent>
       </Card>
     </div>

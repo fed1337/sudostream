@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sudoStream/internal/observability"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -25,6 +26,14 @@ const (
 	sessionIdleTimeout = 45 * time.Second
 	sessionReapPeriod  = 15 * time.Second
 	stderrTailLimit    = 4096
+
+	// throttleAheadSegments pauses ffmpeg when it is this many segments ahead of playback
+	// (~3 minutes at SegmentTargetSeconds).
+	throttleAheadSegments = 30
+	// throttleResumeSegments resumes a paused encoder once the lead shrinks to this many
+	// segments (~2 minutes).
+	throttleResumeSegments = 20
+	throttlePollInterval   = 500 * time.Millisecond
 
 	segmentResultHit     = "hit"
 	segmentResultWait    = "wait"
@@ -41,11 +50,14 @@ type segmentSession struct {
 	startIndex int
 	cancel     context.CancelFunc
 	done       chan struct{}
+	process    *os.Process
 
-	mu         sync.Mutex
-	err        error
-	stderr     string
-	lastAccess time.Time
+	mu            sync.Mutex
+	err           error
+	stderr        string
+	lastAccess    time.Time
+	lastRequested int
+	paused        bool
 }
 
 func (ss *segmentSession) finished() bool {
@@ -55,12 +67,6 @@ func (ss *segmentSession) finished() bool {
 	default:
 		return false
 	}
-}
-
-func (ss *segmentSession) touch() {
-	ss.mu.Lock()
-	ss.lastAccess = time.Now()
-	ss.mu.Unlock()
 }
 
 func (ss *segmentSession) idleFor(now time.Time) time.Duration {
@@ -81,11 +87,73 @@ func (ss *segmentSession) failure() (string, bool) {
 	return ss.stderr, true
 }
 
+func (ss *segmentSession) noteRequested(index int) {
+	ss.mu.Lock()
+	ss.lastRequested = index
+	ss.lastAccess = time.Now()
+	ss.mu.Unlock()
+}
+
+// throttleShouldPause reports whether the encoder should be stopped given its lead over playback.
+func throttleShouldPause(gap int, paused bool) bool {
+	if paused {
+		return gap > throttleResumeSegments
+	}
+
+	return gap > throttleAheadSegments
+}
+
+func (ss *segmentSession) applyThrottle() {
+	if ss.finished() || ss.process == nil {
+		return
+	}
+
+	highest, ok := highestSegmentIndex(ss.variantDir)
+	if !ok {
+		highest = ss.startIndex - 1
+	}
+
+	ss.mu.Lock()
+	gap := highest - ss.lastRequested
+	wantPause := throttleShouldPause(gap, ss.paused)
+	paused := ss.paused
+	proc := ss.process
+	ss.mu.Unlock()
+
+	if wantPause == paused {
+		return
+	}
+
+	if wantPause {
+		err := proc.Signal(syscall.SIGSTOP)
+		if err != nil {
+			return
+		}
+
+		ss.mu.Lock()
+		ss.paused = true
+		ss.mu.Unlock()
+		observability.RecordHLSThrottle("pause")
+
+		return
+	}
+
+	err := proc.Signal(syscall.SIGCONT)
+	if err != nil {
+		return
+	}
+
+	ss.mu.Lock()
+	ss.paused = false
+	ss.mu.Unlock()
+	observability.RecordHLSThrottle("resume")
+}
+
 // ResolveSegment returns the on-disk path of a rendition segment, producing it if needed.
 //
-// Segments are never generated ahead of demand: a request either lands inside the window a
-// running encoder is about to write, or it restarts ffmpeg at that exact offset. Both quality
-// and audio switches therefore cost one seek, not a re-encode of the remainder.
+// A live encoder runs toward EOF and is paused when it pulls too far ahead of playback. A
+// request either hits a finished segment, waits inside the live window, or restarts ffmpeg at
+// that exact offset (seek / large gap / rendition switch).
 func (s *Service) ResolveSegment(
 	ctx context.Context,
 	cacheKey, mediaPath string,
@@ -119,7 +187,8 @@ func (s *Service) ResolveSegment(
 		observability.RecordHLSSegmentRequest(segmentResultHit)
 
 		if session != nil {
-			session.touch()
+			session.noteRequested(index)
+			session.applyThrottle()
 		}
 
 		return segmentPath, nil
@@ -137,6 +206,8 @@ func (s *Service) ResolveSegment(
 		}
 	} else {
 		observability.RecordHLSSegmentRequest(segmentResultWait)
+		session.noteRequested(index)
+		session.applyThrottle()
 	}
 
 	return waitForSegment(ctx, session, variantDir, index, segmentPath)
@@ -215,7 +286,8 @@ func waitForSegment(
 
 	for {
 		if segmentComplete(variantDir, index, session) {
-			session.touch()
+			session.noteRequested(index)
+			session.applyThrottle()
 
 			return segmentPath, nil
 		}
@@ -227,6 +299,9 @@ func waitForSegment(
 
 			return "", fmt.Errorf("%w: segment %d not produced", ErrSegmentUnavailable, index)
 		}
+
+		// A paused encoder will never produce the missing segment; nudge it awake.
+		session.applyThrottle()
 
 		select {
 		case <-ctx.Done():
@@ -265,12 +340,13 @@ func (s *Service) startSession(
 	sessionCtx, cancel := s.detachedContext(ctx)
 
 	session := &segmentSession{
-		variant:    variant,
-		variantDir: variantDir,
-		startIndex: index,
-		cancel:     cancel,
-		done:       make(chan struct{}),
-		lastAccess: time.Now(),
+		variant:       variant,
+		variantDir:    variantDir,
+		startIndex:    index,
+		cancel:        cancel,
+		done:          make(chan struct{}),
+		lastAccess:    time.Now(),
+		lastRequested: index,
 	}
 
 	settings := s.currentSettings()
@@ -311,12 +387,34 @@ func (s *Service) startSession(
 		return nil, fmt.Errorf("start ffmpeg segment session: %w", err)
 	}
 
+	session.process = cmd.Process
 	s.registerSession(cacheKey, variant, session)
 	s.wg.Add(1)
 
 	go s.awaitSession(cacheKey, cmd, session, stderr)
+	s.wg.Add(1)
+
+	go s.throttleSession(session)
 
 	return session, nil
+}
+
+func (s *Service) throttleSession(session *segmentSession) {
+	defer s.wg.Done()
+
+	ticker := time.NewTicker(throttlePollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-session.done:
+			return
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
+			session.applyThrottle()
+		}
+	}
 }
 
 func (s *Service) awaitSession(
@@ -393,6 +491,17 @@ func (s *Service) stopSession(cacheKey string, variant Variant) {
 	session := s.session(cacheKey, variant)
 	if session == nil {
 		return
+	}
+
+	// SIGKILL via context cancel works on a SIGSTOP'd process; resume first so Wait unblocks
+	// promptly on platforms that leave stopped children until continued.
+	session.mu.Lock()
+	proc := session.process
+	paused := session.paused
+	session.mu.Unlock()
+
+	if paused && proc != nil {
+		_ = proc.Signal(syscall.SIGCONT)
 	}
 
 	session.cancel()

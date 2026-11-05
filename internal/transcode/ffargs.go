@@ -9,11 +9,6 @@ import (
 	"strings"
 )
 
-// maxRunSegments bounds how far ahead of the request a single ffmpeg run may encode. It is the
-// throttle: without it one seek transcodes the rest of the film for a client that may never
-// watch it. Reaching the bound simply ends the run; the next request restarts one seek later.
-const maxRunSegments = 12
-
 const (
 	// copySeekPreroll puts the demuxer seek safely before the target keyframe. Demuxers do not
 	// agree on where a seek lands (Matroska plus B-frames undershoots by a GOP, MPEG-TS
@@ -51,9 +46,10 @@ func (r segmentRun) startSeconds() float64 {
 	return SegmentStart(r.meta.Segments, r.startIndex)
 }
 
-// endIndex is the first segment this run will not produce.
+// endIndex is the first segment this run will not produce (always end of file).
+// Ahead-of-playback pacing is SIGSTOP/SIGCONT in the session throttle, not a short `-t`.
 func (r segmentRun) endIndex() int {
-	return min(r.startIndex+maxRunSegments, len(r.meta.Segments))
+	return len(r.meta.Segments)
 }
 
 // cutTimes lists the segment boundaries after the run's start offset.
@@ -72,21 +68,6 @@ func (r segmentRun) cutTimes() []float64 {
 	}
 
 	return cuts
-}
-
-// runSeconds is the throttled run length, or 0 when the run continues to end of file.
-func (r segmentRun) runSeconds() float64 {
-	end := r.endIndex()
-	if end >= len(r.meta.Segments) {
-		return 0
-	}
-
-	total := 0.0
-	for index := r.startIndex; index < end; index++ {
-		total += r.meta.Segments[index]
-	}
-
-	return total
 }
 
 // canCopyVideo reports whether the rung is the untouched source resolution of a copyable stream.
@@ -156,11 +137,6 @@ func buildSegmentArgs(run segmentRun) []string {
 		}
 
 		args = append(args, "-i", run.mediaPath)
-	}
-
-	if length := run.runSeconds(); length > 0 {
-		// -t counts from the output seek point, which sits trim seconds before the start.
-		args = append(args, "-t", formatSeconds(length+trim))
 	}
 
 	if run.variant.Kind == VariantAudio {

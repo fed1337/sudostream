@@ -8,8 +8,10 @@ FROM node:26-trixie-slim AS frontend
 
 RUN npm install -g pnpm@latest
 
-WORKDIR /src/web
+WORKDIR /src
+COPY openapi/ ./openapi/
 
+WORKDIR /src/web
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile

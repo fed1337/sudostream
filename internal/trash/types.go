@@ -18,8 +18,9 @@ var (
 )
 
 const (
-	settingsKey      = "recycle_bin"
-	maxRetentionDays = 36500
+	settingsKey          = "recycle_bin"
+	defaultRetentionDays = 1
+	maxRetentionDays     = 36500
 )
 
 // Item is one recycle-bin operation (file or folder root).
@@ -34,12 +35,13 @@ type Item struct {
 
 // Settings is stored under settings.key = recycle_bin.
 type Settings struct {
-	RetentionDays int `json:"retentionDays"`
+	Enabled       bool `json:"enabled"`
+	RetentionDays int  `json:"retentionDays"`
 }
 
-// DefaultSettings keeps items until an admin empties trash.
+// DefaultSettings keeps retention off until an admin enables it.
 func DefaultSettings() Settings {
-	return Settings{RetentionDays: 0}
+	return Settings{Enabled: false, RetentionDays: defaultRetentionDays}
 }
 
 // Store persists trash_items rows.

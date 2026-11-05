@@ -52,37 +52,28 @@ func TestSegmentRun_CutTimesAreRelativeToTheSeek(t *testing.T) {
 	})
 }
 
-func TestSegmentRun_ThrottlesRunLength(t *testing.T) {
+func TestSegmentRun_EncodesToEOF(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(
 		t,
-		"a run stops after the throttle bound instead of encoding to EOF",
+		"a run covers every remaining segment; pacing is pause throttle not -t",
 		func(a *allure.Context) {
 			t := a.T()
-			run := segmentRunFixture(VideoVariant(720), 0)
-			run.meta.Segments = make([]float64, maxRunSegments*2)
+			run := segmentRunFixture(VideoVariant(720), 2)
+			run.meta.Segments = []float64{6, 6, 6, 6, 6, 6}
 
-			for index := range run.meta.Segments {
-				run.meta.Segments[index] = SegmentTargetSeconds
+			if end := run.endIndex(); end != 6 {
+				t.Fatalf("end index: got %d want 6", end)
 			}
 
-			if end := run.endIndex(); end != maxRunSegments {
-				t.Fatalf("end index: got %d want %d", end, maxRunSegments)
+			if cuts := run.cutTimes(); len(cuts) != 3 {
+				t.Fatalf("cuts: got %d want 3 (%v)", len(cuts), cuts)
 			}
 
-			want := SegmentTargetSeconds * maxRunSegments
-			if length := run.runSeconds(); length != want {
-				t.Fatalf("run seconds: got %v want %v", length, want)
-			}
-
-			if cuts := run.cutTimes(); len(cuts) != maxRunSegments-1 {
-				t.Fatalf("cuts: got %d want %d", len(cuts), maxRunSegments-1)
-			}
-
-			tail := segmentRunFixture(VideoVariant(720), 0)
-			if length := tail.runSeconds(); length != 0 {
-				t.Fatalf("a run reaching EOF must not be time-limited, got %v", length)
+			joined := strings.Join(buildSegmentArgs(run), " ")
+			if strings.Contains(joined, "-t ") {
+				t.Fatalf("EOF runs must not set -t, got: %s", joined)
 			}
 		},
 	)
@@ -151,12 +142,13 @@ func TestBuildSegmentArgs_CopySeekPrerollAndTrim(t *testing.T) {
 			reject: []string{"-t "},
 		},
 		{
-			name:       "throttled run extends -t by the trim",
+			name:       "long copy run seeks with trim and has no -t",
 			variant:    VideoVariant(720),
-			segments:   uniform(maxRunSegments * 2),
+			segments:   uniform(40),
 			keyframes:  []float64{0, 6, 12, 18},
 			startIndex: 2,
-			want:       []string{"-ss 1.000000 -t 72.500000 -map"},
+			want:       []string{"-ss 10.500000 -i /media/movie.mkv -ss 1.000000 -map"},
+			reject:     []string{"-t "},
 		},
 		{
 			name:       "start inside the preroll skips the input seek",

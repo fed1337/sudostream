@@ -14,12 +14,10 @@ var (
 	errIndexerUnavailable   = errors.New("metadata indexer unavailable")
 	errThumbsUnavailable    = errors.New("thumbnail warmer unavailable")
 	errPurgerUnavailable    = errors.New("cache purger unavailable")
-	errTrashUnavailable     = errors.New("trash service unavailable")
 	errProvidersUnavailable = errors.New("provider settings service unavailable")
 	errSkipIntroUnavailable = errors.New("skip intro detector unavailable")
 )
 
-//nolint:cyclop // dispatch table for all maintenance actions
 func (s *Service) runAction(
 	ctx context.Context,
 	action, libraryID string,
@@ -33,8 +31,6 @@ func (s *Service) runAction(
 		return s.runThumbnailsWarm(ctx, libraryID)
 	case ActionPlaybackCachePurge:
 		return s.runPlaybackCachePurge(ctx)
-	case ActionTrashPurge:
-		return s.runTrashPurge(ctx)
 	case ActionProvidersMetadata:
 		return s.runProviderTask(ctx, libraryID, provider.TaskMetadata)
 	case ActionProvidersPosters:
@@ -132,19 +128,6 @@ func (s *Service) runPlaybackCachePurge(ctx context.Context) (map[string]any, er
 		"bytesRemoved":       bytesRemoved,
 		ConfigKeyMaxAgeHours: PurgeRetentionHours,
 	}, nil
-}
-
-func (s *Service) runTrashPurge(ctx context.Context) (map[string]any, error) {
-	if s.deps.Trash == nil {
-		return nil, errTrashUnavailable
-	}
-
-	purged, err := s.deps.Trash.PurgeExpired(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("purge trash: %w", err)
-	}
-
-	return map[string]any{"purged": purged}, nil
 }
 
 // runProviderTask handles all three providers.* actions (FI-1 L14/L20). Per-file failures are

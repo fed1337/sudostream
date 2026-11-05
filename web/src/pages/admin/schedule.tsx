@@ -42,7 +42,6 @@ type ScheduleInput = SudoStreamInternalMaintenanceScheduleInput;
 
 const SCAN_ACTION = "libraries.scan";
 const PURGE_ACTION = "playback.cache.purge";
-const TRASH_PURGE_ACTION = "trash.purge";
 const RUNS_LIMIT = 30;
 
 export default function AdminSchedulePage() {
@@ -67,8 +66,6 @@ export default function AdminSchedulePage() {
   const [scanEnabled, setScanEnabled] = useState(false);
   const [purgeCron, setPurgeCron] = useState("");
   const [purgeEnabled, setPurgeEnabled] = useState(false);
-  const [trashCron, setTrashCron] = useState("");
-  const [trashEnabled, setTrashEnabled] = useState(false);
   const [prevMaintenance, setPrevMaintenance] = useState(maintenanceQuery.data);
 
   if (maintenanceQuery.data !== prevMaintenance) {
@@ -76,13 +73,10 @@ export default function AdminSchedulePage() {
     const actions = maintenanceQuery.data?.actions ?? [];
     const scan = actions.find((action) => action.action === SCAN_ACTION);
     const purge = actions.find((action) => action.action === PURGE_ACTION);
-    const trashPurge = actions.find((action) => action.action === TRASH_PURGE_ACTION);
     setScanCron(scan?.schedule?.cron ?? "");
     setScanEnabled(Boolean(scan?.schedule?.enabled));
     setPurgeCron(purge?.schedule?.cron ?? "");
     setPurgeEnabled(Boolean(purge?.schedule?.enabled));
-    setTrashCron(trashPurge?.schedule?.cron ?? "");
-    setTrashEnabled(Boolean(trashPurge?.schedule?.enabled));
   }
 
   const invalidateRuns = () => {
@@ -147,7 +141,6 @@ export default function AdminSchedulePage() {
   const actions = maintenanceQuery.data?.actions ?? [];
   const scanStatus = actions.find((action) => action.action === SCAN_ACTION);
   const purgeStatus = actions.find((action) => action.action === PURGE_ACTION);
-  const trashStatus = actions.find((action) => action.action === TRASH_PURGE_ACTION);
   const cacheBytes = maintenanceQuery.data?.cacheBytes;
   const purgeDescription =
     typeof cacheBytes === "number"
@@ -225,28 +218,6 @@ export default function AdminSchedulePage() {
               runMutation.mutate(PURGE_ACTION);
             }}
             onCancel={cancelForStatus(purgeStatus)}
-          />
-
-          <MaintenanceActionCard
-            title={t("admin.trashPurgeTitle")}
-            description={t("admin.trashPurgeDescription")}
-            cron={trashCron}
-            enabled={trashEnabled}
-            status={trashStatus}
-            saving={saveMutation.isPending}
-            running={Boolean(trashStatus?.running) || runMutation.isPending}
-            canceling={cancelMutation.isPending}
-            onSave={(values) => {
-              setTrashCron(values.cron);
-              setTrashEnabled(values.enabled);
-              saveMutation.mutate([
-                { action: TRASH_PURGE_ACTION, cron: values.cron, enabled: values.enabled },
-              ]);
-            }}
-            onRun={() => {
-              runMutation.mutate(TRASH_PURGE_ACTION);
-            }}
-            onCancel={cancelForStatus(trashStatus)}
           />
 
           {saveMutation.isError || runMutation.isError || cancelMutation.isError ? (

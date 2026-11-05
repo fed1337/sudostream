@@ -2,35 +2,47 @@
 site_name: sudoStream Docs
 site_url: https://fed1337.github.io/sudostream
 repo_url: https://github.com/fed1337/sudostream
+
 theme:
   name: material
+  favicon: assets/favicon.svg
+  logo: assets/logo.svg
   icon:
-    repo: fontawesome/solid/forward
-  features:
-    - toc.follow
-    - navigation.top
-    - navigation.tracking
-    - navigation.instant
-    - search.suggest
-    - search.highlight
+    repo: fontawesome/brands/github-square
   font:
     code: Jetbrains Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
 
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
+  features:
+    - toc.follow
+    - navigation.top
+    - navigation.tracking
+    - navigation.instant
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.path
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.select
+
+extra_css:
+  - stylesheets/extra.css
+
 plugins:
   - search:
       lang:
@@ -41,5 +53,36 @@ plugins:
   - privacy:
       concurrency: 4
       cache: false
+
 markdown_extensions:
+  - toc:
+      permalink: true
   - attr_list
+  - md_in_html
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - tables
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      options:
+        custom_icons:
+          - docs/overrides/.icons
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: getting-started/install.md
+      - Configure: getting-started/configuration.md
+      - First steps: getting-started/first-steps.md

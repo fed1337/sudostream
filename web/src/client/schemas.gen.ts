@@ -780,6 +780,9 @@ export const internal_httpapi_TrashListResponseSchema = {
 
 export const internal_httpapi_TrashSettingsResponseSchema = {
   properties: {
+    enabled: {
+      type: 'boolean'
+    },
     retentionDays: {
       type: 'integer'
     }

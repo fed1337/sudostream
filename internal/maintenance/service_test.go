@@ -316,7 +316,7 @@ func TestService_PatchAndStatus(
 			if err != nil {
 				t.Fatalf("global status: %v", err)
 			}
-			if len(global) != 3 {
+			if len(global) != 2 {
 				t.Fatalf("global actions=%d", len(global))
 			}
 

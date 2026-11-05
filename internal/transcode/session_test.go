@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -343,6 +344,101 @@ func TestWaitForSegment_CancelFailureAndMissing(t *testing.T) {
 	)
 }
 
+func TestThrottleShouldPause_Hysteresis(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		gap       int
+		paused    bool
+		wantPause bool
+	}{
+		{name: "running under ahead bound keeps going", gap: throttleAheadSegments, paused: false},
+		{name: "running past ahead bound pauses", gap: throttleAheadSegments + 1, paused: false, wantPause: true},
+		{name: "paused above resume bound stays paused", gap: throttleResumeSegments + 1, paused: true, wantPause: true},
+		{name: "paused at resume bound resumes", gap: throttleResumeSegments, paused: true},
+		{name: "negative gap (seek past encoder) resumes", gap: -1, paused: true},
+	} {
+		allure.Test(t, "throttle hysteresis — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if got := throttleShouldPause(tc.gap, tc.paused); got != tc.wantPause {
+				t.Fatalf("gap=%d paused=%v: got %v want %v", tc.gap, tc.paused, got, tc.wantPause)
+			}
+		})
+	}
+}
+
+func TestStopSession_CancelsPausedEncoder(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "stopSession resumes then kills a SIGSTOP'd ffmpeg", func(a *allure.Context) {
+		t := a.T()
+		_, err := exec.LookPath("ffmpeg")
+		if err != nil {
+			t.Skip("ffmpeg not installed")
+		}
+
+		root := t.TempDir()
+		service, err := NewService(root)
+		if err != nil {
+			t.Fatalf("new service: %v", err)
+		}
+		t.Cleanup(func() { _ = service.Shutdown(context.Background()) })
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := exec.CommandContext( //nolint:gosec // lavfi fixture
+			ctx,
+			"ffmpeg",
+			"-hide_banner", "-loglevel", "error",
+			"-f", "lavfi", "-i", "testsrc2=size=320x180:rate=5",
+			"-f", "null", "-",
+		)
+		err = cmd.Start()
+		if err != nil {
+			t.Fatalf("start ffmpeg: %v", err)
+		}
+
+		variant := VideoVariant(180)
+		session := &segmentSession{
+			variant:    variant,
+			variantDir: root,
+			cancel:     cancel,
+			done:       make(chan struct{}),
+			process:    cmd.Process,
+			lastAccess: time.Now(),
+		}
+		err = cmd.Process.Signal(syscall.SIGSTOP)
+		if err != nil {
+			t.Fatalf("SIGSTOP: %v", err)
+		}
+		session.mu.Lock()
+		session.paused = true
+		session.mu.Unlock()
+
+		service.registerSession("paused", variant, session)
+		go func() {
+			_ = cmd.Wait()
+			close(session.done)
+		}()
+
+		done := make(chan struct{})
+		go func() {
+			service.stopSession("paused", variant)
+			close(done)
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("stopSession blocked on paused ffmpeg")
+		}
+
+		if !session.finished() {
+			t.Fatal("expected session finished")
+		}
+	})
+}
+
 func TestStopSession_CancelsRunningEncoder(t *testing.T) {
 	t.Parallel()
 
@@ -582,10 +678,10 @@ func TestResolveSegment_KeepsTheTimelineAcrossARestart(t *testing.T) {
 func TestResolveSegment_CopyRestartsLandOnTheTimelineKeyframe(t *testing.T) {
 	t.Parallel()
 
-	for _, container := range []string{"mkv", "ts"} {
+	for _, container := range []string{"mkv", "ts", "hevc"} {
 		allure.Test(
 			t,
-			"remux restarts start on the advertised keyframe — B-frames in "+container,
+			"remux/transcode restarts start on the advertised keyframe — B-frames in "+container,
 			func(a *allure.Context) {
 				t := a.T()
 				mediaPath := synthesizeBFrameFixture(t, container)
@@ -595,6 +691,7 @@ func TestResolveSegment_CopyRestartsLandOnTheTimelineKeyframe(t *testing.T) {
 				if err != nil {
 					t.Fatalf("new service: %v", err)
 				}
+				t.Cleanup(func() { _ = service.Shutdown(context.Background()) })
 
 				cacheKey := "copy-" + container
 				outDir := filepath.Join(root, cacheKey)
@@ -609,31 +706,27 @@ func TestResolveSegment_CopyRestartsLandOnTheTimelineKeyframe(t *testing.T) {
 					t.Fatalf("probe and publish: %v", err)
 				}
 
-				if meta.PackagingMode != PackagingRemux {
+				// HEVC is not remux-eligible; the restart still must land on the shared table.
+				if container != "hevc" && meta.PackagingMode != PackagingRemux {
 					t.Fatalf("fixture must be remux-eligible, got %q", meta.PackagingMode)
 				}
 
 				seekIndex := 3
-				boundaryIndex := seekIndex + maxRunSegments
-				if meta.SegmentCount() <= boundaryIndex {
+				if meta.SegmentCount() <= seekIndex {
 					t.Fatalf("fixture produced only %d segments", meta.SegmentCount())
 				}
 
 				variant := VideoVariant(meta.Height)
-				// A cold seek, then the first segment past that run's throttle bound: both
-				// start a fresh copy run, which is where v0.2.0 landed a GOP early or late.
-				for _, index := range []int{seekIndex, boundaryIndex} {
-					path, resolveErr := service.ResolveSegment(
-						context.Background(), cacheKey, mediaPath, variant, index,
-					)
-					if resolveErr != nil {
-						t.Fatalf("resolve segment %d: %v", index, resolveErr)
-					}
+				path, resolveErr := service.ResolveSegment(
+					context.Background(), cacheKey, mediaPath, variant, seekIndex,
+				)
+				if resolveErr != nil {
+					t.Fatalf("resolve segment %d: %v", seekIndex, resolveErr)
+				}
 
-					want := SegmentStart(meta.Segments, index)
-					if got := segmentStartPTS(t, path); math.Abs(got-want) > halfFrameAt24fps {
-						t.Fatalf("segment %d starts at %.3f, timeline says %.3f", index, got, want)
-					}
+				want := SegmentStart(meta.Segments, seekIndex)
+				if got := segmentStartPTS(t, path); math.Abs(got-want) > halfFrameAt24fps {
+					t.Fatalf("segment %d starts at %.3f, timeline says %.3f", seekIndex, got, want)
 				}
 			},
 		)
@@ -642,10 +735,9 @@ func TestResolveSegment_CopyRestartsLandOnTheTimelineKeyframe(t *testing.T) {
 
 const halfFrameAt24fps = 1.0 / 48
 
-// synthesizeBFrameFixture renders a remuxable H.264 clip with B-frames and 2s GOPs.
+// synthesizeBFrameFixture renders a remuxable clip with B-frames and 2s GOPs.
 //
-// "mkv" gets a negative container start_time from AAC priming; "ts" is shifted to a positive
-// one. Both reproduce copy seeks the B-frame-free MP4 fixture cannot.
+// "mkv" / "hevc" get AAC priming (negative start_time on mkv); "ts" is shifted positive.
 func synthesizeBFrameFixture(t *testing.T, container string) string {
 	t.Helper()
 
@@ -665,16 +757,31 @@ func synthesizeBFrameFixture(t *testing.T, container string) string {
 		}
 	}
 
-	run(
-		"-hide_banner", "-loglevel", "error",
-		"-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24",
-		"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
-		"-t", "100",
-		"-c:v", "libx264", "-preset", "veryfast", "-bf", "3",
-		"-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
-		"-c:a", "aac", "-shortest", "-y",
-		mkvPath,
-	)
+	switch container {
+	case "hevc":
+		run(
+			"-hide_banner", "-loglevel", "error",
+			"-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24",
+			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
+			"-t", "40",
+			"-c:v", "libx265", "-preset", "ultrafast",
+			"-x265-params", "keyint=48:min-keyint=48:bframes=7:b-pyramid=1:rc-lookahead=20:open-gop=0:scenecut=0:log-level=error",
+			"-c:a", "aac", "-shortest", "-y",
+			mkvPath,
+		)
+		return mkvPath
+	default:
+		run(
+			"-hide_banner", "-loglevel", "error",
+			"-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24",
+			"-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
+			"-t", "100",
+			"-c:v", "libx264", "-preset", "veryfast", "-bf", "3",
+			"-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
+			"-c:a", "aac", "-shortest", "-y",
+			mkvPath,
+		)
+	}
 
 	if container == "mkv" {
 		return mkvPath

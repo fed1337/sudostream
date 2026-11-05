@@ -188,7 +188,7 @@ func TestAdminTrash_EmptyPatchUnavailableAndErrors(t *testing.T) { //nolint:cycl
 				context.Background(),
 				http.MethodPatch,
 				"/api/admin/trash/settings",
-				bytes.NewBufferString(`{"retentionDays":14}`),
+				bytes.NewBufferString(`{"enabled":true,"retentionDays":14}`),
 			)
 			patchReq.Header.Set("Content-Type", "application/json")
 			router.ServeHTTP(patchRec, patchReq)

@@ -95,7 +95,7 @@ type authBundle struct {
 //	@servers.description	Local development server
 //go:generate go run github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc5 init --v3.1 --parseDependency --parseInternal --outputTypes json,yaml --output ./openapi -g cmd/server/main.go
 
-func main() { //nolint:funlen // composition root wiring
+func main() { //nolint:funlen,cyclop // composition root wiring
 	exitIfVersionRequested()
 
 	mediaRoot := defaultMediaRoot
@@ -180,6 +180,10 @@ func main() { //nolint:funlen // composition root wiring
 		}
 	}
 
+	if authBundle.trash != nil {
+		authBundle.trash.StartAutoPurge()
+	}
+
 	observability.RegisterDBSQL(authBundle.database.SQLDB())
 
 	if ui := frontend.Assets(); ui != nil {
@@ -209,6 +213,7 @@ func main() { //nolint:funlen // composition root wiring
 		workers,
 		authBundle.metadata,
 		authBundle.maintenance,
+		authBundle.trash,
 		authBundle.database,
 		authBundle.dlnaController,
 	)
@@ -302,7 +307,6 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 			Access:    accessService,
 			MediaRoot: mediaRoot,
 			Indexer:   indexer,
-			Trash:     trashService,
 			Providers: providerEnricher,
 			SkipIntro: skipIntroService,
 		},

@@ -28,7 +28,8 @@ type TrashListResponse struct {
 
 // TrashSettingsResponse is GET/PATCH /api/admin/trash/settings.
 type TrashSettingsResponse struct {
-	RetentionDays int `json:"retentionDays"`
+	Enabled       bool `json:"enabled"`
+	RetentionDays int  `json:"retentionDays"`
 }
 
 type trashCleanup struct {
@@ -208,7 +209,11 @@ func (h *adminHandler) emptyTrash(c *gin.Context) {
 //	@Router		/api/admin/trash/settings [get]
 func (h *adminHandler) getTrashSettings(c *gin.Context) {
 	if h.trash == nil {
-		c.JSON(http.StatusOK, TrashSettingsResponse{RetentionDays: 0})
+		defaults := trash.DefaultSettings()
+		c.JSON(http.StatusOK, TrashSettingsResponse{
+			Enabled:       defaults.Enabled,
+			RetentionDays: defaults.RetentionDays,
+		})
 
 		return
 	}
@@ -220,7 +225,10 @@ func (h *adminHandler) getTrashSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, TrashSettingsResponse{RetentionDays: settings.RetentionDays})
+	c.JSON(http.StatusOK, TrashSettingsResponse{
+		Enabled:       settings.Enabled,
+		RetentionDays: settings.RetentionDays,
+	})
 }
 
 // PatchTrashSettings updates recycle_bin retention.
@@ -249,6 +257,7 @@ func (h *adminHandler) patchTrashSettings(c *gin.Context) {
 	}
 
 	settings, err := h.trash.SaveSettings(c.Request.Context(), trash.Settings{
+		Enabled:       body.Enabled,
 		RetentionDays: body.RetentionDays,
 	})
 	if err != nil {
@@ -262,7 +271,10 @@ func (h *adminHandler) patchTrashSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, TrashSettingsResponse{RetentionDays: settings.RetentionDays})
+	c.JSON(http.StatusOK, TrashSettingsResponse{
+		Enabled:       settings.Enabled,
+		RetentionDays: settings.RetentionDays,
+	})
 }
 
 func (h *adminHandler) writeTrashError(c *gin.Context, err error) {

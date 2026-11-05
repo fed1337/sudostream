@@ -156,6 +156,7 @@ export const zInternalHttpapiStatusResponse = z.object({
 });
 
 export const zInternalHttpapiTrashSettingsResponse = z.object({
+  enabled: z.boolean().optional(),
   retentionDays: z.int().optional()
 });
 

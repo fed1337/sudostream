@@ -294,6 +294,7 @@ export type InternalHttpapiTrashListResponse = {
 };
 
 export type InternalHttpapiTrashSettingsResponse = {
+  enabled?: boolean;
   retentionDays?: number;
 };
 

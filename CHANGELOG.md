@@ -1,3 +1,16 @@
+## v0.4.0 (2026-11-05)
+
+### Feat
+
+- update recycle bin retention logic (#14)
+- add favicon and update app icon
+- move recycle-bin retention to settings with UTC midnight auto-purge
+
+### Fix
+
+- hey-api not finding the openapi schema
+- continuous HLS encoder with pause throttle and original-first Auto quality
+
 ## v0.3.0 (2026-11-03)
 
 ### Feat

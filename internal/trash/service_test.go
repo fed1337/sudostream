@@ -341,8 +341,9 @@ func TestService_NilGuardsAndCorruptSettings(t *testing.T) {
 		settingsKV := &memoryKV{raw: []byte(`not-json`)}
 		wired := NewService(nil, newMemoryStore(), nil, settingsKV)
 		got, err := wired.GetSettings(ctx)
-		if err != nil || got.RetentionDays != 0 {
-			t.Fatalf("corrupt kv: %+v %v", got, err)
+		want := DefaultSettings()
+		if err != nil || got != want {
+			t.Fatalf("corrupt kv: got %+v err=%v want %+v", got, err, want)
 		}
 
 		item := itemFromInfo(mediafs.TrashInfo{

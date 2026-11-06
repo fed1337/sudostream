@@ -39,7 +39,7 @@ sudoStream's goal is not to rewrite Plex/Jellyfin. It offers a different philoso
 !!! warning "Skip it if"
     - You need photos/music/books app, or in-app file management
     - You expect Plex-style automation
-
+    - You need “every TV just works” DLNA depth
 
 ## Getting started
 <div class="grid cards" markdown>

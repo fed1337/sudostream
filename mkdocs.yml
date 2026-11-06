@@ -82,7 +82,8 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Features: features.md
   - Getting started:
-      - Install: getting-started/install.md
-      - Configure: getting-started/configuration.md
-      - First steps: getting-started/first-steps.md
+    - Install: getting-started/install.md
+    - Configure: getting-started/configuration.md
+    - First steps: getting-started/first-steps.md

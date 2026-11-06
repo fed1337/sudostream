@@ -179,6 +179,7 @@
 
 .sudostream-series-chrome__next,
 .sudostream-congrats__primary {
+  min-width: var(--sudostream-chrome-menu-min-width, 10rem);
   background: rgb(37 99 235 / 85%);
   border-color: transparent;
 }

@@ -1,3 +1,9 @@
+## v0.4.1 (2026-11-06)
+
+### Fix
+
+- increase custom player buttons size
+
 ## v0.4.0 (2026-11-05)
 
 ### Feat

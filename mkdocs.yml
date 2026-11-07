@@ -87,3 +87,12 @@ nav:
     - Install: getting-started/install.md
     - Configure: getting-started/configuration.md
     - First steps: getting-started/first-steps.md
+  - Administration:
+      - Reverse proxy: admin/reverse-proxy.md
+      - SMTP: admin/smtp.md
+      - Users: admin/users.md
+      - Transcoding settings: admin/transcoding.md
+      - Cron jobs: admin/cron-jobs.md
+      - Metrics: admin/metrics.md
+      - Logs: admin/logs.md
+      - Troubleshooting: admin/troubleshooting.md

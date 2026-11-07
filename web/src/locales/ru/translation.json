@@ -672,6 +672,7 @@
   },
   "footer": {
     "version": "v{{version}}",
+    "docs": "Документация",
     "repository": "GitHub"
   },
   "validation": {

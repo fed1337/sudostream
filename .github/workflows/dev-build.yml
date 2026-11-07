@@ -3,7 +3,7 @@ name: Build dev container
 on:
   push:
     branches:
-      - dev
+      - master
 
 permissions:
   packages: write

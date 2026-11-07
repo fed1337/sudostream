@@ -19,8 +19,8 @@ Do not put secrets in test titles or attachments — published reports are publi
 
 ## Pull requests
 
-1. Branch from `dev`
-2. Open a PR into `dev`
+1. Branch from `master`
+2. Open a PR into `master`
 3. Keep diffs small; match existing style and patterns.
 4. Add or update tests for behavior changes.
 5. Run `make fix && make check && make test` (and `make frontend-fix && make frontend-check` if you touched `web/`) before opening a PR.

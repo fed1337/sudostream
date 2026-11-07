@@ -2,8 +2,8 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest release on `master` / `ghcr.io/fed1337/sudostream:latest`
-and the current `dev` branch. Older tags are not supported unless noted in a security advisory.
+Security fixes are applied to the latest release on `master` / `ghcr.io/fed1337/sudostream:latest`.
+Older tags are not supported unless noted in a security advisory.
 
 ## Reporting a vulnerability
 

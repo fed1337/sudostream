@@ -16,6 +16,8 @@ sudoStream's goal is not to rewrite Plex/Jellyfin. It offers a different philoso
 - Broken matadata files
 - Family videos (which often does not have useful metadata and stay hidden)
 
+Uses [Jellyfin-ffmpeg](https://github.com/jellyfin/jellyfin-ffmpeg) under the hood.
+
 ## Key features
 
 |                |                                                                                                  |
@@ -31,15 +33,15 @@ sudoStream's goal is not to rewrite Plex/Jellyfin. It offers a different philoso
 ## Does it suit me?
 
 !!! tip "Use it if"
-    - Your library already lives in folders and you want that layout in the UI
-    - You need multi-user ACL without sharing the admin password
-    - You prefer WebUI / Chromecast over native apps
+    - Your library already lives in categorized folders
+    - You need multiple users with fine grained access to libraries
+    - You prefer modern WebUI with PiP & Chromecast over native apps
     - You tend to low resources overhead
 
 !!! warning "Skip it if"
-    - You need photos/music/books app, or in-app file management
-    - You expect Plex-style automation
-    - You need “every TV just works” DLNA depth
+    - You expect AIO photos/music/books/file management app
+    - You prefer Plex-style automation
+    - You need “every TV just works” DLNA
 
 ## Getting started
 <div class="grid cards" markdown>

@@ -1,126 +1,73 @@
+---
+hide:
+  - path
+  - navigation
+---
+
 # Features
 
 ## Skip intro
 
-Offline engine for intro detection, no  ML, skip intro with just 1 button in the player
+Offline intro detection - no ML. One **Skip intro** button in the player when a segment is known.
 
 | Layer | What happens |
 |-------|----------------|
-| **Chapters** | Intro-like chapter titles (`intro`, `opening`, `theme`, …) → **Skip intro** in the player |
-| **Audio fingerprint** | Job `playback.skip.detect` runs **chromaprint** offline across a season, finds the shared theme window, stores per-episode ranges |
-| **Precedence** | Chapter hit **wins** over audio when both exist |
+| **Chapters** | Intro-like chapter titles → Skip button |
+| **Audio fingerprint** | Job `playback.skip.detect` does magic and provides you the same Skip button |
+| **Precedence** | Chapter hit wins over audio |
 
 ---
 
 ## Player
 
-The latest Video.js + sudoStream chrome *inside* the player.
+Latest Video.js plus sudoStream chrome *inside* the player.
 
-| Capability                 | Notes                                                                                 |
-|----------------------------|---------------------------------------------------------------------------------------|
-| **Season / Episode menus** | Catalog-fed; choose season & episode without leaving the player                       |
-| **Next episode**           | Late-timeline control + end-of-file dialog                                            |
-| **Chapters**               | TimeSlider markers for any file with chapter atoms                                    |
-| **Subtitles**              | Provider VTT auto-attach + per-user upload; size / color / outline / background knobs |
-| **Quality**                | Instant-VOD HLS; **Auto** prefers original / high rung; manual pick stays pinned      |
-| **Resume**                 | Continue from per-user `watch_state`                                                  |
-| **Chromecast**             | Chromecast-ready                                                                      |
-| **Picture-in-picture**     | Just press 1 button                                                                   | 
+| Capability | Notes |
+|------------|--------|
+| **Season / Episode menus** | Choose season & episode without leaving the player |
+| **Next episode** | Appears at late-timeline + end-of-file dialog |
+| **Chapters** | Timeline markers when the file has chapter atoms |
+| **Subtitles** | Provider VTT + per-user upload; size / color / outline / background knobs |
+| **Quality** | Instant-VOD HLS; Auto prefers original / high rung; manual pick stays pinned |
+| **Resume** | Continue from per-user watch progress |
+| **Chromecast** | Web sender (`?access_token=` for the receiver) |
+| **Picture-in-picture** | One-click PiP |
 
 ??? tip "Stuck / low network speed"
-    Choose a lower quality rung manually. The player prefers freezes over automatic quality changes. Auto BBR should follow connection speed.
+    Pin a lower quality rung. The player prefers freezes over automatic quality changes. Auto BBR should follow connection speed.
 
 ---
 
 ## Playback
 
-Shared decide path for the web player and progressive DLNA streams: **Direct Play** → **remux** → **HLS encode**.
-
-```text
-device profile + source codecs
-        │
-        ├─ eligible ──► Direct Play  ──► GET /api/stream (HTTP Range)
-        │
-        ├─ remux OK ──► HLS remux     ──► playlist + segments (no video re-encode)
-        │
-        └─ else    ──► HLS transcode ──► ladder (libx264 or HW encoder)
-```
+Shared decide path for web and progressive DLNA: **Direct Play → remux → HLS encode**.
 
 | Mode | Behavior |
 |------|----------|
-| **Direct Play** | Original file over HTTP Range; no ffmpeg job. Prefer for archival quality / low CPU |
-| **Remux / HLS** | Instant-VOD: arithmetic playlist, lazy segments. Remux keeps original video when allowed; else encode ladder |
-| **Quality Auto** | Prefers original / high rung when estimates allow; a pinned quality sticks for the session |
-
----
-
-## Hardware acceleration
-
-**Admin → Settings → Transcoding → hwAccel**:
-
-| Value | Typical host |
-|-------|----------------|
-| `off` | Software `libx264` |
-| `qsv` | Intel Quick Sync |
-| `vaapi` | Intel / AMD VA-API |
-| `nvenc` | NVIDIA |
-| `rockchip` | RK3588-class (arm64) |
-
----
-
-## Tone mapping
-
-When the source needs HDR/wide → SDR for the 8-bit HLS ladder, remux is disabled and ffmpeg applies a tone-map path (admin: `bt2390`, `hable`, `reinhard`, `mobius`).
-
-!!! warning
-    With tonemap **off**, the pipeline may only scale/format — colors can look wrong. That is expected.
-
----
-
-## Surround downmix
-
-Admin downmix algorithms apply on **remux / encode / HLS AAC** only. **Direct Play** leaves multi-channel alone when the client accepts it. User **audio language preferences** (top-3) influence the default HLS/encode track.
+| **Direct Play** | Original file over HTTP Range — no ffmpeg |
+| **Remux / HLS** | Instant-VOD playlist; remux when possible, else encode ladder |
+| **HW-aceleration / tone map / downmix** | Admin settings|
 
 ---
 
 ## Libraries & ACL
 
-Libraries turn mapped folders into permissioned collections. The on-disk tree stays visible in browse.
+Mapped folders become permissioned collections; the on-disk tree stays visible in browse.
 
 | Concept | Behavior |
 |---------|----------|
-| **Library** | Name + type (`film`, `series`, …) + one or more roots (folders) |
+| **Library** | Name + type + one or more exclusive roots |
 | **Root** | Path relative to `/media`; exclusive — no overlapping ownership |
-| **Match** | Longest-prefix wins for a given file path |
-| **Unassigned** | On disk; **hidden** from browse/search until attached |
+| **Unassigned** | On disk but hidden from browse/search until attached |
 
-Admins bypass ACL. Everyone else needs per-library grants (**Admin → Users → Libraries**):
+Non-admins get per-library **create / read / update / delete** access. Admins bypass. Soft-delete goes to `/media/.trash` with path preserved.
 
-### ACL
-
-| Flag | Typical use |
-|------|-------------|
-| `read` | Browse, search, play, catalog |
-| `create` | Add / write paths where the product allows writes |
-| `update` | Metadata edits and similar updates |
-| `delete` | Soft-delete to trash |
-
-### Library types
+### Library Types
 
 | Type | Notes |
 |------|-------|
 | `film` / `series` | Browse and tiles views; fully featured & implemented |
-| `music` | Browse OK; dedicated music app not shipped |
-| `photos` | Not shipped |
-
-### Soft-delete & trash
-
-Delete moves items to `/media/.trash` with the original relative path preserved.
-
-| Who | Action |
-|-----|--------|
-| User with `delete` | Soft-delete |
-| Admin | Restore to original path or purge forever; optional retention under Settings |
+| `music` / `photos` / `other` | Browse only, no features shipped |
 
 ---
 
@@ -138,11 +85,9 @@ Optional enrichment only. Assign per library; run on cron or **Run now**.
 | Fanart | | ✓ | | |
 | OpenSubtitles | | | ✓ |  |
 
-Effective metadata = original file tags + DB overrides. Provenance shows `provider:<key>` vs `user:<id>`. Optional **save tags to file** (ffmpeg remux) needs a writable media mount.
-
-### Proxy
-
-**Admin → Settings → Network** — HTTP/SOCKS proxy for provider egress (+ probe; useful for AniList / region locks). 
+- Set **priorities across metadata sources** — original file tags, manual edits, and automated provider writes — including whether automation only fills gaps or rewrites fields
+- Optional save-tags-to-file needs a writable media mount
+- Provider egress proxy
 
 ---
 

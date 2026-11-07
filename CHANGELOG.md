@@ -1,3 +1,13 @@
+## v0.5.0 (2026-11-07)
+
+### Feat
+
+- add link to health check API from version string in app footer
+
+### Fix
+
+- strip trailing release group tags from series titles
+
 ## v0.4.1 (2026-11-06)
 
 ### Fix

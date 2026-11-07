@@ -9,7 +9,9 @@ export function AppFooter() {
     <footer className="mt-auto border-t px-4 py-3 text-center text-xs text-muted-foreground md:px-6">
       <span>{appName}</span>
       <span aria-hidden="true"> · </span>
-      <span>{t("footer.version", { version: appVersion })}</span>
+      <a href="/api/health" className="underline-offset-4 hover:underline">
+        {t("footer.version", { version: appVersion })}
+      </a>
       <span aria-hidden="true"> · </span>
       <a
         href={appRepoUrl}

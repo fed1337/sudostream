@@ -31,7 +31,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           changelog_increment_filename: body.md
-          commitizen_version: '4.18.0'
+          commitizen_version: '4.19.3'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4

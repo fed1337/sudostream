@@ -21,16 +21,25 @@
 
 ### Feat
 
+- Improved form validation and error handling throughout the application
+- Added translations for backend error messages
+- Remember sidebar states across sessions
+
+### Fix
+
 - fix playback issues and enhance UX (#13)
+
+### Refactor
+
+- use native shadcn components
 
 ## v0.2.0 (2026-10-14)
 
 ### Feat
 
-- skip intro, audio downmixing, user langauge preferences, cancel active jobs
 - skip intro chapter button and intro audio fingerprint detection job
-- audio downmix admin settings
-- user audio language preferences
+- stereo downmixing algorithms
+- user langauge preferences
 - cancel maintenance jobs and show execution history on schedule
 - inject build revision into binary
 

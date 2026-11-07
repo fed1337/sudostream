@@ -603,11 +603,74 @@ func cleanShowTitle(raw string) string {
 		}
 		kept = append(kept, token)
 	}
+	kept = stripTrailingReleaseByGroup(kept)
 	if len(kept) == 0 {
 		return ""
 	}
 
 	return strings.TrimRight(strings.Join(kept, " "), ". ")
+}
+
+// stripTrailingReleaseByGroup drops scene tags like "by AKTEP" / "by N!CK".
+// Keeps real titles such as "Stand by Me" (trailing word is not a release group).
+func stripTrailingReleaseByGroup(tokens []string) []string {
+	const byGroupTokens = 2
+	if len(tokens) < byGroupTokens {
+		return tokens
+	}
+	if !strings.EqualFold(tokens[len(tokens)-byGroupTokens], "by") {
+		return tokens
+	}
+	if !looksLikeReleaseGroup(tokens[len(tokens)-1]) {
+		return tokens
+	}
+
+	return tokens[:len(tokens)-byGroupTokens]
+}
+
+func looksLikeReleaseGroup(token string) bool {
+	token = strings.Trim(token, "()[]{},.-_")
+	upper, lower, ok := releaseGroupLetterCounts(token)
+	if !ok {
+		return false
+	}
+	letters := upper + lower
+	const (
+		minLetters      = 2
+		maxLetters      = 25
+		minCamelLetters = 4
+		minUppers       = 2
+	)
+	if letters < minLetters || letters > maxLetters {
+		return false
+	}
+	// ALL CAPS (optional digits/punct): AKTEP, RARBG.
+	if lower == 0 && upper >= minUppers {
+		return true
+	}
+	// CamelCase with multiple capitals: EniaHD, LostFilm.
+	return upper >= minUppers && lower >= 1 && letters >= minCamelLetters
+}
+
+func releaseGroupLetterCounts(token string) (int, int, bool) {
+	if token == "" {
+		return 0, 0, false
+	}
+	upper, lower := 0, 0
+	for _, runeValue := range token {
+		switch {
+		case unicode.IsUpper(runeValue):
+			upper++
+		case unicode.IsLower(runeValue):
+			lower++
+		case unicode.IsDigit(runeValue), runeValue == '!', runeValue == '_', runeValue == '.':
+			// Scene group punctuation / digits (N!CK, GROUP2).
+		default:
+			return 0, 0, false
+		}
+	}
+
+	return upper, lower, true
 }
 
 //nolint:mnd // year regex group counts

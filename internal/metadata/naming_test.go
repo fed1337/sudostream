@@ -252,6 +252,34 @@ func TestParseSeriesIdentity_FolderStructureGroupsSeasons(t *testing.T) {
 		if billionsS3.ShowKey != billionsS2.ShowKey {
 			t.Fatalf("billions ShowKey %q vs %q", billionsS3.ShowKey, billionsS2.ShowKey)
 		}
+
+		const rickShow = "Rick and Morty"
+		rickS9 := ParseSeriesIdentity(
+			"series/Rick.and.Morty.S09.AMZN.WEB-DL.1080p.by.AKTEP/" +
+				"Rick.and.Morty.S09E01.There's.Something.About.Morty.AMZN.WEB-DL.1080p.by.AKTEP.mkv",
+		)
+		rickS8 := ParseSeriesIdentity(
+			"series/Rick.and.Morty.S08.1080p.WEB-DL/Rick.and.Morty.S08E01.Something.mkv",
+		)
+		rickS7 := ParseSeriesIdentity(
+			"series/Rick and Morty - Season 7 (WEB-DL 1080p)/Rick.and.Morty.S07E01.Something.mkv",
+		)
+		assertShowSeason(t, "rick-s09", rickS9, rickShow, 9)
+		assertShowSeason(t, "rick-s08", rickS8, rickShow, 8)
+		assertShowSeason(t, "rick-s07", rickS7, rickShow, 7)
+		if rickS9.ShowKey == "" || rickS9.ShowKey != rickS8.ShowKey || rickS9.ShowKey != rickS7.ShowKey {
+			t.Fatalf(
+				"rick ShowKey s09=%q s08=%q s07=%q",
+				rickS9.ShowKey,
+				rickS8.ShowKey,
+				rickS7.ShowKey,
+			)
+		}
+
+		standByMe := ParseSeriesIdentity(
+			"series/Stand by Me/Stand by Me S01E01 Pilot.mkv",
+		)
+		assertShowSeason(t, "stand-by-me", standByMe, "Stand by Me", 1)
 	})
 }
 
@@ -311,6 +339,19 @@ func realLibrarySeriesCases() []seriesParseCase {
 			"cartoons/Arcane.S02.1080p.NF.WEB-DL.x264-EniaHD/" +
 				"Arcane.S02E04.Paint.the.Town.Blue.1080p.NF.WEB-DL.x264-EniaHD.mkv",
 			2, 4, "Arcane",
+		},
+		{
+			"series/Rick.and.Morty.S09.AMZN.WEB-DL.1080p.by.AKTEP/" +
+				"Rick.and.Morty.S09E01.There's.Something.About.Morty.AMZN.WEB-DL.1080p.by.AKTEP.mkv",
+			9, 1, "Rick and Morty",
+		},
+		{
+			"series/Rick.and.Morty.S08.1080p.WEB-DL/Rick.and.Morty.S08E01.Something.mkv",
+			8, 1, "Rick and Morty",
+		},
+		{
+			"series/Rick and Morty - Season 7 (WEB-DL 1080p)/Rick.and.Morty.S07E01.Something.mkv",
+			7, 1, "Rick and Morty",
 		},
 		{
 			"tv/Life After People Season 02/Life.After.People.s02e10.720p.mkv",

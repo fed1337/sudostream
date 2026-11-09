@@ -604,7 +604,8 @@ func newAuthTestRouterWithMail(t *testing.T, mail email.Sender) *gin.Engine {
 
 	ctx := context.Background()
 	pool := setupTestPool(ctx, t)
-	authService := prepareIntegrationAuthWithMail(ctx, t, pool, mail)
+	mailer := email.NewMailer(mail, testAuthConfig().BaseURL)
+	authService := prepareIntegrationAuthWithMail(ctx, t, pool, mailer)
 
 	return newAuthTestRouterFromService(t, authService)
 }

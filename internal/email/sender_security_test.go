@@ -36,7 +36,11 @@ func TestSMTPSender_RejectsHeaderInjectionInRecipientOrSubject(t *testing.T) {
 	} {
 		allure.Test(t, "smtp rejects header injection — "+tc.name, func(a *allure.Context) {
 			t := a.T()
-			err := sender.Send(context.Background(), tc.recipient, tc.subject, "token=secret")
+			err := sender.Send(context.Background(), email.Message{
+				To:      tc.recipient,
+				Subject: tc.subject,
+				Text:    "token=secret",
+			})
 			if err == nil {
 				t.Fatal("expected error before smtp send")
 			}
@@ -57,7 +61,11 @@ func TestSMTPSender_FromNameCRLFDoesNotReachSMTPPayload(t *testing.T) {
 			From:     "from@example.com",
 			FromName: "sudoStream\r\nBcc: attacker@evil.test",
 		})
-		err := sender.Send(context.Background(), "user@example.com", "ok", "body")
+		err := sender.Send(context.Background(), email.Message{
+			To:      "user@example.com",
+			Subject: "ok",
+			Text:    "body",
+		})
 		if err == nil {
 			t.Fatal("expected dial error, not silent Bcc injection")
 		}

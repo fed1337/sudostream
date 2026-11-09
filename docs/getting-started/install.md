@@ -104,6 +104,7 @@ volumes:
 | Tag                                            | Typical use                        |
 |------------------------------------------------|------------------------------------|
 | `ghcr.io/fed1337/sudostream:latest` / `vX.Y.Z` | Release (`compose.yml`)            |
-| `ghcr.io/fed1337/sudostream:dev`               | Development branch / `make dev-up` |
+| `ghcr.io/fed1337/sudostream:dev`               | Tip of `master` channel            |
+| `sudostream:dev` (local)                       | `make dev-up` / `compose.dev.yml` build |
 
 Runtime is **distroless** — no shell in release versions. Prefer logs bind + `docker compose logs` for debugging.

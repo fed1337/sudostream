@@ -1,12 +1,12 @@
 # SMTP
 
-Outbound mail is optional. When configured, sudoStream can send invites, email confirmation, and password resets.
+Outbound mail is optional. When configured, sudoStream can send invites, email confirmation, and password resets as **multipart** messages (HTML + plain text) with a branded CTA button.
 
 ## Environment
 
 | Variable | Role |
 |----------|------|
-| `SUDOSTREAM_SMTP_HOST` | Empty = mail disabled |
+| `SUDOSTREAM_SMTP_HOST` | Empty = mail disabled (messages are logged only) |
 | `SUDOSTREAM_SMTP_PORT` | Sample `587` |
 | `SUDOSTREAM_SMTP_USER` / `_PASSWORD` | Auth |
 | `SUDOSTREAM_SMTP_FROM` / `_FROM_NAME` | From header |
@@ -14,7 +14,7 @@ Outbound mail is optional. When configured, sudoStream can send invites, email c
 Link TTL ENVs: `SUDOSTREAM_INVITE_TTL_HOURS`, `SUDOSTREAM_CONFIRM_EMAIL_TTL_HOURS`, `SUDOSTREAM_RESET_PASSWORD_TTL_HOURS`.
 
 !!! note
-    `SUDOSTREAM_BASE_URL` is embedded in emailed links — keep it correct
+    `SUDOSTREAM_BASE_URL` is embedded in emailed links and the mail header brand link — keep it correct.
 
 ## Development (Mailpit)
 
@@ -22,7 +22,7 @@ Link TTL ENVs: `SUDOSTREAM_INVITE_TTL_HOURS`, `SUDOSTREAM_CONFIRM_EMAIL_TTL_HOUR
 
 | Port | UI / SMTP |
 |------|-----------|
-| `8025` | Web inbox |
+| `8025` | Web inbox (HTML preview) |
 | `1025` | SMTP → app |
 
 ```env

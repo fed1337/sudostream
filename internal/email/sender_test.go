@@ -42,7 +42,11 @@ func TestLogSender_SendReturnsNil(t *testing.T) {
 
 	allure.Test(t, "log sender never errors", func(a *allure.Context) {
 		t := a.T()
-		err := email.LogSender{}.Send(context.Background(), "to@example.com", "subject", "body")
+		err := email.LogSender{}.Send(context.Background(), email.Message{
+			To:      "to@example.com",
+			Subject: "subject",
+			Text:    "body",
+		})
 		if err != nil {
 			t.Fatalf("log sender send: %v", err)
 		}
@@ -61,7 +65,11 @@ func TestSMTPSender_SendRejectsMissingHost(t *testing.T) {
 			},
 		)
 
-		err := sender.Send(context.Background(), "to@example.com", "subject", "body")
+		err := sender.Send(context.Background(), email.Message{
+			To:      "to@example.com",
+			Subject: "subject",
+			Text:    "body",
+		})
 		if err == nil {
 			t.Fatal("expected error for missing SMTP host")
 		}
@@ -82,7 +90,11 @@ func TestSMTPSender_SendReportsDialError(t *testing.T) {
 			FromName: "",
 		})
 
-		err := sender.Send(context.Background(), "to@example.com", "subject", "body")
+		err := sender.Send(context.Background(), email.Message{
+			To:      "to@example.com",
+			Subject: "subject",
+			Text:    "body",
+		})
 		if err == nil {
 			t.Fatal("expected dial error for unreachable SMTP server")
 		}
@@ -112,7 +124,12 @@ func TestSMTPSender_SendWithoutAuth(t *testing.T) {
 			},
 		)
 
-		err := sender.Send(context.Background(), "user@example.com", "invite test", "hello")
+		err := sender.Send(context.Background(), email.Message{
+			To:      "user@example.com",
+			Subject: "invite test",
+			Text:    "hello",
+			HTML:    "<p>hello</p>",
+		})
 		if err != nil {
 			t.Skipf("smtp not reachable at %s:%s: %v", host, port, err)
 		}

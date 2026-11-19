@@ -18,6 +18,8 @@ type userModel struct {
 	UpdatedAt          time.Time      `gorm:"column:updated_at"`
 	LastLoginAt        *time.Time     `gorm:"column:last_login_at"`
 	AudioLanguagePrefs datatypes.JSON `gorm:"column:audio_language_prefs"`
+	AutoSkipIntro      bool           `gorm:"column:auto_skip_intro"`
+	AutoNextEpisode    bool           `gorm:"column:auto_next_episode"`
 }
 
 func (userModel) TableName() string {

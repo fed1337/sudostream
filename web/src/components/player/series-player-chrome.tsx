@@ -1,5 +1,5 @@
 import { Dialog, Menu, selectPlayback, selectTime, usePlayer } from "@videojs/react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePlayerControlsVisible } from "@/components/player/use-player-controls-visible";
@@ -37,6 +37,8 @@ type SeriesPlayerChromeProps = {
   onUploadSubtitle?: (file: File) => Promise<void>;
   uploadBusy?: boolean;
   skipIntro?: SkipIntroSegment | null;
+  autoSkipIntro?: boolean;
+  autoNextEpisode?: boolean;
 };
 
 type PlaybackEndedState = {
@@ -71,6 +73,8 @@ export function SeriesPlayerChrome({
   onUploadSubtitle,
   uploadBusy,
   skipIntro,
+  autoSkipIntro = false,
+  autoNextEpisode = false,
 }: SeriesPlayerChromeProps): ReactNode {
   const { t } = useTranslation();
   const playback = usePlayer(selectPlayback) as PlaybackEndedState | undefined;
@@ -79,6 +83,7 @@ export function SeriesPlayerChrome({
   const ended = playback?.ended ?? false;
   const fileRef = useRef<HTMLInputElement>(null);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  const autoNextFiredRef = useRef(false);
 
   const seasons = useMemo(
     () => seasonNumbersForMenu(catalogSeasons, navEpisodes),
@@ -117,16 +122,30 @@ export function SeriesPlayerChrome({
     [skipIntro, time?.currentTime],
   );
   const showNext = Boolean(nav.next && nearEnd && !showSkipIntro);
-  const showActions = showSkipIntro || showNext;
+  // Keep actions mounted when skipIntro exists so Undo toast survives post-seek.
+  const showActions = Boolean(skipIntro) || showNext;
 
+  const autoNavigating = Boolean(ended && autoNextEpisode && nav.next);
   const congratsKind =
-    ended && nav.seriesComplete
+    ended && !autoNavigating && nav.seriesComplete
       ? "series"
-      : ended && nav.seasonComplete && nav.next
+      : ended && !autoNavigating && nav.seasonComplete && nav.next
         ? "season"
         : null;
   const endKey = `${mediaPath}:${ended ? "1" : "0"}:${congratsKind ?? "none"}`;
   const congratsOpen = congratsKind !== null && dismissedKey !== endKey;
+
+  useEffect(() => {
+    autoNextFiredRef.current = false;
+  }, [mediaPath]);
+
+  useEffect(() => {
+    if (!ended || !autoNextEpisode || !nav.next || autoNextFiredRef.current) {
+      return;
+    }
+    autoNextFiredRef.current = true;
+    onSelectEpisode(nav.next.path);
+  }, [ended, autoNextEpisode, nav.next, onSelectEpisode]);
 
   const seasonLabel =
     menuSeason === 0 ? t("catalog.seasonUnknown") : t("player.seasonValue", { number: menuSeason });
@@ -264,7 +283,13 @@ export function SeriesPlayerChrome({
 
         {showActions ? (
           <div className="sudostream-series-chrome__actions">
-            {skipIntro ? <SkipIntroAction segment={skipIntro} /> : null}
+            {skipIntro ? (
+              <SkipIntroAction
+                key={`${skipIntro.startMs}-${skipIntro.endMs}`}
+                segment={skipIntro}
+                autoSkip={autoSkipIntro}
+              />
+            ) : null}
             {showNext ? (
               <button
                 type="button"

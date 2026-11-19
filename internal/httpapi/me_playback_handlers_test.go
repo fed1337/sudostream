@@ -77,8 +77,11 @@ func TestPlaybackPreferencesHandlers_GetPatchRoundTrip(t *testing.T) {
 		if empty.AudioLanguages == nil || len(empty.AudioLanguages) != 0 {
 			t.Fatalf("expected empty slice, got %v", empty.AudioLanguages)
 		}
+		if empty.AutoSkipIntro || empty.AutoNextEpisode {
+			t.Fatalf("expected auto toggles false, got %+v", empty)
+		}
 
-		patchBody := []byte(`{"audioLanguages":["jpn","en"]}`)
+		patchBody := []byte(`{"audioLanguages":["jpn","en"],"autoSkipIntro":true,"autoNextEpisode":true}`)
 		patchRecorder := httptest.NewRecorder()
 		patchRequest := httptest.NewRequestWithContext(
 			ctx,
@@ -101,6 +104,9 @@ func TestPlaybackPreferencesHandlers_GetPatchRoundTrip(t *testing.T) {
 		if len(saved.AudioLanguages) != 2 || saved.AudioLanguages[0] != "jpn" {
 			t.Fatalf("saved: %+v", saved.AudioLanguages)
 		}
+		if !saved.AutoSkipIntro || !saved.AutoNextEpisode {
+			t.Fatalf("saved toggles: %+v", saved)
+		}
 
 		getRecorder = httptest.NewRecorder()
 		getRequest = httptest.NewRequestWithContext(
@@ -121,6 +127,35 @@ func TestPlaybackPreferencesHandlers_GetPatchRoundTrip(t *testing.T) {
 		}
 		if len(empty.AudioLanguages) != 2 || empty.AudioLanguages[1] != "en" {
 			t.Fatalf("reloaded: %+v", empty.AudioLanguages)
+		}
+		if !empty.AutoSkipIntro || !empty.AutoNextEpisode {
+			t.Fatalf("reloaded toggles: %+v", empty)
+		}
+
+		partial := httptest.NewRecorder()
+		partialRequest := httptest.NewRequestWithContext(
+			ctx,
+			http.MethodPatch,
+			"/api/me/playback-preferences",
+			bytes.NewReader([]byte(`{"autoSkipIntro":false}`)),
+		)
+		partialRequest.Header.Set("Content-Type", "application/json")
+		setBearerAuth(partialRequest, token)
+		router.ServeHTTP(partial, partialRequest)
+		if partial.Code != http.StatusOK {
+			t.Fatalf("partial PATCH: %d %s", partial.Code, partial.Body.String())
+		}
+
+		var afterPartial PlaybackPreferencesResponse
+		err = json.NewDecoder(partial.Body).Decode(&afterPartial)
+		if err != nil {
+			t.Fatalf("decode partial: %v", err)
+		}
+		if afterPartial.AutoSkipIntro || !afterPartial.AutoNextEpisode {
+			t.Fatalf("partial merge: %+v", afterPartial)
+		}
+		if len(afterPartial.AudioLanguages) != 2 || afterPartial.AudioLanguages[0] != "jpn" {
+			t.Fatalf("partial must keep languages: %+v", afterPartial.AudioLanguages)
 		}
 	})
 }

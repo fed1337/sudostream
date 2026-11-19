@@ -451,6 +451,12 @@ export const internal_httpapi_PatchPlaybackPreferencesRequestSchema = {
       },
       type: 'array',
       uniqueItems: false
+    },
+    autoNextEpisode: {
+      type: 'boolean'
+    },
+    autoSkipIntro: {
+      type: 'boolean'
     }
   },
   type: 'object'
@@ -514,6 +520,12 @@ export const internal_httpapi_PlaybackPreferencesResponseSchema = {
       },
       type: 'array',
       uniqueItems: false
+    },
+    autoNextEpisode: {
+      type: 'boolean'
+    },
+    autoSkipIntro: {
+      type: 'boolean'
     }
   },
   type: 'object'

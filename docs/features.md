@@ -48,6 +48,16 @@ Shared decide path for web and progressive DLNA: **Direct Play → remux → HLS
 | **Remux / HLS** | Instant-VOD playlist; remux when possible, else encode ladder |
 | **HW-aceleration / tone map / downmix** | Admin settings|
 
+### Player UX prefs
+
+Per-user toggles under **Account → Playback** (defaults off):
+
+| Pref | Behavior |
+|------|----------|
+| **Auto-skip intro** | Seek past a known intro once; Undo toast (~5s); keyboard `S` when Skip is visible |
+| **Auto-next episode** | On media **ended** only, go to next episode; never from near-end or credits |
+| **Resume chooser** | When Continue would seek, ask **Resume / Start over** before play |
+
 ---
 
 ## Libraries & ACL

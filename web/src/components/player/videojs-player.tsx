@@ -60,6 +60,8 @@ type VideoJSPlayerProps = {
   userSubtitleTrack?: { lang: string; label: string; url: string } | null;
   chapters?: ChapterCue[];
   skipIntro?: SkipIntroSegment | null;
+  autoSkipIntro?: boolean;
+  autoNextEpisode?: boolean;
   seriesChrome?: SeriesChrome | null;
   onUploadSubtitle?: (file: File) => Promise<void>;
   uploadBusy?: boolean;
@@ -82,6 +84,8 @@ export function VideoJSPlayer({
   userSubtitleTrack,
   chapters,
   skipIntro,
+  autoSkipIntro = false,
+  autoNextEpisode = false,
   seriesChrome,
   onUploadSubtitle,
   uploadBusy,
@@ -212,11 +216,17 @@ export function VideoJSPlayer({
                 onUploadSubtitle={onUploadSubtitle}
                 uploadBusy={uploadBusy}
                 skipIntro={skipIntro}
+                autoSkipIntro={autoSkipIntro}
+                autoNextEpisode={autoNextEpisode}
               />
             ) : null}
             {skipIntro && !seriesChrome ? (
               <div className="sudostream-series-chrome__actions">
-                <SkipIntroAction segment={skipIntro} />
+                <SkipIntroAction
+                  key={`${skipIntro.startMs}-${skipIntro.endMs}`}
+                  segment={skipIntro}
+                  autoSkip={autoSkipIntro}
+                />
               </div>
             ) : null}
             {showStandaloneUpload ? (

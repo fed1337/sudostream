@@ -1658,7 +1658,7 @@ export const getApiMePlaybackPreferencesQueryKey = (options?: Options<GetApiMePl
 /**
  * Get playback preferences
  *
- * Returns ordered audio language codes for default track selection (max 3).
+ * Returns audio language priority (max 3) and auto-skip / auto-next toggles.
  */
 export const getApiMePlaybackPreferencesOptions = (options?: Options<GetApiMePlaybackPreferencesData>) => queryOptions<GetApiMePlaybackPreferencesResponse, GetApiMePlaybackPreferencesError, GetApiMePlaybackPreferencesResponse, ReturnType<typeof getApiMePlaybackPreferencesQueryKey>>({
   queryFn: async ({ queryKey, signal }) => {
@@ -1676,7 +1676,7 @@ export const getApiMePlaybackPreferencesOptions = (options?: Options<GetApiMePla
 /**
  * Update playback preferences
  *
- * Sets ordered audio language codes for default track selection (max 3).
+ * Sets audio language priority and/or auto-skip intro / auto-next episode toggles.
  */
 export const patchApiMePlaybackPreferencesMutation = (options?: Partial<Options<PatchApiMePlaybackPreferencesData>>): UseMutationOptions<PatchApiMePlaybackPreferencesResponse, PatchApiMePlaybackPreferencesError, Options<PatchApiMePlaybackPreferencesData>> => {
   const mutationOptions: UseMutationOptions<PatchApiMePlaybackPreferencesResponse, PatchApiMePlaybackPreferencesError, Options<PatchApiMePlaybackPreferencesData>> = {

@@ -173,6 +173,8 @@ export type InternalHttpapiPatchMaintenanceRequest = {
 
 export type InternalHttpapiPatchPlaybackPreferencesRequest = {
   audioLanguages?: Array<string>;
+  autoNextEpisode?: boolean;
+  autoSkipIntro?: boolean;
 };
 
 export type InternalHttpapiPatchProviderSettingsRequest = {
@@ -197,6 +199,8 @@ export type InternalHttpapiPlaybackNegotiateRequest = {
 
 export type InternalHttpapiPlaybackPreferencesResponse = {
   audioLanguages?: Array<string>;
+  autoNextEpisode?: boolean;
+  autoSkipIntro?: boolean;
 };
 
 export type InternalHttpapiPlaybackResponse = {

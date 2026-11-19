@@ -660,14 +660,14 @@ export const getApiMeFavorites = <ThrowOnError extends boolean = false>(options?
 /**
  * Get playback preferences
  *
- * Returns ordered audio language codes for default track selection (max 3).
+ * Returns audio language priority (max 3) and auto-skip / auto-next toggles.
  */
 export const getApiMePlaybackPreferences = <ThrowOnError extends boolean = false>(options?: Options<GetApiMePlaybackPreferencesData, ThrowOnError>): RequestResult<GetApiMePlaybackPreferencesResponses, GetApiMePlaybackPreferencesErrors, ThrowOnError> => (options?.client ?? client).get<GetApiMePlaybackPreferencesResponses, GetApiMePlaybackPreferencesErrors, ThrowOnError>({ url: '/api/me/playback-preferences', ...options });
 
 /**
  * Update playback preferences
  *
- * Sets ordered audio language codes for default track selection (max 3).
+ * Sets audio language priority and/or auto-skip intro / auto-next episode toggles.
  */
 export const patchApiMePlaybackPreferences = <ThrowOnError extends boolean = false>(options: Options<PatchApiMePlaybackPreferencesData, ThrowOnError>): RequestResult<PatchApiMePlaybackPreferencesResponses, PatchApiMePlaybackPreferencesErrors, ThrowOnError> => (options.client ?? client).patch<PatchApiMePlaybackPreferencesResponses, PatchApiMePlaybackPreferencesErrors, ThrowOnError>({
   url: '/api/me/playback-preferences',

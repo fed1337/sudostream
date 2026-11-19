@@ -25,13 +25,18 @@ func TestService_PlaybackPreferences(t *testing.T) {
 		}
 
 		saved, err := service.UpdatePlaybackPreferences(ctx, admin.ID, auth.PlaybackPreferences{
-			AudioLanguages: []string{" EN ", "ru"},
+			AudioLanguages:  []string{" EN ", "ru"},
+			AutoSkipIntro:   true,
+			AutoNextEpisode: true,
 		})
 		if err != nil {
 			t.Fatalf("update: %v", err)
 		}
 		if len(saved.AudioLanguages) != 2 || saved.AudioLanguages[0] != "en" {
 			t.Fatalf("saved: %+v", saved.AudioLanguages)
+		}
+		if !saved.AutoSkipIntro || !saved.AutoNextEpisode {
+			t.Fatalf("saved toggles: %+v", saved)
 		}
 
 		langs, err := service.PlaybackAudioLanguages(ctx, admin.ID)
@@ -40,6 +45,14 @@ func TestService_PlaybackPreferences(t *testing.T) {
 		}
 		if len(langs) != 2 || langs[1] != "ru" {
 			t.Fatalf("reload: %v", langs)
+		}
+
+		prefs, err := service.GetPlaybackPreferences(ctx, admin.ID)
+		if err != nil {
+			t.Fatalf("get prefs: %v", err)
+		}
+		if !prefs.AutoSkipIntro || !prefs.AutoNextEpisode {
+			t.Fatalf("reloaded toggles: %+v", prefs)
 		}
 
 		_, err = service.UpdatePlaybackPreferences(ctx, admin.ID, auth.PlaybackPreferences{

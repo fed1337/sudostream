@@ -234,8 +234,15 @@ func TestStore_PlaybackPreferences(t *testing.T) {
 		if len(empty.AudioLanguages) != 0 {
 			t.Fatalf("expected empty prefs, got %v", empty.AudioLanguages)
 		}
+		if empty.AutoSkipIntro || empty.AutoNextEpisode {
+			t.Fatalf("expected auto toggles false, got %+v", empty)
+		}
 
-		want := auth.PlaybackPreferences{AudioLanguages: []string{"en", "ru"}}
+		want := auth.PlaybackPreferences{
+			AudioLanguages:  []string{"en", "ru"},
+			AutoSkipIntro:   true,
+			AutoNextEpisode: true,
+		}
 		err = store.SavePlaybackPreferences(ctx, user.ID, want)
 		if err != nil {
 			t.Fatalf("save prefs: %v", err)
@@ -247,6 +254,9 @@ func TestStore_PlaybackPreferences(t *testing.T) {
 		}
 		if len(got.AudioLanguages) != 2 || got.AudioLanguages[1] != "ru" {
 			t.Fatalf("got %+v", got.AudioLanguages)
+		}
+		if !got.AutoSkipIntro || !got.AutoNextEpisode {
+			t.Fatalf("got toggles %+v", got)
 		}
 
 		_, err = database.SQLDB().ExecContext(

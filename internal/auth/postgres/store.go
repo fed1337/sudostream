@@ -898,18 +898,25 @@ func (s *Store) ConsumeBackupCode(ctx context.Context, userID string, index int)
 	return nil
 }
 
-// GetPlaybackPreferences loads ordered audio language codes for a user.
+// GetPlaybackPreferences loads playback preferences for a user.
 func (s *Store) GetPlaybackPreferences(ctx context.Context, userID string) (auth.PlaybackPreferences, error) {
 	var model userModel
-	err := s.db.WithContext(ctx).Select("audio_language_prefs").Where("id = ?", userID).First(&model).Error
+	err := s.db.WithContext(ctx).
+		Select("audio_language_prefs", "auto_skip_intro", "auto_next_episode").
+		Where("id = ?", userID).
+		First(&model).Error
 	if err != nil {
 		return auth.PlaybackPreferences{}, fmt.Errorf("get playback preferences: %w", err)
 	}
 
-	return playbackPrefsFromJSON(model.AudioLanguagePrefs), nil
+	prefs := playbackPrefsFromJSON(model.AudioLanguagePrefs)
+	prefs.AutoSkipIntro = model.AutoSkipIntro
+	prefs.AutoNextEpisode = model.AutoNextEpisode
+
+	return prefs, nil
 }
 
-// SavePlaybackPreferences stores ordered audio language codes for a user.
+// SavePlaybackPreferences stores playback preferences for a user.
 func (s *Store) SavePlaybackPreferences(
 	ctx context.Context,
 	userID string,
@@ -925,6 +932,8 @@ func (s *Store) SavePlaybackPreferences(
 		Where("id = ?", userID).
 		Updates(map[string]any{
 			"audio_language_prefs": datatypes.JSON(raw),
+			"auto_skip_intro":      prefs.AutoSkipIntro,
+			"auto_next_episode":    prefs.AutoNextEpisode,
 			columnUpdatedAt:        time.Now().UTC(),
 		})
 	if result.Error != nil {

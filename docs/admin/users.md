@@ -63,15 +63,17 @@ These are **per-user**, not admin transcoding settings. Users edit them under av
 
 Currently allows to (and remembers last option): change theme, UI language, collapse/expand sidebars.
 
-### Audio language priority
+### Playback preferences
 
 **Account → Playback**
 
 | Setting | Description |
 |---------|-------------|
+| **Auto-skip intro** | When a known intro window is entered, seek past it once (opt-in; Undo toast + keyboard `S`) |
+| **Auto-next episode** | When the **file ends**, navigate to the next episode if present — not near-end / credits |
 | **Audio language 1–3** | Up to three language codes in priority order (e.g. `en`, `ru`, `gr`) |
 
-Used when choosing the **default audio track for remux / HLS encode** (and the DEFAULT flag on the HLS master playlist).
+Audio languages are used when choosing the **default audio track for remux / HLS encode** (and the DEFAULT flag on the HLS master playlist).
 **Direct Play** does not re-pick tracks for the user — the client plays the file as-is.
 
 | Behavior | Detail |

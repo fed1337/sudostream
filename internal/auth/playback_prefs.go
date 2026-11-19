@@ -15,26 +15,42 @@ var (
 	errPlaybackStoreUnavailable  = errors.New("auth store unavailable")
 )
 
-// PlaybackPreferences holds per-user playback defaults (E-28).
+// PlaybackPreferences holds per-user playback defaults (E-28 + E-45).
 type PlaybackPreferences struct {
-	AudioLanguages []string `json:"audioLanguages"`
+	AudioLanguages  []string `json:"audioLanguages"`
+	AutoSkipIntro   bool     `json:"autoSkipIntro"`
+	AutoNextEpisode bool     `json:"autoNextEpisode"`
 }
 
-// PlaybackAudioLanguages returns normalized user audio language priority (may be empty).
-func (s *Service) PlaybackAudioLanguages(ctx context.Context, userID string) ([]string, error) {
+// GetPlaybackPreferences returns the current user's playback preferences.
+func (s *Service) GetPlaybackPreferences(ctx context.Context, userID string) (PlaybackPreferences, error) {
 	if s.store == nil {
-		return nil, nil
+		return PlaybackPreferences{AudioLanguages: []string{}}, nil
 	}
 
 	prefs, err := s.store.GetPlaybackPreferences(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get playback preferences: %w", err)
+		return PlaybackPreferences{}, fmt.Errorf("get playback preferences: %w", err)
+	}
+
+	if prefs.AudioLanguages == nil {
+		prefs.AudioLanguages = []string{}
+	}
+
+	return prefs, nil
+}
+
+// PlaybackAudioLanguages returns normalized user audio language priority (may be empty).
+func (s *Service) PlaybackAudioLanguages(ctx context.Context, userID string) ([]string, error) {
+	prefs, err := s.GetPlaybackPreferences(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
 	return prefs.AudioLanguages, nil
 }
 
-// UpdatePlaybackPreferences stores up to three ordered audio language codes.
+// UpdatePlaybackPreferences stores playback preferences (audio languages + auto toggles).
 func (s *Service) UpdatePlaybackPreferences(
 	ctx context.Context,
 	userID string,
@@ -57,7 +73,7 @@ func (s *Service) UpdatePlaybackPreferences(
 	return normalized, nil
 }
 
-// NormalizePlaybackPreferences validates and normalizes audio language codes.
+// NormalizePlaybackPreferences validates and normalizes audio language codes; bools pass through.
 func NormalizePlaybackPreferences(prefs PlaybackPreferences) (PlaybackPreferences, error) {
 	langs := make([]string, 0, len(prefs.AudioLanguages))
 	for _, raw := range prefs.AudioLanguages {
@@ -71,5 +87,9 @@ func NormalizePlaybackPreferences(prefs PlaybackPreferences) (PlaybackPreference
 		}
 	}
 
-	return PlaybackPreferences{AudioLanguages: langs}, nil
+	return PlaybackPreferences{
+		AudioLanguages:  langs,
+		AutoSkipIntro:   prefs.AutoSkipIntro,
+		AutoNextEpisode: prefs.AutoNextEpisode,
+	}, nil
 }

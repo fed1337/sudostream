@@ -419,6 +419,12 @@
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "autoNextEpisode": {
+                        "type": "boolean"
+                    },
+                    "autoSkipIntro": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -479,6 +485,12 @@
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "autoNextEpisode": {
+                        "type": "boolean"
+                    },
+                    "autoSkipIntro": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -2062,7 +2074,7 @@
     "info": {
         "description": "HTTP API for browsing and streaming media files.",
         "title": "sudoStream API",
-        "version": "0.5.0"
+        "version": "0.6.0"
     },
     "externalDocs": {
         "description": "",
@@ -5896,7 +5908,7 @@
         },
         "/api/me/playback-preferences": {
             "get": {
-                "description": "Returns ordered audio language codes for default track selection (max 3).",
+                "description": "Returns audio language priority (max 3) and auto-skip / auto-next toggles.",
                 "responses": {
                     "200": {
                         "content": {
@@ -5935,7 +5947,7 @@
                 ]
             },
             "patch": {
-                "description": "Sets ordered audio language codes for default track selection (max 3).",
+                "description": "Sets audio language priority and/or auto-skip intro / auto-next episode toggles.",
                 "requestBody": {
                     "content": {
                         "application/json": {

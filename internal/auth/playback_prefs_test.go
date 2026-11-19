@@ -14,13 +14,18 @@ func TestNormalizePlaybackPreferences(t *testing.T) {
 	allure.Test(t, "accepts up to three languages", func(a *allure.Context) {
 		t := a.T()
 		got, err := NormalizePlaybackPreferences(PlaybackPreferences{
-			AudioLanguages: []string{" EN ", "ru", "jpn"},
+			AudioLanguages:  []string{" EN ", "ru", "jpn"},
+			AutoSkipIntro:   true,
+			AutoNextEpisode: true,
 		})
 		if err != nil {
 			t.Fatalf("normalize: %v", err)
 		}
 		if len(got.AudioLanguages) != 3 || got.AudioLanguages[0] != "en" {
 			t.Fatalf("got %+v", got.AudioLanguages)
+		}
+		if !got.AutoSkipIntro || !got.AutoNextEpisode {
+			t.Fatalf("bools not preserved: %+v", got)
 		}
 	})
 
@@ -69,8 +74,20 @@ func TestPlaybackPreferences_StoreUnavailable(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if langs != nil {
-			t.Fatalf("expected nil langs, got %v", langs)
+		if len(langs) != 0 {
+			t.Fatalf("expected empty langs, got %v", langs)
+		}
+	})
+
+	allure.Test(t, "get prefs returns defaults when store is unset", func(a *allure.Context) {
+		t := a.T()
+		service := &Service{}
+		prefs, err := service.GetPlaybackPreferences(context.Background(), "user-id")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if prefs.AutoSkipIntro || prefs.AutoNextEpisode || len(prefs.AudioLanguages) != 0 {
+			t.Fatalf("expected empty defaults, got %+v", prefs)
 		}
 	})
 }

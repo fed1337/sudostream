@@ -105,7 +105,9 @@ export const zInternalHttpapiPatchLibraryRequest = z.object({
 });
 
 export const zInternalHttpapiPatchPlaybackPreferencesRequest = z.object({
-  audioLanguages: z.array(z.string()).optional()
+  audioLanguages: z.array(z.string()).optional(),
+  autoNextEpisode: z.boolean().optional(),
+  autoSkipIntro: z.boolean().optional()
 });
 
 export const zInternalHttpapiPatchProviderSettingsRequest = z.object({
@@ -119,7 +121,9 @@ export const zInternalHttpapiPatchProviderSettingsRequest = z.object({
 });
 
 export const zInternalHttpapiPlaybackPreferencesResponse = z.object({
-  audioLanguages: z.array(z.string()).optional()
+  audioLanguages: z.array(z.string()).optional(),
+  autoNextEpisode: z.boolean().optional(),
+  autoSkipIntro: z.boolean().optional()
 });
 
 export const zInternalHttpapiPlaybackSeriesContext = z.object({

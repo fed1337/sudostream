@@ -15,7 +15,7 @@ export function LibraryCard({ library }: LibraryCardProps) {
       to={libraryEntryPath(library)}
       className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
-      <Card className="h-full min-h-32 overflow-visible border border-border shadow-none ring-0 transition-colors hover:bg-muted/40 md:min-h-40">
+      <Card className="h-full min-h-32 transition-colors hover:bg-muted/40 md:min-h-40">
         <CardHeader className="flex h-full flex-col justify-between gap-4">
           <CardTitle className="text-base leading-snug md:text-xl">
             {library.name ?? library.slug}

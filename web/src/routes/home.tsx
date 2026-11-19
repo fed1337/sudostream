@@ -155,7 +155,10 @@ export default function HomePage() {
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {libraries.map((library) => (
-              <li key={library.libraryId ?? library.slug} className="rounded-xl border p-4">
+              <li
+                key={library.libraryId ?? library.slug}
+                className="rounded-xl border border-border bg-card p-4"
+              >
                 <div className="flex flex-col gap-2">
                   <Link
                     to={`/libraries/${library.slug ?? ""}`}

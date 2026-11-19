@@ -369,11 +369,14 @@ export const zInternalHttpapiHomeStatsResponse = z.object({
 
 export const zSudoStreamInternalHomeshelfShelfItem = z.object({
   durationSeconds: z.number().optional(),
+  favorited: z.boolean().optional(),
+  libraryName: z.string().optional(),
   librarySlug: z.string().optional(),
   path: z.string().optional(),
   positionSeconds: z.number().optional(),
   posterUrl: z.string().optional(),
-  title: z.string().optional()
+  title: z.string().optional(),
+  watched: z.boolean().optional()
 });
 
 export const zInternalHttpapiHomeItemsResponse = z.object({

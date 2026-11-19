@@ -166,13 +166,13 @@ export function ShelfPage({ kind }: ShelfPageProps) {
               <MediaPosterCard
                 key={path}
                 title={item.title || path}
-                subtitle={item.librarySlug}
+                subtitle={item.libraryName || item.librarySlug}
                 thumbnailUrl={item.posterUrl}
                 fallbackThumbnailUrl={actions.thumbnail}
                 mediaPath={path}
                 downloadUrl={actions.download}
-                watched={kind === "watched"}
-                favorited={kind === "favorites"}
+                watched={item.watched ?? kind === "watched"}
+                favorited={item.favorited ?? kind === "favorites"}
                 progressRatio={
                   kind === "continue"
                     ? progressRatio(item.positionSeconds, item.durationSeconds)

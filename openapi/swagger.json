@@ -1290,6 +1290,12 @@
                     "durationSeconds": {
                         "type": "number"
                     },
+                    "favorited": {
+                        "type": "boolean"
+                    },
+                    "libraryName": {
+                        "type": "string"
+                    },
                     "librarySlug": {
                         "type": "string"
                     },
@@ -1304,6 +1310,9 @@
                     },
                     "title": {
                         "type": "string"
+                    },
+                    "watched": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -2053,7 +2062,7 @@
     "info": {
         "description": "HTTP API for browsing and streaming media files.",
         "title": "sudoStream API",
-        "version": "0.3.0"
+        "version": "0.5.0"
     },
     "externalDocs": {
         "description": "",

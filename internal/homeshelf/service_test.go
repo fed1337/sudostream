@@ -114,6 +114,7 @@ type watchStore struct {
 	rows         []watch.Row
 	continueRows []watch.Row
 	counts       map[string]int64
+	pathFlags    map[string]bool
 }
 
 func (w watchStore) ListForUser(
@@ -148,6 +149,30 @@ func (w watchStore) CountByLibraries(
 	_ []string,
 ) (map[string]int64, error) {
 	return w.counts, nil
+}
+
+func (w watchStore) ListForPaths(
+	_ context.Context,
+	_, _ string,
+	relPaths []string,
+) (map[string]bool, error) {
+	flags := make(map[string]bool, len(relPaths))
+	for _, path := range relPaths {
+		if w.pathFlags != nil {
+			flags[path] = w.pathFlags[path]
+
+			continue
+		}
+		for _, row := range w.rows {
+			if row.RelPath == path {
+				flags[path] = true
+
+				break
+			}
+		}
+	}
+
+	return flags, nil
 }
 
 type metaStore struct {
@@ -192,6 +217,20 @@ func TestService_ShelvesAndStats(t *testing.T) {
 		assertShelf(t, "watched", svc.Watched, user, "B")
 		assertShelf(t, "unwatched", svc.Unwatched, user, "C")
 		assertShelf(t, "continue", svc.Continue, user, "D")
+
+		favs, err := svc.Favorites(context.Background(), user, 10, 0)
+		if err != nil || len(favs.Items) != 1 {
+			t.Fatalf("favorites detail: %#v err=%v", favs, err)
+		}
+		if favs.Items[0].LibraryName != "Movies" || !favs.Items[0].Favorited || !favs.Items[0].Watched {
+			t.Fatalf("favorites flags/name: %#v", favs.Items[0])
+		}
+		watchedPage, err := svc.Watched(context.Background(), user, 10, 0)
+		if err != nil || len(watchedPage.Items) != 1 || !watchedPage.Items[0].Watched ||
+			watchedPage.Items[0].LibraryName != "Movies" {
+			t.Fatalf("watched flags/name: %#v err=%v", watchedPage, err)
+		}
+
 		stats, err := svc.Stats(context.Background(), user)
 		if err != nil || len(stats) != 1 || stats[0].WatchedPercent != 25 {
 			t.Fatalf("stats: %#v err=%v", stats, err)
@@ -237,6 +276,7 @@ func newTestService() *homeshelf.Service {
 			rows:         []watch.Row{{LibraryID: testLibraryID, RelPath: "movies/b.mp4"}},
 			continueRows: []watch.Row{{LibraryID: testLibraryID, RelPath: testContinuePath}},
 			counts:       map[string]int64{testLibraryID: 1},
+			pathFlags:    map[string]bool{"movies/a.mp4": true, "movies/b.mp4": true},
 		},
 		metaStore{
 			totals: map[string]int64{testLibraryID: 4},

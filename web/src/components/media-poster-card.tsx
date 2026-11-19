@@ -79,6 +79,7 @@ export function MediaPosterCard({
       void queryClient.invalidateQueries({ queryKey: getApiMeWatchedQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getApiMeUnwatchedQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getApiMeContinueQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeFavoritesQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getApiMeStatsQueryKey() });
     },
   });
@@ -90,6 +91,9 @@ export function MediaPosterCard({
       void queryClient.invalidateQueries({ queryKey: ["catalog"] });
       void queryClient.invalidateQueries({ queryKey: ["catalog-show"] });
       void queryClient.invalidateQueries({ queryKey: getApiMeFavoritesQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeWatchedQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeUnwatchedQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeContinueQueryKey() });
     },
   });
 

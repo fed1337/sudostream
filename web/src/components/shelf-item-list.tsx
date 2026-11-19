@@ -90,19 +90,27 @@ function ShelfItemRow({
   const actions = mediaActionsForPath(path, { name: item.title });
   const ratio = progressRatio(item.positionSeconds, item.durationSeconds);
 
+  const isWatched = item.watched ?? watched;
+  const isFavorited = item.favorited ?? favorited;
+  const libraryLabel = item.libraryName || item.librarySlug;
+
   const toggleWatched = useMutation({
-    mutationFn: () => patchWatchState(path, !watched),
+    mutationFn: () => patchWatchState(path, !isWatched),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: getApiMeWatchedQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getApiMeUnwatchedQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getApiMeContinueQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeFavoritesQueryKey() });
       void queryClient.invalidateQueries({ queryKey: getApiMeStatsQueryKey() });
     },
   });
   const toggleFavorite = useMutation({
-    mutationFn: () => patchFavoriteState(path, !favorited),
+    mutationFn: () => patchFavoriteState(path, !isFavorited),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: getApiMeFavoritesQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeWatchedQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeUnwatchedQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getApiMeContinueQueryKey() });
     },
   });
 
@@ -126,9 +134,7 @@ function ShelfItemRow({
         >
           {item.title || path}
         </Link>
-        {item.librarySlug ? (
-          <p className="text-xs text-muted-foreground">{item.librarySlug}</p>
-        ) : null}
+        {libraryLabel ? <p className="text-xs text-muted-foreground">{libraryLabel}</p> : null}
       </TableCell>
       {showProgress ? (
         <TableCell className="px-3">
@@ -141,26 +147,26 @@ function ShelfItemRow({
       ) : null}
       <TableCell className="px-2">
         <div className="flex justify-end">
-          <IconTooltip label={watched ? t("browse.markUnwatched") : t("browse.markWatched")}>
+          <IconTooltip label={isWatched ? t("browse.markUnwatched") : t("browse.markWatched")}>
             <Button
               variant="ghost"
               size="icon"
-              aria-pressed={watched}
+              aria-pressed={isWatched}
               disabled={toggleWatched.isPending}
               onClick={() => toggleWatched.mutate()}
             >
-              {watched ? <EyeOffIcon /> : <EyeIcon />}
+              {isWatched ? <EyeOffIcon /> : <EyeIcon />}
             </Button>
           </IconTooltip>
-          <IconTooltip label={favorited ? t("browse.unfavorite") : t("browse.favorite")}>
+          <IconTooltip label={isFavorited ? t("browse.unfavorite") : t("browse.favorite")}>
             <Button
               variant="ghost"
               size="icon"
-              aria-pressed={favorited}
+              aria-pressed={isFavorited}
               disabled={toggleFavorite.isPending}
               onClick={() => toggleFavorite.mutate()}
             >
-              <HeartIcon className={favorited ? "fill-current text-red-500" : undefined} />
+              <HeartIcon className={isFavorited ? "fill-current text-red-500" : undefined} />
             </Button>
           </IconTooltip>
           <IconTooltip label={t("browse.play")}>

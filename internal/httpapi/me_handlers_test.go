@@ -200,6 +200,14 @@ func (w meContinueWatchStore) CountByLibraries(
 	return map[string]int64{}, nil
 }
 
+func (w meContinueWatchStore) ListForPaths(
+	_ context.Context,
+	_, _ string,
+	relPaths []string,
+) (map[string]bool, error) {
+	return make(map[string]bool, len(relPaths)), nil
+}
+
 type meContinueMetaStore struct {
 	items []metadata.ShelfRow
 }

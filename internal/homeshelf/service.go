@@ -30,6 +30,9 @@ type ShelfItem struct {
 	Path            string   `json:"path"`
 	Title           string   `json:"title"`
 	LibrarySlug     string   `json:"librarySlug"`
+	LibraryName     string   `json:"libraryName"`
+	Watched         bool     `json:"watched"`
+	Favorited       bool     `json:"favorited"`
 	PosterURL       string   `json:"posterUrl,omitempty"`
 	PositionSeconds *float64 `json:"positionSeconds,omitempty"`
 	DurationSeconds *float64 `json:"durationSeconds,omitempty"`
@@ -83,6 +86,11 @@ type watchLister interface {
 		userID string,
 		libraryIDs []string,
 	) (map[string]int64, error)
+	ListForPaths(
+		ctx context.Context,
+		userID, libraryID string,
+		relPaths []string,
+	) (map[string]bool, error)
 }
 
 type metadataLister interface {
@@ -140,7 +148,7 @@ func (s *Service) SetPosterIndex(posters PosterIndex) {
 
 // Favorites returns the user's newest favorites from readable libraries.
 //
-//nolint:dupl // same page envelope as other home shelves
+
 func (s *Service) Favorites(
 	ctx context.Context,
 	user auth.PublicUser,
@@ -168,13 +176,17 @@ func (s *Service) Favorites(
 	if err != nil {
 		return ItemPage{}, err
 	}
+	for index := range items {
+		items[index].Favorited = true
+	}
+	s.applyWatchedFlags(ctx, user.ID, rowsToShelfKeys(rows), items)
 
 	return ItemPage{Items: items, Total: int(total), Limit: limit, Offset: offset}, nil
 }
 
 // Watched returns the user's most recently watched media from readable libraries.
 //
-//nolint:dupl // same page envelope as other home shelves
+
 func (s *Service) Watched(
 	ctx context.Context,
 	user auth.PublicUser,
@@ -202,13 +214,16 @@ func (s *Service) Watched(
 	if err != nil {
 		return ItemPage{}, err
 	}
+	for index := range items {
+		items[index].Watched = true
+	}
 
 	return ItemPage{Items: items, Total: int(total), Limit: limit, Offset: offset}, nil
 }
 
 // Continue returns in-progress titles for the Continue watching shelf.
 //
-//nolint:dupl // same page envelope as other home shelves
+
 func (s *Service) Continue(
 	ctx context.Context,
 	user auth.PublicUser,
@@ -437,12 +452,79 @@ func shelfItem(libraries map[string]access.Library, row metadata.ShelfRow) Shelf
 	if title == "" {
 		title = path.Base(row.RelPath)
 	}
+	library := libraries[row.LibraryID]
+	libraryName := library.Name
+	if libraryName == "" {
+		libraryName = library.Slug
+	}
 
 	return ShelfItem{
 		Path:        row.RelPath,
 		Title:       title,
-		LibrarySlug: libraries[row.LibraryID].Slug,
+		LibrarySlug: library.Slug,
+		LibraryName: libraryName,
 	}
+}
+
+type shelfKey struct {
+	LibraryID string
+	RelPath   string
+}
+
+func rowsToShelfKeys(rows []favorite.Row) []shelfKey {
+	keys := make([]shelfKey, 0, len(rows))
+	for _, row := range rows {
+		keys = append(keys, shelfKey{LibraryID: row.LibraryID, RelPath: row.RelPath})
+	}
+
+	return keys
+}
+
+func (s *Service) applyWatchedFlags(
+	ctx context.Context,
+	userID string,
+	keys []shelfKey,
+	items []ShelfItem,
+) {
+	if s == nil || s.watch == nil || userID == "" || len(keys) == 0 || len(keys) != len(items) {
+		return
+	}
+
+	for libraryID, indexes := range groupShelfIndexes(keys) {
+		s.fillWatchedForLibrary(ctx, userID, libraryID, indexes, keys, items)
+	}
+}
+
+func (s *Service) fillWatchedForLibrary(
+	ctx context.Context,
+	userID, libraryID string,
+	indexes []int,
+	keys []shelfKey,
+	items []ShelfItem,
+) {
+	paths := make([]string, 0, len(indexes))
+	for _, index := range indexes {
+		paths = append(paths, keys[index].RelPath)
+	}
+	flags, err := s.watch.ListForPaths(ctx, userID, libraryID, paths)
+	if err != nil || flags == nil {
+		return
+	}
+	for _, index := range indexes {
+		items[index].Watched = flags[keys[index].RelPath]
+	}
+}
+
+func groupShelfIndexes(keys []shelfKey) map[string][]int {
+	byLibrary := map[string][]int{}
+	for index, key := range keys {
+		if key.LibraryID == "" || key.RelPath == "" {
+			continue
+		}
+		byLibrary[key.LibraryID] = append(byLibrary[key.LibraryID], index)
+	}
+
+	return byLibrary
 }
 
 func (s *Service) itemsFromWatchRows(

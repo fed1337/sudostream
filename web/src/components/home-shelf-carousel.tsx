@@ -25,6 +25,9 @@ export type HomeShelfItem = {
   path?: string;
   title?: string;
   librarySlug?: string;
+  libraryName?: string;
+  watched?: boolean;
+  favorited?: boolean;
   posterUrl?: string;
   positionSeconds?: number;
   durationSeconds?: number;
@@ -89,13 +92,13 @@ export function HomeShelfCarousel({
                 <CarouselItem key={path} className="basis-1/2 md:basis-80">
                   <MediaPosterCard
                     title={item.title || path}
-                    subtitle={item.librarySlug}
+                    subtitle={item.libraryName || item.librarySlug}
                     thumbnailUrl={item.posterUrl}
                     fallbackThumbnailUrl={actions.thumbnail}
                     mediaPath={path}
                     downloadUrl={actions.download}
-                    watched={watched}
-                    favorited={favorited}
+                    watched={item.watched ?? watched}
+                    favorited={item.favorited ?? favorited}
                     progressRatio={
                       showProgress
                         ? progressRatio(item.positionSeconds, item.durationSeconds)

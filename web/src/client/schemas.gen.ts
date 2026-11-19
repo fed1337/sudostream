@@ -1370,6 +1370,12 @@ export const sudoStream_internal_homeshelf_ShelfItemSchema = {
     durationSeconds: {
       type: 'number'
     },
+    favorited: {
+      type: 'boolean'
+    },
+    libraryName: {
+      type: 'string'
+    },
     librarySlug: {
       type: 'string'
     },
@@ -1384,6 +1390,9 @@ export const sudoStream_internal_homeshelf_ShelfItemSchema = {
     },
     title: {
       type: 'string'
+    },
+    watched: {
+      type: 'boolean'
     }
   },
   type: 'object'

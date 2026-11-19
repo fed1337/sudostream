@@ -4,7 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { LibraryIcon, PlusIcon } from "lucide-react";
 
 import type { Library, LibraryType } from "@/api/media";
@@ -270,24 +270,32 @@ export default function AdminLibrariesPage() {
 
 function AdminLibraryRow({ library }: { library: Library }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const label = library.name ?? library.slug ?? library.relPath ?? "";
   const type = (library.type ?? "other") as LibraryType;
   const folders = libraryRoots(library);
+  const href = library.id ? `/admin/libraries/${library.id}` : undefined;
 
   return (
-    <TableRow>
-      <TableCell className="font-medium">
-        {library.id ? (
-          <Link
-            to={`/admin/libraries/${library.id}`}
-            className="underline-offset-4 hover:underline"
-          >
-            {label}
-          </Link>
-        ) : (
-          label
-        )}
-      </TableCell>
+    <TableRow
+      className={href ? "cursor-pointer" : undefined}
+      tabIndex={href ? 0 : undefined}
+      onClick={() => {
+        if (href) {
+          void navigate(href);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (!href) {
+          return;
+        }
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          void navigate(href);
+        }
+      }}
+    >
+      <TableCell className="font-medium">{label}</TableCell>
       <TableCell>
         {folders.length === 0 ? (
           <span className="text-muted-foreground">{t("admin.noFolders")}</span>

@@ -510,11 +510,14 @@ export type SudoStreamInternalHomeshelfLibraryStat = {
 
 export type SudoStreamInternalHomeshelfShelfItem = {
   durationSeconds?: number;
+  favorited?: boolean;
+  libraryName?: string;
   librarySlug?: string;
   path?: string;
   positionSeconds?: number;
   posterUrl?: string;
   title?: string;
+  watched?: boolean;
 };
 
 export type SudoStreamInternalMaintenanceActionStatus = {

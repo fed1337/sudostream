@@ -55,7 +55,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM --platform=$BUILDPLATFORM debian:trixie-slim AS ffmpeg
 
 ARG TARGETARCH
-ARG JELLYFIN_FFMPEG_VERSION=8.1.3-1
+ARG JELLYFIN_FFMPEG_VERSION=8.1.3-2
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
@@ -140,7 +140,7 @@ ARG BUILD_VERSION=dev
 ARG BUILD_REVISION=unknown
 ARG BUILD_CREATED=unknown
 ARG IMAGE_REF_NAME=local
-ARG JELLYFIN_FFMPEG_VERSION=8.1.3-1
+ARG JELLYFIN_FFMPEG_VERSION=8.1.3-2
 ARG TARGETARCH
 ARG DISTROLESS_TAG=nonroot
 ARG APP_UID=65532

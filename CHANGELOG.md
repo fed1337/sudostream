@@ -1,3 +1,18 @@
+## v0.6.0 (2026-11-19)
+
+### Feat
+
+- HTML emails (#25)
+- add docs link to app footer
+
+### Fix
+
+- UI fixes (#26)
+- homepage displays folder name instead of library name
+- favourite button not working on watched homepage list
+- solid border for cards for better visibility
+- administration -> libraries full row is now clickable
+
 ## v0.5.0 (2026-11-07)
 
 ### Feat

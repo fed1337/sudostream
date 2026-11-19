@@ -59,14 +59,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, email string) error 
 	}
 
 	link := s.appBaseURL() + "/reset-password?token=" + rawToken
-	subject := "Reset your sudoStream password"
-	body := fmt.Sprintf(
-		"Use this link to reset your password (expires in %s):\n\n%s",
-		resetTTL.Round(time.Minute),
-		link,
-	)
-
-	err = s.mail.Send(ctx, email, subject, body)
+	err = s.mail.SendResetPassword(ctx, email, link, resetTTL)
 	if err != nil {
 		return fmt.Errorf("send reset email: %w", err)
 	}
@@ -288,7 +281,6 @@ func (s *Service) requireUserTOTP(ctx context.Context, userID, totpCode string) 
 	return nil
 }
 
-//nolint:dupl // mirrors sendConfirmEmail with change_email purpose and copy
 func (s *Service) issueChangeEmailToken(
 	ctx context.Context,
 	userID, newEmail string,
@@ -316,14 +308,7 @@ func (s *Service) issueChangeEmailToken(
 	}
 
 	link := s.appBaseURL() + "/confirm-email?token=" + rawToken
-	subject := "Confirm your new sudoStream email"
-	body := fmt.Sprintf(
-		"Confirm your new email address (expires in %s):\n\n%s",
-		ttl.Round(time.Minute),
-		link,
-	)
-
-	err = s.mail.Send(ctx, newEmail, subject, body)
+	err = s.mail.SendChangeEmail(ctx, newEmail, link, ttl)
 	if err != nil {
 		return fmt.Errorf("send change-email: %w", err)
 	}
@@ -443,14 +428,7 @@ func (s *Service) sendInviteEmail(
 	expiresIn time.Duration,
 ) error {
 	link := s.appBaseURL() + "/accept-invite?token=" + rawToken
-	subject := "You're invited to sudoStream"
-	body := fmt.Sprintf(
-		"Accept your invite and set a password (expires in %s):\n\n%s",
-		expiresIn.Round(time.Minute),
-		link,
-	)
-
-	err := s.mail.Send(ctx, email, subject, body)
+	err := s.mail.SendInvite(ctx, email, link, expiresIn)
 	if err != nil {
 		return fmt.Errorf("send invite email: %w", err)
 	}
@@ -613,7 +591,6 @@ func (s *Service) consumeToken(ctx context.Context, rawToken, purpose string) (*
 	return token, nil
 }
 
-//nolint:dupl // mirrors issueChangeEmailToken with confirm_email purpose and copy
 func (s *Service) sendConfirmEmail(
 	ctx context.Context,
 	userID, email string,
@@ -641,14 +618,7 @@ func (s *Service) sendConfirmEmail(
 	}
 
 	link := s.appBaseURL() + "/confirm-email?token=" + rawConfirm
-	subject := "Confirm your sudoStream email"
-	body := fmt.Sprintf(
-		"Confirm your email address (expires in %s):\n\n%s",
-		confirmTTL.Round(time.Minute),
-		link,
-	)
-
-	err = s.mail.Send(ctx, email, subject, body)
+	err = s.mail.SendConfirmEmail(ctx, email, link, confirmTTL)
 	if err != nil {
 		return fmt.Errorf("send confirm email: %w", err)
 	}

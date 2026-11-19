@@ -251,13 +251,17 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 	}
 	watchStore := watchpostgres.NewStore(pool.GORM)
 	favoriteStore := favoritepostgres.NewStore(pool.GORM)
-	mail := email.NewSenderFromEnv(
-		os.Getenv("SUDOSTREAM_SMTP_HOST"),
-		envOrDefault("SUDOSTREAM_SMTP_PORT", "587"),
-		os.Getenv("SUDOSTREAM_SMTP_USER"),
-		os.Getenv("SUDOSTREAM_SMTP_PASSWORD"),
-		envOrDefault("SUDOSTREAM_SMTP_FROM", "sudostream@localhost"),
-		os.Getenv("SUDOSTREAM_SMTP_FROM_NAME"),
+	baseURL := envOrDefault("SUDOSTREAM_BASE_URL", defaultAppBaseURL)
+	mail := email.NewMailer(
+		email.NewSenderFromEnv(
+			os.Getenv("SUDOSTREAM_SMTP_HOST"),
+			envOrDefault("SUDOSTREAM_SMTP_PORT", "587"),
+			os.Getenv("SUDOSTREAM_SMTP_USER"),
+			os.Getenv("SUDOSTREAM_SMTP_PASSWORD"),
+			envOrDefault("SUDOSTREAM_SMTP_FROM", "sudostream@localhost"),
+			os.Getenv("SUDOSTREAM_SMTP_FROM_NAME"),
+		),
+		baseURL,
 	)
 
 	authService, err := newAuthService(authStore, mail)
@@ -439,7 +443,7 @@ func wireProviderStack(
 	return providerService, providerArtifacts, providerCache, providerEnricher, networkSettings, networkLive
 }
 
-func newAuthService(authStore *authpostgres.Store, mail email.Sender) (*auth.Service, error) {
+func newAuthService(authStore *authpostgres.Store, mail *email.Mailer) (*auth.Service, error) {
 	authCfg := auth.Config{
 		TOTPEncryptionKey:     loadTOTPEncryptionKey(),
 		JWTSecret:             loadJWTSecret(),

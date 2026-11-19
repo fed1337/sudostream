@@ -16,7 +16,6 @@ concurrency:
 
 jobs:
   build:
-    if: "startsWith(github.event.head_commit.message, 'docs:')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

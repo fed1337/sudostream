@@ -181,7 +181,7 @@ type Config struct {
 type Service struct {
 	store  Store
 	config Config
-	mail   email.Sender
+	mail   *email.Mailer
 	issuer TokenIssuer
 }
 
@@ -189,7 +189,7 @@ type Service struct {
 func NewService(
 	store Store,
 	config Config,
-	mail email.Sender,
+	mail *email.Mailer,
 	issuer TokenIssuer,
 ) (*Service, error) {
 	if issuer == nil {
@@ -198,10 +198,10 @@ func NewService(
 	if len(config.TOTPEncryptionKey) == 0 {
 		config.TOTPEncryptionKey = devTOTPEncryptionKey()
 	}
-	if mail == nil {
-		mail = email.LogSender{}
-	}
 	config = normalizeConfig(config)
+	if mail == nil {
+		mail = email.NewMailer(email.LogSender{}, config.BaseURL)
+	}
 
 	return &Service{
 		store:  store,

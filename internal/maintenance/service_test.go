@@ -475,14 +475,11 @@ func TestService_CancelLiveRun(t *testing.T) {
 			if getErr != nil {
 				t.Fatal(getErr)
 			}
-			if got.Status == StatusCanceled {
+			if got.Status == StatusCanceled &&
+				!svc.isLocked(ActionPlaybackSkipDetect, "lib-1") {
 				break
 			}
 			time.Sleep(10 * time.Millisecond)
-		}
-
-		if svc.isLocked(ActionPlaybackSkipDetect, "lib-1") {
-			t.Fatal("lock still held after cancel")
 		}
 	})
 

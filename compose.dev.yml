@@ -8,7 +8,8 @@ services:
     restart: unless-stopped
 
   app:
-#    image: ghcr.io/fed1337/sudostream:dev
+    image: sudostream:dev
+    pull_policy: build
     build:
       context: .
       dockerfile: Dockerfile

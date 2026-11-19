@@ -29,6 +29,7 @@ help:
 	@echo "  docker-build      Build prod image (cc-debian13:nonroot)"
 	@echo "  dev-up            Start dev stack (cc-debian13:debug-nonroot)"
 	@echo "  dev-down          Stop dev stack"
+	@echo "  dev-reset         Wipe dev volumes"
 	@echo "  prod-up           Start prod stack (GHCR image)"
 	@echo "  prod-down         Stop prod stack"
 	@echo "  docs              Generate and serve docs locally"
@@ -95,8 +96,11 @@ dev-up:
 dev-down:
 	$(COMPOSE_DEV) down
 
+dev-reset:
+	$(COMPOSE_DEV) down -v
+
 prod-up:
-	$(COMPOSE_PROD) up -d --build
+	$(COMPOSE_PROD) up -d
 
 prod-down:
 	$(COMPOSE_PROD) down
@@ -105,4 +109,5 @@ docs:
 	uv run mkdocs serve
 
 .PHONY: help check fix test test-db-up test-db-down openapi frontend-install frontend-typegen \
-	frontend-check frontend-fix frontend-dev frontend-build docker-build dev-up dev-down prod-up prod-down docs
+	frontend-check frontend-fix frontend-dev frontend-build docker-build \
+	dev-up dev-down dev-reset prod-up prod-down docs

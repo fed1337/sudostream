@@ -167,14 +167,19 @@ func prepareIntegrationAuth(
 ) *auth.Service {
 	t.Helper()
 
-	return prepareIntegrationAuthWithMail(ctx, t, database, email.LogSender{})
+	return prepareIntegrationAuthWithMail(
+		ctx,
+		t,
+		database,
+		email.NewMailer(email.LogSender{}, testAuthConfig().BaseURL),
+	)
 }
 
 func prepareIntegrationAuthWithMail(
 	ctx context.Context,
 	t *testing.T,
 	database *db.Database,
-	mail email.Sender,
+	mail *email.Mailer,
 ) *auth.Service {
 	t.Helper()
 
@@ -371,10 +376,10 @@ type captureSender struct {
 	lastTo      string
 }
 
-func (s *captureSender) Send(_ context.Context, recipient, subject, body string) error {
-	s.lastTo = recipient
-	s.lastSubject = subject
-	s.lastBody = body
+func (s *captureSender) Send(_ context.Context, msg email.Message) error {
+	s.lastTo = msg.To
+	s.lastSubject = msg.Subject
+	s.lastBody = msg.Text
 
 	return nil
 }
@@ -387,7 +392,7 @@ func extractTokenFromEmail(body string) string {
 
 	rest := after
 	for i, ch := range rest {
-		if ch == ' ' || ch == '\n' || ch == '\r' || ch == '"' {
+		if ch == ' ' || ch == '\n' || ch == '\r' || ch == '"' || ch == '<' || ch == '>' {
 			return rest[:i]
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"sudoStream/internal/auth"
 	"sudoStream/internal/auth/ginjwt"
 	"sudoStream/internal/db"
+	"sudoStream/internal/email"
 	"testing"
 	"time"
 
@@ -21,14 +22,14 @@ const (
 	testNewPassword   = "new-password-456"
 )
 
-var tokenPattern = regexp.MustCompile(`token=([^\s]+)`)
+var tokenPattern = regexp.MustCompile(`token=([^\s"<>]+)`)
 
 type captureMailSender struct {
 	bodies []string
 }
 
-func (s *captureMailSender) Send(_ context.Context, _, _, body string) error {
-	s.bodies = append(s.bodies, body)
+func (s *captureMailSender) Send(_ context.Context, msg email.Message) error {
+	s.bodies = append(s.bodies, msg.Text)
 
 	return nil
 }
@@ -86,12 +87,13 @@ func newAuthIntegrationStore(
 	database := newSchemaDatabase(ctx, t, schema)
 	store := authpostgres.NewStore(database.GORM)
 	sender := &captureMailSender{bodies: nil}
-	issuer, err := ginjwt.New(store, testAuthConfig())
+	cfg := testAuthConfig()
+	issuer, err := ginjwt.New(store, cfg)
 	if err != nil {
 		t.Fatalf("init token issuer: %v", err)
 	}
 
-	service, err := auth.NewService(store, testAuthConfig(), sender, issuer)
+	service, err := auth.NewService(store, cfg, email.NewMailer(sender, cfg.BaseURL), issuer)
 	if err != nil {
 		t.Fatalf("new auth service: %v", err)
 	}

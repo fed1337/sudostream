@@ -22,6 +22,7 @@ var (
 	errAuthTokenNotFound       = errors.New("auth token not found")
 	errUnsupportedLookupColumn = errors.New("unsupported user lookup column")
 	columnUpdatedAt            = "updated_at"
+	columnUserID               = "user_id"
 )
 
 // Store persists auth data in PostgreSQL.
@@ -794,7 +795,7 @@ func (s *Store) SavePendingTOTPSecret(ctx context.Context, userID, secretEncrypt
 	}
 
 	err := s.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "user_id"}},
+		Columns: []clause.Column{{Name: columnUserID}},
 		DoUpdates: clause.Assignments(map[string]any{
 			"secret_encrypted":  secretEncrypted,
 			"enabled_at":        nil,
@@ -846,7 +847,7 @@ func (s *Store) EnableUserTOTP(
 	}
 
 	err = s.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "user_id"}},
+		Columns: []clause.Column{{Name: columnUserID}},
 		DoUpdates: clause.Assignments(map[string]any{
 			"secret_encrypted":  secretEncrypted,
 			"enabled_at":        gorm.Expr("NOW()"),

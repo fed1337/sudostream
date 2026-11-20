@@ -11,6 +11,7 @@ const guestPathsAllowedWhileLoggedIn = new Set([
   "/reset-password",
   "/accept-invite",
   "/invite",
+  "/login/oidc/callback",
 ]);
 
 export function ProtectedRoute() {

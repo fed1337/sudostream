@@ -338,6 +338,15 @@ export const internal_httpapi_LoginResponseSchema = {
   type: 'object'
 } as const;
 
+export const internal_httpapi_LogoutResponseSchema = {
+  properties: {
+    endSessionUrl: {
+      type: 'string'
+    }
+  },
+  type: 'object'
+} as const;
+
 export const internal_httpapi_MaintenanceRunResponseSchema = {
   properties: {
     run: {
@@ -1142,6 +1151,24 @@ export const sudoStream_internal_auth_TwoFactorSetupSchema = {
     },
     secret: {
       type: 'string'
+    }
+  },
+  type: 'object'
+} as const;
+
+export const sudoStream_internal_auth_oidc_PublicStatusSchema = {
+  properties: {
+    autoRedirect: {
+      type: 'boolean'
+    },
+    enabled: {
+      type: 'boolean'
+    },
+    issuerName: {
+      type: 'string'
+    },
+    only: {
+      type: 'boolean'
     }
   },
   type: 'object'

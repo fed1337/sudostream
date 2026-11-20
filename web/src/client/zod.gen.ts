@@ -86,6 +86,10 @@ export const zInternalHttpapiLoginRequest = z.object({
   password: z.string().optional()
 });
 
+export const zInternalHttpapiLogoutResponse = z.object({
+  endSessionUrl: z.string().optional()
+});
+
 export const zInternalHttpapiOAuthErrorResponse = z.object({
   error: z.string().optional(),
   error_description: z.string().optional(),
@@ -345,6 +349,13 @@ export const zSudoStreamInternalAuthTwoFactorConfirmResult = z.object({
 export const zSudoStreamInternalAuthTwoFactorSetup = z.object({
   otpauthURL: z.string().optional(),
   secret: z.string().optional()
+});
+
+export const zSudoStreamInternalAuthOidcPublicStatus = z.object({
+  autoRedirect: z.boolean().optional(),
+  enabled: z.boolean().optional(),
+  issuerName: z.string().optional(),
+  only: z.boolean().optional()
 });
 
 export const zSudoStreamInternalCatalogSeasonSummary = z.object({
@@ -1321,14 +1332,25 @@ export const zPostApiAuthLoginBody = zInternalHttpapiLoginRequest;
 export const zPostApiAuthLoginResponse = zInternalHttpapiLoginResponse;
 
 /**
- * No Content
+ * OK
  */
-export const zPostApiAuthLogoutResponse = z.void();
+export const zPostApiAuthLogoutResponse = zInternalHttpapiLogoutResponse;
 
 /**
  * OK
  */
 export const zGetApiAuthMeResponse = zInternalHttpapiMeResponse;
+
+export const zGetApiAuthOidcCallbackQuery = z.object({
+  code: z.string().optional(),
+  state: z.string().optional(),
+  error: z.string().optional()
+});
+
+/**
+ * OK
+ */
+export const zGetApiAuthOidcStatusResponse = zSudoStreamInternalAuthOidcPublicStatus;
 
 /**
  * OK

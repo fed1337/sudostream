@@ -132,18 +132,28 @@ func (h *authHandler) refresh(c *gin.Context) {
 }
 
 // Logout revokes the refresh session and clears the refresh cookie.
+// When OIDC RP-initiated logout is available, returns endSessionUrl for the client to follow.
 //
 //	@Summary		Logout
-//	@Description	Revokes the current refresh session.
+//	@Description	Revokes the current refresh session. May include an IdP end-session URL.
 //	@Tags			auth
-//	@Success		204
-//	@Failure		401	{object}	ErrorResponse
+//	@Produce		json
+//	@Success		200	{object}	LogoutResponse
 //	@Router			/api/auth/logout [post]
 func (h *authHandler) logout(c *gin.Context) {
 	rawRefresh, _ := c.Cookie(refreshCookieName)
-	_ = h.auth.Logout(c.Request.Context(), rawRefresh)
+	resp := LogoutResponse{}
+	if h.auth != nil {
+		hint, _ := h.auth.LogoutWithHint(c.Request.Context(), rawRefresh)
+		if h.config.OIDC != nil && hint.IDTokenHint != "" {
+			postLogout := strings.TrimRight(h.auth.BaseURL(), "/") + oidcFrontendLoginPath
+			if endURL, ok := h.config.OIDC.EndSessionURL(hint.IDTokenHint, postLogout); ok {
+				resp.EndSessionURL = endURL
+			}
+		}
+	}
 	clearRefreshCookie(c, h.config.CookieSecure)
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusOK, resp)
 }
 
 // Me returns the authenticated user.

@@ -119,6 +119,11 @@ func (s *Service) appBaseURL() string {
 	return s.config.BaseURL
 }
 
+// BaseURL returns the configured public application base URL.
+func (s *Service) BaseURL() string {
+	return s.appBaseURL()
+}
+
 func (s *Service) inviteTTL() time.Duration {
 	return time.Duration(s.config.InviteTTLHours) * time.Hour
 }

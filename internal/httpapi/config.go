@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"sudoStream/internal/auth/oidc"
 	"sudoStream/internal/dlna"
 	"sudoStream/internal/favorite"
 	"sudoStream/internal/homeshelf"
@@ -33,4 +34,5 @@ type RouteConfig struct {
 	SkipIntro         *skipsegment.Service
 	DLNASettings      dlna.SettingsStore
 	DLNAController    *dlna.Controller
+	OIDC              *oidc.Provider
 }

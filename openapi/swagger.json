@@ -314,6 +314,14 @@
                 },
                 "type": "object"
             },
+            "internal_httpapi.LogoutResponse": {
+                "properties": {
+                    "endSessionUrl": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "internal_httpapi.MaintenanceRunResponse": {
                 "properties": {
                     "run": {
@@ -1072,6 +1080,23 @@
                     },
                     "secret": {
                         "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "sudoStream_internal_auth_oidc.PublicStatus": {
+                "properties": {
+                    "autoRedirect": {
+                        "type": "boolean"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "issuerName": {
+                        "type": "string"
+                    },
+                    "only": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -4931,20 +4956,17 @@
         },
         "/api/auth/logout": {
             "post": {
-                "description": "Revokes the current refresh session.",
+                "description": "Revokes the current refresh session. May include an IdP end-session URL.",
                 "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "401": {
+                    "200": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                    "$ref": "#/components/schemas/internal_httpapi.LogoutResponse"
                                 }
                             }
                         },
-                        "description": "Unauthorized"
+                        "description": "OK"
                     }
                 },
                 "summary": "Logout",
@@ -4979,6 +5001,101 @@
                     }
                 },
                 "summary": "Current user",
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/api/auth/oidc/callback": {
+            "get": {
+                "description": "Exchanges the authorization code, maps/provisions the user, sets refresh cookie, redirects to SPA.",
+                "parameters": [
+                    {
+                        "description": "Authorization code",
+                        "in": "query",
+                        "name": "code",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "OAuth state",
+                        "in": "query",
+                        "name": "state",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "IdP error",
+                        "in": "query",
+                        "name": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                },
+                "summary": "OIDC callback",
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/api/auth/oidc/start": {
+            "get": {
+                "description": "Redirects the browser to the configured OpenID Provider authorize URL.",
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/internal_httpapi.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Start OIDC login",
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/api/auth/oidc/status": {
+            "get": {
+                "description": "Returns whether external OIDC SSO is enabled and related UI flags.",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/sudoStream_internal_auth_oidc.PublicStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "OIDC status",
                 "tags": [
                     "auth"
                 ]

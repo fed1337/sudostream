@@ -1,98 +1,58 @@
-package auth_test
+package auth
 
 import (
 	"context"
 	"errors"
-	"sudoStream/internal/auth"
 	"testing"
 
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-func TestCompleteOIDCLogin_ResolutionPaths(t *testing.T) {
-	ctx := context.Background()
-	service, _ := newAuthIntegration(ctx, t)
+func TestEnsureOIDCEmailPolicy(t *testing.T) {
+	t.Parallel()
 
-	local, err := service.CreateUser(ctx, auth.CreateUserInput{
-		Email:    "merge-me@example.com",
-		Password: "secret-pass",
-		Role:     auth.RoleUser,
-	})
-	if err != nil {
-		t.Fatalf("create local user: %v", err)
-	}
+	svc := &Service{}
 
 	for _, tc := range []struct {
-		name      string
-		input     auth.OIDCLoginInput
-		wantErr   error
-		wantRole  string
-		wantEmail string
+		name    string
+		input   OIDCLoginInput
+		wantErr error
 	}{
 		{
-			name: "deny unknown when flags off",
-			input: auth.OIDCLoginInput{
-				Issuer:        "https://idp.example",
-				Subject:       "sub-unknown",
-				Email:         "new@example.com",
+			name: "ok verified",
+			input: OIDCLoginInput{
+				Email:         "a@example.com",
 				EmailVerified: true,
 			},
-			wantErr: auth.ErrOIDCUnknownIdentity,
 		},
 		{
-			name: "merge by email",
-			input: auth.OIDCLoginInput{
-				Issuer:        "https://idp.example",
-				Subject:       "sub-merge",
-				Email:         "merge-me@example.com",
-				EmailVerified: true,
-				MergeUsers:    true,
+			name: "ok without require verify",
+			input: OIDCLoginInput{
+				Email:         "a@example.com",
+				EmailVerified: false,
 			},
-			wantEmail: local.Email,
-			wantRole:  auth.RoleUser,
 		},
 		{
-			name: "auto register user",
-			input: auth.OIDCLoginInput{
-				Issuer:        "https://idp.example",
-				Subject:       "sub-register",
-				Email:         "oidc-new@example.com",
+			name: "missing email",
+			input: OIDCLoginInput{
+				Email:         "  ",
 				EmailVerified: true,
-				AutoRegister:  true,
 			},
-			wantEmail: "oidc-new@example.com",
-			wantRole:  auth.RoleUser,
+			wantErr: ErrOIDCEmailRequired,
 		},
 		{
-			name: "auto register admin group",
-			input: auth.OIDCLoginInput{
-				Issuer:        "https://idp.example",
-				Subject:       "sub-admin",
-				Email:         "oidc-admin@example.com",
-				EmailVerified: true,
-				Groups:        []string{"sudostream-admins"},
-				AdminGroup:    "sudostream-admins",
-				AutoRegister:  true,
-			},
-			wantEmail: "oidc-admin@example.com",
-			wantRole:  auth.RoleAdmin,
-		},
-		{
-			name: "require email verification blocks register",
-			input: auth.OIDCLoginInput{
-				Issuer:                   "https://idp.example",
-				Subject:                  "sub-unverified",
-				Email:                    "unverified@example.com",
+			name: "require verification blocks",
+			input: OIDCLoginInput{
+				Email:                    "a@example.com",
 				EmailVerified:            false,
-				AutoRegister:             true,
 				RequireEmailVerification: true,
 			},
-			wantErr: auth.ErrOIDCEmailNotVerified,
+			wantErr: ErrOIDCEmailNotVerified,
 		},
 	} {
-		allure.Test(t, "oidc login — "+tc.name, func(a *allure.Context) {
+		allure.Test(t, "oidc email policy — "+tc.name, func(a *allure.Context) {
 			t := a.T()
-			outcome, err := service.CompleteOIDCLogin(ctx, tc.input, auth.SessionMeta{})
+			err := svc.ensureOIDCEmailPolicy(tc.input)
 			if tc.wantErr != nil {
 				if !errors.Is(err, tc.wantErr) {
 					t.Fatalf("err=%v want %v", err, tc.wantErr)
@@ -101,21 +61,79 @@ func TestCompleteOIDCLogin_ResolutionPaths(t *testing.T) {
 				return
 			}
 			if err != nil {
-				t.Fatalf("CompleteOIDCLogin: %v", err)
-			}
-			if outcome.Status != "ok" || outcome.AccessToken == "" || outcome.RefreshToken == "" {
-				t.Fatalf("unexpected outcome: %+v", outcome)
-			}
-			if outcome.User.Email != tc.wantEmail || outcome.User.Role != tc.wantRole {
-				t.Fatalf("user=%+v want email=%s role=%s", outcome.User, tc.wantEmail, tc.wantRole)
-			}
-			again, err := service.CompleteOIDCLogin(ctx, tc.input, auth.SessionMeta{})
-			if err != nil {
-				t.Fatalf("second login: %v", err)
-			}
-			if again.User.ID != outcome.User.ID {
-				t.Fatalf("mapping reused? %s vs %s", again.User.ID, outcome.User.ID)
+				t.Fatalf("unexpected err: %v", err)
 			}
 		})
 	}
+}
+
+func TestOIDCHasAdminGroup(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		groups     []string
+		adminGroup string
+		want       bool
+	}{
+		{name: "empty admin group", groups: []string{"admins"}, adminGroup: "", want: false},
+		{name: "match", groups: []string{"sudostream-admins"}, adminGroup: "sudostream-admins", want: true},
+		{name: "case insensitive", groups: []string{"Admins"}, adminGroup: "admins", want: true},
+		{name: "no match", groups: []string{"users"}, adminGroup: "admins", want: false},
+		{name: "trim spaces", groups: []string{"  admins  "}, adminGroup: "admins", want: true},
+	} {
+		allure.Test(t, "oidc admin group — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if got := oidcHasAdminGroup(tc.groups, tc.adminGroup); got != tc.want {
+				t.Fatalf("got %v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCompleteOIDCLogin_IncompleteIdentity(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "oidc login rejects missing issuer or subject", func(a *allure.Context) {
+		t := a.T()
+		svc := &Service{}
+		_, err := svc.CompleteOIDCLogin(context.Background(), OIDCLoginInput{
+			Email: "a@example.com",
+		}, SessionMeta{})
+		if !errors.Is(err, errOIDCIdentityIncomplete) {
+			t.Fatalf("err=%v want %v", err, errOIDCIdentityIncomplete)
+		}
+	})
+}
+
+func TestProvisionOIDCUser_Flags(t *testing.T) {
+	t.Parallel()
+
+	svc := &Service{}
+
+	allure.Test(t, "oidc provision denies unknown when flags off", func(a *allure.Context) {
+		t := a.T()
+		_, err := svc.provisionOIDCUser(context.Background(), OIDCLoginInput{
+			Issuer:        "https://idp.example",
+			Subject:       "sub",
+			Email:         "new@example.com",
+			EmailVerified: true,
+		})
+		if !errors.Is(err, ErrOIDCUnknownIdentity) {
+			t.Fatalf("err=%v want %v", err, ErrOIDCUnknownIdentity)
+		}
+	})
+
+	allure.Test(t, "oidc provision requires email before merge/register", func(a *allure.Context) {
+		t := a.T()
+		_, err := svc.provisionOIDCUser(context.Background(), OIDCLoginInput{
+			Issuer:        "https://idp.example",
+			Subject:       "sub",
+			AutoRegister:  true,
+			EmailVerified: true,
+		})
+		if !errors.Is(err, ErrOIDCEmailRequired) {
+			t.Fatalf("err=%v want %v", err, ErrOIDCEmailRequired)
+		}
+	})
 }

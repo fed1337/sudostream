@@ -124,7 +124,6 @@ func provisionSchema(ctx context.Context, t *testing.T, schema string) {
 		t.Fatalf("create schema: %v", err)
 	}
 
-	//nolint:contextcheck // cleanup runs after the test context is cancelled
 	t.Cleanup(func() {
 		dropCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

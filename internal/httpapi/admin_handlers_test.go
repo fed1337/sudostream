@@ -63,7 +63,6 @@ func adminUserID(ctx context.Context, t *testing.T, router *gin.Engine, token st
 
 const malformedJSONBody = `{bad`
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_ErrorBranches(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

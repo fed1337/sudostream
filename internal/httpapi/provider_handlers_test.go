@@ -66,7 +66,6 @@ func filmLibrary(id string) access.Library {
 	return access.Library{ID: id, Slug: "movies", RelPath: "movies", Name: "Movies", Type: access.LibraryTypeFilm}
 }
 
-//nolint:cyclop,funlen // multi-branch handler coverage mirrors maintenance_handlers_test.go
 func TestProviderHandlers_CoverBranches(t *testing.T) {
 	t.Parallel()
 

@@ -19,7 +19,6 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-//nolint:paralleltest,cyclop,funlen // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_UsersSettingsInvites(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -160,7 +159,6 @@ func TestAdmin_UsersSettingsInvites(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,cyclop,funlen // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_ConfirmEmailAndAcceptInvite(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -328,7 +326,6 @@ func TestAuth_ConfirmEmailAndAcceptInvite(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_MeReturnsCurrentUser(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -352,7 +349,6 @@ func TestAuth_MeReturnsCurrentUser(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,cyclop // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_TwoFactorLoginFlow(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -456,7 +452,6 @@ func TestAuth_TwoFactorLoginFlow(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_LibraryGrantsAndInviteResend(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -525,7 +520,6 @@ func TestAdmin_LibraryGrantsAndInviteResend(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,cyclop,funlen // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_InviteResendAndRevoke(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -669,7 +663,6 @@ func TestAdmin_InviteResendAndRevoke(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_MultipleInvitesListed(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -747,7 +740,6 @@ func TestAdmin_MultipleInvitesListed(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_SyncLibraryMetadata(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -790,7 +782,6 @@ func TestAdmin_SyncLibraryMetadata(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestMedia_DownloadAndThumbnailRequireAuth(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -832,7 +823,6 @@ func TestMedia_DownloadAndThumbnailRequireAuth(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_InvalidTokenAndDisableTwoFactor(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -919,7 +909,6 @@ func TestAuth_InvalidTokenAndDisableTwoFactor(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_ResetTwoFactorAndRevokeSession(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -1018,7 +1007,6 @@ func TestAdmin_ResetTwoFactorAndRevokeSession(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // shares SUDOSTREAM_DATABASE_URL integration fixture
 func TestMedia_ThumbnailAndPathErrors(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -1098,7 +1086,6 @@ func TestMedia_ThumbnailAndPathErrors(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // shares SUDOSTREAM_DATABASE_URL integration fixture
 func TestMiddleware_NonAdminForbidden(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -1121,7 +1108,6 @@ func TestMiddleware_NonAdminForbidden(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // shares SUDOSTREAM_DATABASE_URL integration fixture
 func TestAuth_PendingTwoFactorSetupLogin(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

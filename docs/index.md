@@ -21,13 +21,13 @@ Uses [Jellyfin-ffmpeg](https://github.com/jellyfin/jellyfin-ffmpeg) under the ho
 ## Key features
 
 |                |                                                                                                  |
-|----------------|--------------------------------------------------------------------------------------------------|
+|------------------|--------------------------------------------------------------------------------------------------|
 | **Browse**     | Explorer/Finder-like or tiles; Fast, powerful search                                             |
 | **Playback**   | Direct Play → remux → HLS (QSV / VA-API / NVENC / Rockchip / software)                           |
 | **Skip intro** | Finds intros and shows a skip button in the player, no chapters needed                           |
 | **Player**     | Better UX with season & episode picker right in the player; quality, audio and subtitle settings |
 | **Metadata**   | Manually or automated, off by default, ability to override only in DB or save to file            |
-| **Ops**        | Metrics, logs, cron job management, proxy for automation providers                               |
+| **Admin**        | OIDC, metrics, logs, cron jobs, proxy for automation providers                               |
 | **ACL**        | Per-library-per-user CRUD grants                                                                 |
 
 ## Does it suit me?

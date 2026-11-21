@@ -13,38 +13,39 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-func TestParseCLI_VersionFlags(t *testing.T) {
+func TestParseCLI(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "-v and --version request version output", func(a *allure.Context) {
-		t := a.T()
-		for _, args := range [][]string{
-			{"-v"},
-			{"--version"},
-			{"-version"},
-		} {
-			showVersion, err := parseCLI(args)
+	for _, tc := range []struct {
+		name        string
+		args        []string
+		wantVersion bool
+		wantErr     bool
+	}{
+		{name: "short -v", args: []string{"-v"}, wantVersion: true},
+		{name: "long --version", args: []string{"--version"}, wantVersion: true},
+		{name: "dash -version", args: []string{"-version"}, wantVersion: true},
+		{name: "empty args", args: nil, wantVersion: false},
+		{name: "invalid flag", args: []string{"-not-a-real-flag"}, wantErr: true},
+	} {
+		allure.Test(t, "parse CLI — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			showVersion, err := parseCLI(tc.args)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected parse error")
+				}
+
+				return
+			}
 			if err != nil {
-				t.Fatalf("parse %v: %v", args, err)
+				t.Fatalf("parse %v: %v", tc.args, err)
 			}
-			if !showVersion {
-				t.Fatalf("expected version flag for %v", args)
+			if showVersion != tc.wantVersion {
+				t.Fatalf("showVersion=%v want %v", showVersion, tc.wantVersion)
 			}
-		}
-
-		showVersion, err := parseCLI(nil)
-		if err != nil || showVersion {
-			t.Fatalf("expected no version for empty args: show=%v err=%v", showVersion, err)
-		}
-	})
-
-	allure.Test(t, "invalid flags return parse error", func(a *allure.Context) {
-		t := a.T()
-		_, err := parseCLI([]string{"-not-a-real-flag"})
-		if err == nil {
-			t.Fatal("expected parse error")
-		}
-	})
+		})
+	}
 }
 
 func TestPrintVersion_WritesVersionToStdout(t *testing.T) {
@@ -84,50 +85,57 @@ func TestPrintVersion_WritesVersionToStdout(t *testing.T) {
 	})
 }
 
-func TestExitIfVersionRequested_InvalidFlagExits(t *testing.T) {
+func TestExitIfVersionRequested(t *testing.T) {
 	t.Parallel()
 
-	if os.Getenv("SUDOSTREAM_CLI_REEXEC") == "invalid" {
-		os.Args = []string{"sudostream", "-not-a-real-flag"}
-		exitIfVersionRequested()
-		t.Fatal("expected exit")
-	}
+	for _, tc := range []struct {
+		name     string
+		reexec   string
+		args     []string
+		wantCode int
+		wantZero bool
+	}{
+		{
+			name:     "invalid flag exits usage",
+			reexec:   "invalid",
+			args:     []string{"sudostream", "-not-a-real-flag"},
+			wantCode: exitCodeUsage,
+		},
+		{
+			name:     "version flag exits zero",
+			reexec:   "version",
+			args:     []string{"sudostream", "-version"},
+			wantZero: true,
+		},
+	} {
+		allure.Test(t, "exit if version requested — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if os.Getenv("SUDOSTREAM_CLI_REEXEC") == tc.reexec {
+				os.Args = tc.args
+				exitIfVersionRequested()
+				t.Fatal("expected exit")
+			}
 
-	//nolint:gosec // re-execs the current test binary with a fixed argument list
-	cmd := exec.CommandContext(
-		context.Background(),
-		os.Args[0],
-		"-test.run=^TestExitIfVersionRequested_InvalidFlagExits$",
-		"-test.count=1",
-	)
-	cmd.Env = append(os.Environ(), "SUDOSTREAM_CLI_REEXEC=invalid")
-	err := cmd.Run()
-	exitErr := &exec.ExitError{}
-	ok := errors.As(err, &exitErr)
-	if !ok || !exitErr.Exited() || exitErr.ExitCode() != exitCodeUsage {
-		t.Fatalf("expected exit code %d, got %v", exitCodeUsage, err)
-	}
-}
+			cmd := exec.CommandContext( //nolint:gosec // re-execs current test binary
+				context.Background(),
+				os.Args[0],
+				"-test.run=^TestExitIfVersionRequested$",
+				"-test.count=1",
+			)
+			cmd.Env = append(os.Environ(), "SUDOSTREAM_CLI_REEXEC="+tc.reexec)
+			err := cmd.Run()
+			if tc.wantZero {
+				if err != nil {
+					t.Fatalf("expected exit 0, got %v", err)
+				}
 
-func TestExitIfVersionRequested_VersionFlagExitsZero(t *testing.T) {
-	t.Parallel()
-
-	if os.Getenv("SUDOSTREAM_CLI_REEXEC") == "version" {
-		os.Args = []string{"sudostream", "-version"}
-		exitIfVersionRequested()
-		t.Fatal("expected exit")
-	}
-
-	//nolint:gosec // re-execs the current test binary with a fixed argument list
-	cmd := exec.CommandContext(
-		context.Background(),
-		os.Args[0],
-		"-test.run=^TestExitIfVersionRequested_VersionFlagExitsZero$",
-		"-test.count=1",
-	)
-	cmd.Env = append(os.Environ(), "SUDOSTREAM_CLI_REEXEC=version")
-	err := cmd.Run()
-	if err != nil {
-		t.Fatalf("expected version exit 0, got %v", err)
+				return
+			}
+			exitErr := &exec.ExitError{}
+			ok := errors.As(err, &exitErr)
+			if !ok || !exitErr.Exited() || exitErr.ExitCode() != tc.wantCode {
+				t.Fatalf("expected exit code %d, got %v", tc.wantCode, err)
+			}
+		})
 	}
 }

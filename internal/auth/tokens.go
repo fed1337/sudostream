@@ -78,8 +78,7 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken, password string) 
 	if err != nil {
 		return fmt.Errorf("load user: %w", err)
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(password))
-	if err == nil {
+	if hashMatchesPassword(currentHash, password) {
 		return ErrPasswordUnchanged
 	}
 
@@ -152,22 +151,17 @@ func (s *Service) resendChangeEmailToken(ctx context.Context, userID, newEmail s
 }
 
 // ConfirmEmail verifies an email address or applies a pending email change from a token link.
-// Already-used tokens succeed idempotently so double-clicks / remounts do not surface errors.
+// Used and expired tokens are rejected (FE dedupes Strict Mode remounts client-side).
 func (s *Service) ConfirmEmail(ctx context.Context, rawToken string) error {
 	err := s.confirmEmailPurpose(ctx, rawToken, TokenPurposeConfirmEmail)
-	if err == nil || errors.Is(err, ErrTokenUsed) {
+	if err == nil {
 		return nil
 	}
 	if !errors.Is(err, ErrInvalidToken) {
 		return err
 	}
 
-	changeErr := s.confirmEmailPurpose(ctx, rawToken, TokenPurposeChangeEmail)
-	if changeErr == nil || errors.Is(changeErr, ErrTokenUsed) {
-		return nil
-	}
-
-	return changeErr
+	return s.confirmEmailPurpose(ctx, rawToken, TokenPurposeChangeEmail)
 }
 
 func (s *Service) confirmEmailPurpose(ctx context.Context, rawToken, purpose string) error {
@@ -448,6 +442,11 @@ func (s *Service) AcceptInvite(
 		return err
 	}
 
+	_, currentHash, err := s.store.GetUserWithPasswordByID(ctx, token.UserID)
+	if err == nil && hashMatchesPassword(currentHash, password) {
+		return ErrPasswordUnchanged
+	}
+
 	hash, err := HashPassword(password)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
@@ -463,6 +462,10 @@ func (s *Service) AcceptInvite(
 		return err
 	}
 
+	err = s.store.MarkAuthTokenUsed(ctx, token.ID)
+	if err != nil {
+		return fmt.Errorf("mark invite token used: %w", err)
+	}
 	err = s.store.InvalidateUnusedTokens(ctx, token.Email, TokenPurposeInvite)
 	if err != nil {
 		return fmt.Errorf("invalidate invite tokens: %w", err)
@@ -535,14 +538,12 @@ func (s *Service) ChangePassword( //nolint:cyclop // password + optional 2FA + s
 	}
 
 	if !user.MustChangePassword {
-		err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(currentPassword))
-		if err != nil {
+		if !hashMatchesPassword(hash, currentPassword) {
 			return PublicUser{}, "", "", ErrInvalidCredentials
 		}
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(newPassword))
-	if err == nil {
+	if hashMatchesPassword(hash, newPassword) {
 		return PublicUser{}, "", "", ErrPasswordUnchanged
 	}
 
@@ -643,4 +644,9 @@ func (s *Service) validateToken(ctx context.Context, rawToken, purpose string) (
 	}
 
 	return token, nil
+}
+
+// hashMatchesPassword reports whether password matches the stored bcrypt hash.
+func hashMatchesPassword(hash, password string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }

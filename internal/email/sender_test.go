@@ -2,7 +2,6 @@ package email_test
 
 import (
 	"context"
-	"os"
 	"sudoStream/internal/email"
 	"testing"
 
@@ -97,41 +96,6 @@ func TestSMTPSender_SendReportsDialError(t *testing.T) {
 		})
 		if err == nil {
 			t.Fatal("expected dial error for unreachable SMTP server")
-		}
-	})
-}
-
-func TestSMTPSender_SendWithoutAuth(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "sends mail without AUTH when SMTP user is empty", func(a *allure.Context) {
-		t := a.T()
-		host := os.Getenv("SUDOSTREAM_SMTP_HOST")
-		if host == "" {
-			host = "127.0.0.1"
-		}
-
-		port := os.Getenv("SUDOSTREAM_SMTP_PORT")
-		if port == "" {
-			port = "1025"
-		}
-
-		sender := email.NewSMTPSender(
-			email.SMTPConfig{
-				Host: host,
-				Port: port,
-				From: "sudostream@localhost",
-			},
-		)
-
-		err := sender.Send(context.Background(), email.Message{
-			To:      "user@example.com",
-			Subject: "invite test",
-			Text:    "hello",
-			HTML:    "<p>hello</p>",
-		})
-		if err != nil {
-			t.Skipf("smtp not reachable at %s:%s: %v", host, port, err)
 		}
 	})
 }

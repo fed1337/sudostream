@@ -79,32 +79,64 @@ func TestSegmentRun_EncodesToEOF(t *testing.T) {
 	)
 }
 
-func TestBuildSegmentArgs_NativeRungCopiesVideo(t *testing.T) {
+func TestBuildSegmentArgs_VariantArgv(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "the remuxable native rung is stream-copied", func(a *allure.Context) {
-		t := a.T()
-		joined := strings.Join(buildSegmentArgs(segmentRunFixture(VideoVariant(720), 2)), " ")
+	for _, tc := range []struct {
+		name       string
+		variant    Variant
+		startIndex int
+		want       []string
+		reject     []string
+	}{
+		{
+			name:       "the remuxable native rung is stream-copied",
+			variant:    VideoVariant(720),
+			startIndex: 2,
+			want: []string{
+				"-c:v copy",
+				"-ss 12.000000",
+				"-segment_start_number 2",
+				"-output_ts_offset 12.000000",
+				"-segment_times 4.000000",
+			},
+			reject: []string{"-force_key_frames"},
+		},
+		{
+			name:       "encoded rungs pin IDR frames to the shared cut points",
+			variant:    VideoVariant(360),
+			startIndex: 0,
+			want: []string{
+				"-c:v libx264",
+				"-force_key_frames 6.000000,12.000000,16.000000",
+				"-segment_times 6.000000,12.000000,16.000000",
+			},
+			reject: []string{"-ss "},
+		},
+		{
+			name:       "audio renditions map one source track and drop video",
+			variant:    AudioVariant(1),
+			startIndex: 0,
+			want:       []string{"-map 0:2", "-vn", "-c:a aac"},
+		},
+	} {
+		allure.Test(t, "segment argv — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			joined := strings.Join(buildSegmentArgs(segmentRunFixture(tc.variant, tc.startIndex)), " ")
 
-		if !strings.Contains(joined, "-c:v copy") {
-			t.Fatalf("expected stream copy, got: %s", joined)
-		}
-		if strings.Contains(joined, "-force_key_frames") {
-			t.Fatalf("copy must not force keyframes, got: %s", joined)
-		}
-		if !strings.Contains(joined, "-ss 12.000000") {
-			t.Fatalf("expected seek to segment 2, got: %s", joined)
-		}
-		if !strings.Contains(joined, "-segment_start_number 2") {
-			t.Fatalf("expected segment numbering to resume at 2, got: %s", joined)
-		}
-		if !strings.Contains(joined, "-output_ts_offset 12.000000") {
-			t.Fatalf("expected timeline offset, got: %s", joined)
-		}
-		if !strings.Contains(joined, "-segment_times 4.000000") {
-			t.Fatalf("expected explicit cut points, got: %s", joined)
-		}
-	})
+			for _, fragment := range tc.want {
+				if !strings.Contains(joined, fragment) {
+					t.Fatalf("missing %q in: %s", fragment, joined)
+				}
+			}
+
+			for _, fragment := range tc.reject {
+				if strings.Contains(joined, fragment) {
+					t.Fatalf("unexpected %q in: %s", fragment, joined)
+				}
+			}
+		})
+	}
 }
 
 func TestBuildSegmentArgs_CopySeekPrerollAndTrim(t *testing.T) {
@@ -203,46 +235,4 @@ func TestBuildSegmentArgs_CopySeekPrerollAndTrim(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestBuildSegmentArgs_LowerRungForcesKeyframesAtCuts(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(
-		t,
-		"encoded rungs pin IDR frames to the shared cut points",
-		func(a *allure.Context) {
-			t := a.T()
-			joined := strings.Join(buildSegmentArgs(segmentRunFixture(VideoVariant(360), 0)), " ")
-
-			if !strings.Contains(joined, "-c:v libx264") {
-				t.Fatalf("expected encode for a downscaled rung, got: %s", joined)
-			}
-			if !strings.Contains(joined, "-force_key_frames 6.000000,12.000000,16.000000") {
-				t.Fatalf("expected forced keyframes at cut points, got: %s", joined)
-			}
-			if !strings.Contains(joined, "-segment_times 6.000000,12.000000,16.000000") {
-				t.Fatalf("expected matching segment times, got: %s", joined)
-			}
-			if strings.Contains(joined, "-ss ") {
-				t.Fatalf("a run from segment 0 must not seek, got: %s", joined)
-			}
-		},
-	)
-}
-
-func TestBuildSegmentArgs_AudioRenditionIsVideolessAAC(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "audio renditions map one source track and drop video", func(a *allure.Context) {
-		t := a.T()
-		joined := strings.Join(buildSegmentArgs(segmentRunFixture(AudioVariant(1), 0)), " ")
-
-		if !strings.Contains(joined, "-map 0:2") {
-			t.Fatalf("expected second audio stream by global index, got: %s", joined)
-		}
-		if !strings.Contains(joined, "-vn") || !strings.Contains(joined, "-c:a aac") {
-			t.Fatalf("expected video-free AAC rendition, got: %s", joined)
-		}
-	})
 }

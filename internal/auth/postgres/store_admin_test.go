@@ -12,7 +12,6 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-//nolint:paralleltest,cyclop,gocognit,funlen,gocyclo,maintidx // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestStore_UserAdminSessionsAndTOTP(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

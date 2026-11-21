@@ -14,88 +14,110 @@ const testRenderNode = "/dev/dri/renderD128"
 func TestParseHwAccel(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "parses and rejects hwAccel values", func(a *allure.Context) {
-		t := a.T()
-		cases := []struct {
-			raw     string
-			want    HwAccel
-			wantErr bool
-		}{
-			{raw: string(HwAccelOff), want: HwAccelOff},
-			{raw: "", want: HwAccelOff},
-			{raw: "QSV", want: HwAccelQSV},
-			{raw: "vaapi", want: HwAccelVAAPI},
-			{raw: "nvenc", want: HwAccelNVENC},
-			{raw: "rockchip", want: HwAccelRockchip},
-			{raw: "auto", wantErr: true},
-			{raw: "software", wantErr: true},
-		}
-		for _, testCase := range cases {
-			got, err := ParseHwAccel(testCase.raw)
-			if testCase.wantErr {
+	for _, tc := range []struct {
+		name    string
+		raw     string
+		want    HwAccel
+		wantErr bool
+	}{
+		{name: "off", raw: string(HwAccelOff), want: HwAccelOff},
+		{name: "empty", raw: "", want: HwAccelOff},
+		{name: "QSV upper", raw: "QSV", want: HwAccelQSV},
+		{name: "vaapi", raw: "vaapi", want: HwAccelVAAPI},
+		{name: "nvenc", raw: "nvenc", want: HwAccelNVENC},
+		{name: "rockchip", raw: "rockchip", want: HwAccelRockchip},
+		{name: "auto rejected", raw: "auto", wantErr: true},
+		{name: "software rejected", raw: "software", wantErr: true},
+	} {
+		allure.Test(t, "parse hwAccel — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			got, err := ParseHwAccel(tc.raw)
+			if tc.wantErr {
 				if !errors.Is(err, ErrInvalidHwAccel) {
-					t.Fatalf("%q: expected ErrInvalidHwAccel, got %v", testCase.raw, err)
+					t.Fatalf("%q: expected ErrInvalidHwAccel, got %v", tc.raw, err)
 				}
 
-				continue
+				return
 			}
-			if err != nil || got != testCase.want {
-				t.Fatalf("%q: got %q %v, want %q", testCase.raw, got, err, testCase.want)
+			if err != nil || got != tc.want {
+				t.Fatalf("%q: got %q %v, want %q", tc.raw, got, err, tc.want)
 			}
-		}
-	})
+		})
+	}
 }
 
-//nolint:paralleltest // mutates package-level device check hooks
-func TestResolvePreferredEncoder_OffAndNVENC(t *testing.T) {
-	allure.Test(t, "off and nvenc resolve with software fallback", func(a *allure.Context) {
-		t := a.T()
-		restoreDeviceChecks(t)
-
-		checkNVIDIAPresent = func() bool { return false }
-		encoder, render, reason := resolvePreferredEncoder(HwAccelOff)
-		if encoder != EncoderSoftware || render != "" || reason != string(HwAccelOff) {
-			t.Fatalf("off: got %s %q %q", encoder, render, reason)
-		}
-
-		encoder, _, reason = resolvePreferredEncoder(HwAccelNVENC)
-		if encoder != EncoderSoftware || reason != "nvidia device missing" {
-			t.Fatalf("nvenc missing: got %s %q", encoder, reason)
-		}
-
-		checkNVIDIAPresent = func() bool { return true }
-		encoder, _, reason = resolvePreferredEncoder(HwAccelNVENC)
-		if encoder != EncoderNVENC || reason != "" {
-			t.Fatalf("nvenc present: got %s %q", encoder, reason)
-		}
-	})
-}
-
-//nolint:paralleltest // mutates package-level device check hooks
-func TestResolvePreferredEncoder_VAAPIAndQSV(t *testing.T) {
-	allure.Test(t, "vaapi and qsv respect intel-only qsv rule", func(a *allure.Context) {
-		t := a.T()
-		restoreDeviceChecks(t)
-
-		checkRenderDevice = func() string { return testRenderNode }
-		checkGPUVendor = func() gpuVendor { return gpuAMD }
-
-		encoder, render, reason := resolvePreferredEncoder(HwAccelVAAPI)
-		if encoder != EncoderVAAPI || render != testRenderNode || reason != "" {
-			t.Fatalf("vaapi: got %s %q %q", encoder, render, reason)
-		}
-
-		encoder, _, reason = resolvePreferredEncoder(HwAccelQSV)
-		if encoder != EncoderSoftware || reason != "qsv requires intel gpu" {
-			t.Fatalf("qsv on amd: got %s %q", encoder, reason)
-		}
-
-		checkGPUVendor = func() gpuVendor { return gpuIntel }
-		encoder, render, reason = resolvePreferredEncoder(HwAccelQSV)
-		if encoder != EncoderQSV || render != testRenderNode || reason != "" {
-			t.Fatalf("qsv on intel: got %s %q %q", encoder, render, reason)
-		}
-	})
+func TestResolvePreferredEncoder(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		accel      HwAccel
+		setup      func()
+		wantEnc    VideoEncoder
+		wantRender string
+		wantReason string
+	}{
+		{
+			name:       "off uses software",
+			accel:      HwAccelOff,
+			setup:      func() { checkNVIDIAPresent = func() bool { return false } },
+			wantEnc:    EncoderSoftware,
+			wantReason: string(HwAccelOff),
+		},
+		{
+			name:       "nvenc missing device",
+			accel:      HwAccelNVENC,
+			setup:      func() { checkNVIDIAPresent = func() bool { return false } },
+			wantEnc:    EncoderSoftware,
+			wantReason: "nvidia device missing",
+		},
+		{
+			name:    "nvenc present",
+			accel:   HwAccelNVENC,
+			setup:   func() { checkNVIDIAPresent = func() bool { return true } },
+			wantEnc: EncoderNVENC,
+		},
+		{
+			name:  "vaapi with render node",
+			accel: HwAccelVAAPI,
+			setup: func() {
+				checkRenderDevice = func() string { return testRenderNode }
+				checkGPUVendor = func() gpuVendor { return gpuAMD }
+			},
+			wantEnc:    EncoderVAAPI,
+			wantRender: testRenderNode,
+		},
+		{
+			name:  "qsv rejected on amd",
+			accel: HwAccelQSV,
+			setup: func() {
+				checkRenderDevice = func() string { return testRenderNode }
+				checkGPUVendor = func() gpuVendor { return gpuAMD }
+			},
+			wantEnc:    EncoderSoftware,
+			wantRender: testRenderNode,
+			wantReason: "qsv requires intel gpu",
+		},
+		{
+			name:  "qsv on intel",
+			accel: HwAccelQSV,
+			setup: func() {
+				checkRenderDevice = func() string { return testRenderNode }
+				checkGPUVendor = func() gpuVendor { return gpuIntel }
+			},
+			wantEnc:    EncoderQSV,
+			wantRender: testRenderNode,
+		},
+	} {
+		allure.Test(t, "resolve preferred encoder — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			restoreDeviceChecks(t)
+			tc.setup()
+			encoder, render, reason := resolvePreferredEncoder(tc.accel)
+			if encoder != tc.wantEnc || render != tc.wantRender || reason != tc.wantReason {
+				t.Fatalf("got %s %q %q want %s %q %q",
+					encoder, render, reason, tc.wantEnc, tc.wantRender, tc.wantReason)
+			}
+		})
+	}
 }
 
 func TestBuildArgs_QSVEncoder(t *testing.T) {
@@ -120,81 +142,97 @@ func TestBuildArgs_QSVEncoder(t *testing.T) {
 func TestParseDownmixAlgorithm(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "parses downmixAlgorithm values", func(a *allure.Context) {
-		t := a.T()
-		got, err := ParseDownmixAlgorithm("")
-		if err != nil || got != DownmixAC4 {
-			t.Fatalf("empty default: %q %v", got, err)
-		}
-		got, err = ParseDownmixAlgorithm("none")
-		if err != nil || got != DownmixNone {
-			t.Fatalf("none: %q %v", got, err)
-		}
-		got, err = ParseDownmixAlgorithm("dave750")
-		if err != nil || got != DownmixDave750 {
-			t.Fatalf("dave750: got %q err=%v", got, err)
-		}
-		got, err = ParseDownmixAlgorithm("ac4")
-		if err != nil || got != DownmixAC4 {
-			t.Fatalf("ac4: got %q err=%v", got, err)
-		}
-		got, err = ParseDownmixAlgorithm("nightmodeDialogue")
-		if err != nil || got != DownmixNightmodeDialogue {
-			t.Fatalf("nightmode: got %q err=%v", got, err)
-		}
-		got, err = ParseDownmixAlgorithm("rfc7845")
-		if err != nil || got != DownmixRFC7845 {
-			t.Fatalf("rfc7845: got %q err=%v", got, err)
-		}
-		_, err = ParseDownmixAlgorithm("bogus")
-		if !errors.Is(err, ErrInvalidDownmix) {
-			t.Fatalf("expected ErrInvalidDownmix, got %v", err)
-		}
-	})
+	for _, tc := range []struct {
+		name    string
+		raw     string
+		want    DownmixAlgorithm
+		wantErr bool
+	}{
+		{name: "empty default ac4", raw: "", want: DownmixAC4},
+		{name: "none", raw: "none", want: DownmixNone},
+		{name: "dave750", raw: "dave750", want: DownmixDave750},
+		{name: "ac4", raw: "ac4", want: DownmixAC4},
+		{name: "nightmode", raw: "nightmodeDialogue", want: DownmixNightmodeDialogue},
+		{name: "rfc7845", raw: "rfc7845", want: DownmixRFC7845},
+		{name: "bogus", raw: "bogus", wantErr: true},
+	} {
+		allure.Test(t, "parse downmix algorithm — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			got, err := ParseDownmixAlgorithm(tc.raw)
+			if tc.wantErr {
+				if !errors.Is(err, ErrInvalidDownmix) {
+					t.Fatalf("expected ErrInvalidDownmix, got %v", err)
+				}
+
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("got %q %v want %q", got, err, tc.want)
+			}
+		})
+	}
 }
 
 func TestParseDownmixBoost(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "parseDownmixBoost applies algorithm defaults and bounds", func(a *allure.Context) {
-		t := a.T()
-		got, err := ParseDownmixBoost(0, DownmixNone)
-		if err != nil || got != 2 {
-			t.Fatalf("none default: got %v err=%v", got, err)
-		}
-		got, err = ParseDownmixBoost(0, DownmixAC4)
-		if err != nil || got != 1 {
-			t.Fatalf("ac4 default: got %v err=%v", got, err)
-		}
-		got, err = ParseDownmixBoost(1.25, DownmixAC4)
-		if err != nil || got != 1.25 {
-			t.Fatalf("explicit boost: got %v err=%v", got, err)
-		}
-		_, err = ParseDownmixBoost(0.4, DownmixAC4)
-		if !errors.Is(err, ErrInvalidDownmixBoost) {
-			t.Fatalf("expected ErrInvalidDownmixBoost, got %v", err)
-		}
-	})
+	for _, tc := range []struct {
+		name    string
+		boost   float64
+		algo    DownmixAlgorithm
+		want    float64
+		wantErr bool
+	}{
+		{name: "none default 2", boost: 0, algo: DownmixNone, want: 2},
+		{name: "ac4 default 1", boost: 0, algo: DownmixAC4, want: 1},
+		{name: "explicit", boost: 1.25, algo: DownmixAC4, want: 1.25},
+		{name: "too low", boost: 0.4, algo: DownmixAC4, wantErr: true},
+	} {
+		allure.Test(t, "parse downmix boost — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			got, err := ParseDownmixBoost(tc.boost, tc.algo)
+			if tc.wantErr {
+				if !errors.Is(err, ErrInvalidDownmixBoost) {
+					t.Fatalf("expected ErrInvalidDownmixBoost, got %v", err)
+				}
+
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("got %v err=%v want %v", got, err, tc.want)
+			}
+		})
+	}
 }
 
 func TestParseToneMappingAlgorithm(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "parses toneMappingAlgorithm values", func(a *allure.Context) {
-		t := a.T()
-		got, err := ParseToneMappingAlgorithm("")
-		if err != nil || got != ToneMappingBT2390 {
-			t.Fatalf("empty default: %q %v", got, err)
-		}
-		got, err = ParseToneMappingAlgorithm("Hable")
-		if err != nil || got != ToneMappingHable {
-			t.Fatalf("hable: %q %v", got, err)
-		}
-		_, err = ParseToneMappingAlgorithm("bt2446")
-		if !errors.Is(err, ErrInvalidToneMappingAlgorithm) {
-			t.Fatalf("expected ErrInvalidToneMappingAlgorithm, got %v", err)
-		}
-	})
+	for _, tc := range []struct {
+		name    string
+		raw     string
+		want    ToneMappingAlgorithm
+		wantErr bool
+	}{
+		{name: "empty default bt2390", raw: "", want: ToneMappingBT2390},
+		{name: "Hable", raw: "Hable", want: ToneMappingHable},
+		{name: "bt2446 rejected", raw: "bt2446", wantErr: true},
+	} {
+		allure.Test(t, "parse tone mapping — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			got, err := ParseToneMappingAlgorithm(tc.raw)
+			if tc.wantErr {
+				if !errors.Is(err, ErrInvalidToneMappingAlgorithm) {
+					t.Fatalf("expected ErrInvalidToneMappingAlgorithm, got %v", err)
+				}
+
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("got %q %v want %q", got, err, tc.want)
+			}
+		})
+	}
 }
 
 func TestNormalizeTranscodeSettings_ToneMapDefaults(t *testing.T) {

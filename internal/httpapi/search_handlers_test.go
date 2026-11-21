@@ -21,7 +21,6 @@ import (
 
 const sceneReleaseName = "[linuxisos.ru].friends.s01.e01.mkv"
 
-//nolint:paralleltest // integration search + ACL
 func TestSearch_SceneReleaseAndACL(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -98,7 +97,6 @@ func TestSearch_SceneReleaseAndACL(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAdmin_ExclusiveLibraryRoots(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -160,7 +158,7 @@ func TestAdmin_ExclusiveLibraryRoots(t *testing.T) {
 	)
 }
 
-func TestAdmin_LibraryFolderTreeRemoveAndDelete( //nolint:gocognit,cyclop,funlen,paralleltest
+func TestAdmin_LibraryFolderTreeRemoveAndDelete(
 	t *testing.T,
 ) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {

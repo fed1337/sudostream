@@ -38,46 +38,41 @@ func TestJobFail_SetsErrorMessage(t *testing.T) {
 	})
 }
 
-func TestHasLocalSubtitles_Sidecar(t *testing.T) {
+func TestHasLocalSubtitles(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "HasLocalSubtitles is true when a matching sidecar exists", func(a *allure.Context) {
-		t := a.T()
-		root := t.TempDir()
-		mediaPath := filepath.Join(root, "movie.mp4")
-		err := os.WriteFile(mediaPath, []byte("fake"), 0o600)
-		if err != nil {
-			t.Fatalf("write media: %v", err)
-		}
-		err = os.WriteFile(filepath.Join(root, "movie.en.srt"), []byte("1\n00:00:01,000 --> 00:00:02,000\nhi\n"), 0o600)
-		if err != nil {
-			t.Fatalf("write sidecar: %v", err)
-		}
+	for _, tc := range []struct {
+		name         string
+		mediaContent string
+		withSidecar  bool
+		wantLocal    bool
+		wantErr      bool
+	}{
+		{name: "matching sidecar exists", mediaContent: "fake", withSidecar: true, wantLocal: true},
+		{name: "probe error without sidecar", mediaContent: "not a real media file", wantErr: true},
+	} {
+		allure.Test(t, "HasLocalSubtitles — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			root := t.TempDir()
+			mediaPath := filepath.Join(root, "movie.mp4")
+			err := os.WriteFile(mediaPath, []byte(tc.mediaContent), 0o600)
+			if err != nil {
+				t.Fatalf("write media: %v", err)
+			}
+			if tc.withSidecar {
+				srt := "1\n00:00:01,000 --> 00:00:02,000\nhi\n"
+				err = os.WriteFile(filepath.Join(root, "movie.en.srt"), []byte(srt), 0o600)
+				if err != nil {
+					t.Fatalf("write sidecar: %v", err)
+				}
+			}
 
-		hasLocal, err := HasLocalSubtitles(context.Background(), mediaPath)
-		if err != nil || !hasLocal {
-			t.Fatalf("want local=true, got %v %v", hasLocal, err)
-		}
-	})
-}
-
-func TestHasLocalSubtitles_NoSidecarNoProbeSubs(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "HasLocalSubtitles returns probe error without sidecar", func(a *allure.Context) {
-		t := a.T()
-		root := t.TempDir()
-		mediaPath := filepath.Join(root, "movie.mp4")
-		err := os.WriteFile(mediaPath, []byte("not a real media file"), 0o600)
-		if err != nil {
-			t.Fatalf("write media: %v", err)
-		}
-
-		hasLocal, err := HasLocalSubtitles(context.Background(), mediaPath)
-		if err == nil || hasLocal {
-			t.Fatalf("want probe error and local=false, got %v %v", hasLocal, err)
-		}
-	})
+			hasLocal, err := HasLocalSubtitles(context.Background(), mediaPath)
+			if (err != nil) != tc.wantErr || hasLocal != tc.wantLocal {
+				t.Fatalf("want local=%v err=%v, got %v %v", tc.wantLocal, tc.wantErr, hasLocal, err)
+			}
+		})
+	}
 }
 
 func TestAttachSidecarSubtitles_NoSidecarsIsNoOp(t *testing.T) {
@@ -159,78 +154,69 @@ func TestEnsurePackagedSubtitles_ConvertsSidecarSRT(t *testing.T) {
 func TestAppendHWGlobalArgs_EncoderBranches(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "appendHWGlobalArgs covers hardware encoder argv", func(a *allure.Context) {
-		t := a.T()
-		nvenc := strings.Join(appendHWGlobalArgs(nil, EncoderNVENC, ""), " ")
-		if !strings.Contains(nvenc, "-hwaccel cuda") {
-			t.Fatalf("expected cuda hwaccel, got: %s", nvenc)
-		}
-
-		qsv := strings.Join(appendHWGlobalArgs(nil, EncoderQSV, ""), " ")
-		if !strings.Contains(qsv, "-hwaccel qsv") {
-			t.Fatalf("expected qsv hwaccel, got: %s", qsv)
-		}
-
-		vaapi := strings.Join(appendHWGlobalArgs(nil, EncoderVAAPI, "/dev/dri/renderD128"), " ")
-		if !strings.Contains(vaapi, "-init_hw_device vaapi=va:/dev/dri/renderD128") {
-			t.Fatalf("expected vaapi device init, got: %s", vaapi)
-		}
-
-		noRender := appendHWGlobalArgs(nil, EncoderVAAPI, "")
-		if len(noRender) != 0 {
-			t.Fatalf("expected no vaapi args without render node, got: %v", noRender)
-		}
-
-		if len(appendHWGlobalArgs(nil, EncoderSoftware, "")) != 0 {
-			t.Fatal("expected no software encoder global args")
-		}
-
-		if len(appendHWGlobalArgs(nil, VideoEncoder("unknown"), "")) != 0 {
-			t.Fatal("expected unknown encoder to add no global args")
-		}
-	})
+	for _, tc := range []struct {
+		name       string
+		encoder    VideoEncoder
+		renderNode string
+		wantSubstr string // empty: expect no args at all
+	}{
+		{name: "nvenc", encoder: EncoderNVENC, wantSubstr: "-hwaccel cuda"},
+		{name: "qsv", encoder: EncoderQSV, wantSubstr: "-hwaccel qsv"},
+		{
+			name:       "vaapi with render node",
+			encoder:    EncoderVAAPI,
+			renderNode: "/dev/dri/renderD128",
+			wantSubstr: "-init_hw_device vaapi=va:/dev/dri/renderD128",
+		},
+		{name: "vaapi without render node", encoder: EncoderVAAPI},
+		{name: "software", encoder: EncoderSoftware},
+		{name: "unknown encoder", encoder: VideoEncoder("unknown")},
+	} {
+		allure.Test(t, "appendHWGlobalArgs — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			args := appendHWGlobalArgs(nil, tc.encoder, tc.renderNode)
+			if tc.wantSubstr == "" {
+				if len(args) != 0 {
+					t.Fatalf("expected no global args, got: %v", args)
+				}
+				return
+			}
+			if joined := strings.Join(args, " "); !strings.Contains(joined, tc.wantSubstr) {
+				t.Fatalf("expected %q, got: %s", tc.wantSubstr, joined)
+			}
+		})
+	}
 }
 
 func TestAppendVideoEncodeArgs_EncoderBranches(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "appendVideoEncodeArgs covers encoder-specific flags", func(a *allure.Context) {
-		t := a.T()
-		rung := FastStartRung(720)
+	rung := FastStartRung(720)
 
-		nvenc := strings.Join(appendVideoEncodeArgs(nil, EncoderNVENC, rung, ToneMapNone, ToneMappingBT2390), " ")
-		if !strings.Contains(nvenc, "scale_cuda") ||
-			!strings.Contains(nvenc, string(EncoderNVENC)) {
-			t.Fatalf("expected nvenc scale/codec, got: %s", nvenc)
-		}
-
-		qsv := strings.Join(appendVideoEncodeArgs(nil, EncoderQSV, rung, ToneMapNone, ToneMappingBT2390), " ")
-		if !strings.Contains(qsv, "scale_qsv") || !strings.Contains(qsv, string(EncoderQSV)) {
-			t.Fatalf("expected qsv scale/codec, got: %s", qsv)
-		}
-
-		vaapi := strings.Join(appendVideoEncodeArgs(nil, EncoderVAAPI, rung, ToneMapNone, ToneMappingBT2390), " ")
-		if !strings.Contains(vaapi, "scale_vaapi") ||
-			!strings.Contains(vaapi, string(EncoderVAAPI)) {
-			t.Fatalf("expected vaapi scale/codec, got: %s", vaapi)
-		}
-
-		software := strings.Join(
-			appendVideoEncodeArgs(nil, EncoderSoftware, rung, ToneMapNone, ToneMappingBT2390),
-			" ",
-		)
-		if !strings.Contains(software, "-crf 23") {
-			t.Fatalf("expected software crf, got: %s", software)
-		}
-
-		unknown := strings.Join(
-			appendVideoEncodeArgs(nil, VideoEncoder("unknown"), rung, ToneMapNone, ToneMappingBT2390),
-			" ",
-		)
-		if !strings.Contains(unknown, string(EncoderSoftware)) {
-			t.Fatalf("expected software fallback, got: %s", unknown)
-		}
-	})
+	for _, tc := range []struct {
+		name       string
+		encoder    VideoEncoder
+		wantSubstr []string
+	}{
+		{name: "nvenc", encoder: EncoderNVENC, wantSubstr: []string{"scale_cuda", string(EncoderNVENC)}},
+		{name: "qsv", encoder: EncoderQSV, wantSubstr: []string{"scale_qsv", string(EncoderQSV)}},
+		{name: "vaapi", encoder: EncoderVAAPI, wantSubstr: []string{"scale_vaapi", string(EncoderVAAPI)}},
+		{name: "software", encoder: EncoderSoftware, wantSubstr: []string{"-crf 23"}},
+		{name: "unknown falls back to software", encoder: VideoEncoder("unknown"), wantSubstr: []string{string(EncoderSoftware)}},
+	} {
+		allure.Test(t, "appendVideoEncodeArgs — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			joined := strings.Join(
+				appendVideoEncodeArgs(nil, tc.encoder, rung, ToneMapNone, ToneMappingBT2390),
+				" ",
+			)
+			for _, want := range tc.wantSubstr {
+				if !strings.Contains(joined, want) {
+					t.Fatalf("expected %q, got: %s", want, joined)
+				}
+			}
+		})
+	}
 }
 
 func TestSubtitleVTTFilename(t *testing.T) {

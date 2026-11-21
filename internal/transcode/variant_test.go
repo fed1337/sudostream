@@ -44,49 +44,68 @@ func TestParseVariantDir_MapsRenditionDirectories(t *testing.T) {
 func TestSplitSegmentResource_ExtractsVariantAndIndex(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "segment resources resolve to a rendition and index", func(a *allure.Context) {
-		t := a.T()
-		variant, index, parsed := SplitSegmentResource("v720/seg_00007.ts")
-		if !parsed || variant != VideoVariant(720) || index != 7 {
-			t.Fatalf("got %+v index=%d parsed=%v", variant, index, parsed)
-		}
-
-		variant, index, parsed = SplitSegmentResource("a1/seg_00000.ts")
-		if !parsed || variant != AudioVariant(1) || index != 0 {
-			t.Fatalf("got %+v index=%d parsed=%v", variant, index, parsed)
-		}
-
-		if _, _, parsed = SplitSegmentResource("v720/playlist.m3u8"); parsed {
-			t.Fatal("playlists are not segments")
-		}
-		if _, _, parsed = SplitSegmentResource("subtitles/eng/track.vtt"); parsed {
-			t.Fatal("subtitle resources are not segments")
-		}
-	})
+	for _, tc := range []struct {
+		name       string
+		resource   string
+		wantParsed bool
+		wantVar    Variant
+		wantIndex  int
+	}{
+		{
+			name:       "video segment",
+			resource:   "v720/seg_00007.ts",
+			wantParsed: true,
+			wantVar:    VideoVariant(720),
+			wantIndex:  7,
+		},
+		{
+			name:       "audio segment",
+			resource:   "a1/seg_00000.ts",
+			wantParsed: true,
+			wantVar:    AudioVariant(1),
+			wantIndex:  0,
+		},
+		{name: "playlists are not segments", resource: "v720/playlist.m3u8"},
+		{name: "subtitle resources are not segments", resource: "subtitles/eng/track.vtt"},
+	} {
+		allure.Test(t, "split segment resource — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			variant, index, parsed := SplitSegmentResource(tc.resource)
+			if parsed != tc.wantParsed {
+				t.Fatalf("parsed got %v want %v", parsed, tc.wantParsed)
+			}
+			if parsed && (variant != tc.wantVar || index != tc.wantIndex) {
+				t.Fatalf("got %+v index=%d, want %+v index=%d", variant, index, tc.wantVar, tc.wantIndex)
+			}
+		})
+	}
 }
 
 func TestValidVariant_ChecksLadderAndAudioRange(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "only published renditions are accepted", func(a *allure.Context) {
-		t := a.T()
-		meta := SourceMeta{
-			Height:       480,
-			AudioStreams: []AudioStream{{Index: 1}, {Index: 2}},
-			Segments:     []float64{6},
-		}
+	meta := SourceMeta{
+		Height:       480,
+		AudioStreams: []AudioStream{{Index: 1}, {Index: 2}},
+		Segments:     []float64{6},
+	}
 
-		if !validVariant(meta, VideoVariant(480)) || !validVariant(meta, VideoVariant(240)) {
-			t.Fatal("expected ladder rungs to be valid")
-		}
-		if validVariant(meta, VideoVariant(1080)) {
-			t.Fatal("expected upscale rung to be rejected")
-		}
-		if !validVariant(meta, AudioVariant(1)) {
-			t.Fatal("expected second audio track to be valid")
-		}
-		if validVariant(meta, AudioVariant(2)) {
-			t.Fatal("expected out-of-range audio track to be rejected")
-		}
-	})
+	for _, tc := range []struct {
+		name    string
+		variant Variant
+		want    bool
+	}{
+		{name: "source-height rung is valid", variant: VideoVariant(480), want: true},
+		{name: "lower ladder rung is valid", variant: VideoVariant(240), want: true},
+		{name: "upscale rung is rejected", variant: VideoVariant(1080), want: false},
+		{name: "in-range audio track is valid", variant: AudioVariant(1), want: true},
+		{name: "out-of-range audio track is rejected", variant: AudioVariant(2), want: false},
+	} {
+		allure.Test(t, "valid variant — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if got := validVariant(meta, tc.variant); got != tc.want {
+				t.Fatalf("validVariant(%+v) = %v, want %v", tc.variant, got, tc.want)
+			}
+		})
+	}
 }

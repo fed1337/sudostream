@@ -11,7 +11,6 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthTokens_TwoFactorGatesChangeEmailAndPassword(t *testing.T) {
 	allure.Test(
 		t,
@@ -146,7 +145,6 @@ func assertChangePasswordTOTP(
 	}
 }
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthTokens_ResendConfirmPaths(t *testing.T) {
 	allure.Test(
 		t,

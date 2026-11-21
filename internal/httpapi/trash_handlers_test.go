@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TestAdminTrash_ListRestoreDelete(t *testing.T) { //nolint:cyclop
+func TestAdminTrash_ListRestoreDelete(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(t, "admin trash list, restore, and delete forever", func(a *allure.Context) {
@@ -115,7 +115,7 @@ func TestAdminTrash_ListRestoreDelete(t *testing.T) { //nolint:cyclop
 	})
 }
 
-func TestAdminTrash_EmptyPatchUnavailableAndErrors(t *testing.T) { //nolint:cyclop,funlen
+func TestAdminTrash_EmptyPatchUnavailableAndErrors(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(
@@ -233,7 +233,7 @@ func TestAdminTrash_EmptyPatchUnavailableAndErrors(t *testing.T) { //nolint:cycl
 	)
 }
 
-func TestAdminTrash_ErrorMappingConflictAndCleanup(t *testing.T) { //nolint:cyclop,funlen,gocognit
+func TestAdminTrash_ErrorMappingConflictAndCleanup(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(

@@ -9,33 +9,39 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-func TestParseLibraryType_AcceptsKnownValues(t *testing.T) {
+func TestParseLibraryType(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "known library types parse successfully", func(a *allure.Context) {
-		t := a.T()
-		for _, raw := range []string{"film", testLibrarySeries, "music", "photos", "other"} {
-			libraryType, err := access.ParseLibraryType(raw)
+	for _, tc := range []struct {
+		name    string
+		raw     string
+		wantErr bool
+	}{
+		{name: "film", raw: "film"},
+		{name: "series", raw: testLibrarySeries},
+		{name: "music", raw: "music"},
+		{name: "photos", raw: "photos"},
+		{name: "other", raw: "other"},
+		{name: "unknown", raw: "podcasts", wantErr: true},
+	} {
+		allure.Test(t, "parse library type — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			libraryType, err := access.ParseLibraryType(tc.raw)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error for unknown type")
+				}
+
+				return
+			}
 			if err != nil {
-				t.Fatalf("parse %q: %v", raw, err)
+				t.Fatalf("parse %q: %v", tc.raw, err)
 			}
-			if string(libraryType) != raw {
-				t.Fatalf("parse %q: got %q", raw, libraryType)
+			if string(libraryType) != tc.raw {
+				t.Fatalf("parse %q: got %q", tc.raw, libraryType)
 			}
-		}
-	})
-}
-
-func TestParseLibraryType_RejectsUnknownValues(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "unknown library type is rejected", func(a *allure.Context) {
-		t := a.T()
-		_, err := access.ParseLibraryType("podcasts")
-		if err == nil {
-			t.Fatal("expected error for unknown library type")
-		}
-	})
+		})
+	}
 }
 
 func TestService_ListReadableLibraries_FiltersByReadGrant(t *testing.T) {

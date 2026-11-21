@@ -31,7 +31,6 @@ func oauthPasswordForm(password string) url.Values {
 	}
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_PasswordGrantIssuesTokens(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -94,7 +93,6 @@ func TestOAuth_PasswordGrantIssuesTokens(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_PasswordGrantRejectsInvalidCredentials(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -132,7 +130,6 @@ func TestOAuth_PasswordGrantRejectsInvalidCredentials(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_RefreshGrantRotatesAccessToken(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -200,7 +197,6 @@ func TestOAuth_RefreshGrantRotatesAccessToken(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_UnsupportedGrantType(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -238,7 +234,6 @@ func TestOAuth_UnsupportedGrantType(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_PasswordGrantRequiresMFAWhenConfigured(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -323,7 +318,6 @@ func assertUserHasNoSessions(ctx context.Context, t *testing.T, authService *aut
 	}
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_PasswordGrantCompletesConfiguredTOTP(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -436,7 +430,6 @@ func assertInvalidOAuthTOTPRejected(
 	}
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_DisabledUserCannotObtainToken(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -511,7 +504,6 @@ func TestOAuth_DisabledUserCannotObtainToken(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_RefreshGrantRejectsReplayedToken(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -610,7 +602,6 @@ func newAuthTestRouterWithMail(t *testing.T, mail email.Sender) *gin.Engine {
 	return newAuthTestRouterFromService(t, authService)
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestOAuth_MissingFields(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -649,7 +640,6 @@ func TestOAuth_MissingFields(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_RefreshWithoutCookie(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

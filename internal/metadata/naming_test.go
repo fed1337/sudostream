@@ -9,30 +9,28 @@ import (
 func TestParseFilmIdentity(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "parses title and year from common torrent names", func(a *allure.Context) {
-		t := a.T()
-		cases := []struct {
-			path      string
-			wantTitle string
-			wantYear  int
-		}{
-			{"Movies/Casino.1995.BDRip.1080p.mkv", "Casino", 1995},
-			{"Movies/Borderlands (2024) WEB-DL.1080p.mkv", "Borderlands", 2024},
-			{"Movies/Blow.2001.BDRip.720p.mkv", "Blow", 2001},
-		}
-		for _, testCase := range cases {
-			got := ParseFilmIdentity(testCase.path)
-			if got.Title != testCase.wantTitle {
-				t.Fatalf("%s title=%q want %q", testCase.path, got.Title, testCase.wantTitle)
+	for _, tc := range []struct {
+		path      string
+		wantTitle string
+		wantYear  int
+	}{
+		{"Movies/Casino.1995.BDRip.1080p.mkv", "Casino", 1995},
+		{"Movies/Borderlands (2024) WEB-DL.1080p.mkv", "Borderlands", 2024},
+		{"Movies/Blow.2001.BDRip.720p.mkv", "Blow", 2001},
+	} {
+		allure.Test(t, "parse film identity — "+tc.path, func(a *allure.Context) {
+			t := a.T()
+			got := ParseFilmIdentity(tc.path)
+			if got.Title != tc.wantTitle {
+				t.Fatalf("title=%q want %q", got.Title, tc.wantTitle)
 			}
-			if got.Year == nil || *got.Year != testCase.wantYear {
-				t.Fatalf("%s year=%v want %d", testCase.path, got.Year, testCase.wantYear)
+			if got.Year == nil || *got.Year != tc.wantYear {
+				t.Fatalf("year=%v want %d", got.Year, tc.wantYear)
 			}
-		}
-	})
+		})
+	}
 }
 
-//nolint:cyclop // fixture assertions
 func TestParseSeriesIdentity_GroupsSeasonFolders(
 	t *testing.T,
 ) {
@@ -479,10 +477,18 @@ func realLibrarySeriesCases() []seriesParseCase {
 func TestNormalizeShowKey(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "normalizes punctuation for grouping", func(a *allure.Context) {
-		t := a.T()
-		if NormalizeShowKey("Sex and the City") != NormalizeShowKey("Sex.and.the.City") {
-			t.Fatal("expected matching keys")
-		}
-	})
+	for _, tc := range []struct {
+		name string
+		a    string
+		b    string
+	}{
+		{name: "sex and the city", a: "Sex and the City", b: "Sex.and.the.City"},
+	} {
+		allure.Test(t, "normalize show key — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if NormalizeShowKey(tc.a) != NormalizeShowKey(tc.b) {
+				t.Fatalf("keys diverge for %q vs %q", tc.a, tc.b)
+			}
+		})
+	}
 }

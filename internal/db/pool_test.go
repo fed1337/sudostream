@@ -10,47 +10,58 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-func TestPoolOptionsFromEnv_Defaults(t *testing.T) {
-	allure.Test(t, "pool options use defaults when env unset", func(a *allure.Context) {
-		t := a.T()
-		t.Setenv("SUDOSTREAM_DB_MAX_CONNS", "")
-		t.Setenv("SUDOSTREAM_DB_MIN_CONNS", "")
-
-		opts := db.PoolOptionsFromEnv()
-		if opts.MaxOpenConns != 10 {
-			t.Fatalf("MaxOpenConns: got %d want 10", opts.MaxOpenConns)
-		}
-		if opts.MaxIdleConns != 2 {
-			t.Fatalf("MaxIdleConns: got %d want 2", opts.MaxIdleConns)
-		}
-		if opts.ConnMaxLifetime != 30*time.Minute {
-			t.Fatalf("ConnMaxLifetime: got %v", opts.ConnMaxLifetime)
-		}
-	})
-}
-
-func TestPoolOptionsFromEnv_CustomValues(t *testing.T) {
-	allure.Test(t, "pool options read custom env values", func(a *allure.Context) {
-		t := a.T()
-		t.Setenv("SUDOSTREAM_DB_MAX_CONNS", "25")
-		t.Setenv("SUDOSTREAM_DB_MIN_CONNS", "5")
-		t.Setenv("SUDOSTREAM_DB_MAX_CONN_LIFETIME", "2h")
-		t.Setenv("SUDOSTREAM_DB_MAX_CONN_IDLE_TIME", "15m")
-
-		opts := db.PoolOptionsFromEnv()
-		if opts.MaxOpenConns != 25 {
-			t.Fatalf("MaxOpenConns: got %d want 25", opts.MaxOpenConns)
-		}
-		if opts.MaxIdleConns != 5 {
-			t.Fatalf("MaxIdleConns: got %d want 5", opts.MaxIdleConns)
-		}
-		if opts.ConnMaxLifetime != 2*time.Hour {
-			t.Fatalf("ConnMaxLifetime: got %v", opts.ConnMaxLifetime)
-		}
-		if opts.ConnMaxIdleTime != 15*time.Minute {
-			t.Fatalf("ConnMaxIdleTime: got %v", opts.ConnMaxIdleTime)
-		}
-	})
+func TestPoolOptionsFromEnv(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		env       map[string]string
+		wantMax   int
+		wantMin   int
+		wantLife  time.Duration
+		wantIdle  time.Duration
+		checkIdle bool
+	}{
+		{
+			name:     "defaults when unset",
+			env:      map[string]string{"SUDOSTREAM_DB_MAX_CONNS": "", "SUDOSTREAM_DB_MIN_CONNS": ""},
+			wantMax:  10,
+			wantMin:  2,
+			wantLife: 30 * time.Minute,
+		},
+		{
+			name: "custom values",
+			env: map[string]string{
+				"SUDOSTREAM_DB_MAX_CONNS":          "25",
+				"SUDOSTREAM_DB_MIN_CONNS":          "5",
+				"SUDOSTREAM_DB_MAX_CONN_LIFETIME":  "2h",
+				"SUDOSTREAM_DB_MAX_CONN_IDLE_TIME": "15m",
+			},
+			wantMax:   25,
+			wantMin:   5,
+			wantLife:  2 * time.Hour,
+			wantIdle:  15 * time.Minute,
+			checkIdle: true,
+		},
+	} {
+		allure.Test(t, "pool options from env — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			for key, value := range tc.env {
+				t.Setenv(key, value)
+			}
+			opts := db.PoolOptionsFromEnv()
+			if opts.MaxOpenConns != tc.wantMax {
+				t.Fatalf("MaxOpenConns: got %d want %d", opts.MaxOpenConns, tc.wantMax)
+			}
+			if opts.MaxIdleConns != tc.wantMin {
+				t.Fatalf("MaxIdleConns: got %d want %d", opts.MaxIdleConns, tc.wantMin)
+			}
+			if opts.ConnMaxLifetime != tc.wantLife {
+				t.Fatalf("ConnMaxLifetime: got %v want %v", opts.ConnMaxLifetime, tc.wantLife)
+			}
+			if tc.checkIdle && opts.ConnMaxIdleTime != tc.wantIdle {
+				t.Fatalf("ConnMaxIdleTime: got %v want %v", opts.ConnMaxIdleTime, tc.wantIdle)
+			}
+		})
+	}
 }
 
 func TestDatabase_PingRequiresConnection(t *testing.T) {
@@ -67,7 +78,6 @@ func TestDatabase_PingRequiresConnection(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration test uses isolated schema fixture
 func TestOpen_ScopedSearchPath(t *testing.T) {
 	allure.Test(t, "open honors isolated schema search_path", func(a *allure.Context) {
 		t := a.T()
@@ -88,7 +98,6 @@ func TestOpen_ScopedSearchPath(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration test uses isolated schema fixture
 func TestSchema_CreateAndDrop(t *testing.T) {
 	allure.Test(t, "create and drop schema via database/sql pool", func(a *allure.Context) {
 		t := a.T()

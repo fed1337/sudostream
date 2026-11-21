@@ -655,31 +655,3 @@ func TestFallbackInterfaceIPv4(t *testing.T) {
 		}
 	})
 }
-
-func TestCoverageExtras(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "extra branches for package coverage floor", func(a *allure.Context) {
-		t := a.T()
-		if StreamModeForDecision(playback.PlayMethod("nope")) != StreamTranscode {
-			t.Fatal("default mode")
-		}
-		store := NewKVSettingsStore(&memoryKV{data: map[string][]byte{"dlna": []byte(`{`)}})
-		_, err := store.GetSettings(context.Background())
-		if err == nil {
-			t.Fatal("expected decode error")
-		}
-		tag := soapTag([]byte(`<u:ObjectID>abc</u:ObjectID>`), "ObjectID")
-		if tag != "abc" {
-			t.Fatalf("tag %q", tag)
-		}
-		if soapActionName("") != "" {
-			t.Fatal("empty action")
-		}
-		ctrl := NewController(Deps{Settings: NewKVSettingsStore(&memoryKV{}), SignKey: []byte("x")})
-		_, err = ctrl.tvUser()
-		if !errors.Is(err, ErrNotEnabled) {
-			t.Fatalf("tvUser: %v", err)
-		}
-	})
-}

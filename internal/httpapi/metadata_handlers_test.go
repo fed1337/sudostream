@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestMetadata_ServiceUnavailable(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -57,7 +56,6 @@ func TestMetadata_ServiceUnavailable(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestMetadata_PatchBadRequests(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

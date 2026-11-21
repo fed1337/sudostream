@@ -10,21 +10,22 @@ import (
 func TestFastStartRung_UsesHighestApplicableRung(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "1080p source picks highest rung for faststart", func(a *allure.Context) {
-		t := a.T()
-		rung := transcode.FastStartRung(1080)
-		if rung.Height != 1080 {
-			t.Fatalf("expected 1080p faststart, got %d", rung.Height)
-		}
-	})
-
-	allure.Test(t, "480p source picks 480p for faststart", func(a *allure.Context) {
-		t := a.T()
-		rung := transcode.FastStartRung(480)
-		if rung.Height != 480 {
-			t.Fatalf("expected 480p faststart, got %d", rung.Height)
-		}
-	})
+	for _, tc := range []struct {
+		name         string
+		sourceHeight int
+		want         int
+	}{
+		{name: "1080p source picks highest rung", sourceHeight: 1080, want: 1080},
+		{name: "480p source picks 480p", sourceHeight: 480, want: 480},
+	} {
+		allure.Test(t, "faststart rung — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			rung := transcode.FastStartRung(tc.sourceHeight)
+			if rung.Height != tc.want {
+				t.Fatalf("expected %dp faststart, got %d", tc.want, rung.Height)
+			}
+		})
+	}
 }
 
 func TestQualityRungs_NoUpscaleBeyondSource(t *testing.T) {

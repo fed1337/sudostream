@@ -215,7 +215,6 @@ func (m *memoryTranscodeSettings) SaveTranscodeSettings(
 	return nil
 }
 
-//nolint:cyclop,funlen,goconst // multi-branch maintenance handler coverage
 func TestMaintenanceHandlers_CoverBranches(t *testing.T) {
 	t.Parallel()
 
@@ -470,7 +469,6 @@ func TestMaintenanceHandlers_CoverBranches(t *testing.T) {
 	})
 }
 
-//nolint:funlen // syncLibrary + maintenance edge coverage
 func TestAdminHandler_SyncLibraryAndMaintEdges(t *testing.T) {
 	t.Parallel()
 

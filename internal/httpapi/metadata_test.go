@@ -21,7 +21,6 @@ import (
 
 const testMetadataPilotTitle = "Pilot"
 
-//nolint:paralleltest,gocognit,cyclop,funlen // integration scenario exercises GET/PATCH metadata flows end-to-end
 func TestMetadata_HTTPGetPatchAndACL(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sudoStream/internal/auth"
 	"testing"
 
@@ -21,29 +22,26 @@ func TestPlaybackPreferencesHandlers_Unauthorized(t *testing.T) {
 		gin.SetMode(gin.TestMode)
 		router := newAuthTestRouter(t)
 
-		getRecorder := httptest.NewRecorder()
-		getRequest := httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodGet,
-			"/api/me/playback-preferences",
-			nil,
-		)
-		router.ServeHTTP(getRecorder, getRequest)
-		if getRecorder.Code != http.StatusUnauthorized {
-			t.Fatalf("GET: got %d", getRecorder.Code)
-		}
-
-		patchRecorder := httptest.NewRecorder()
-		patchRequest := httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodPatch,
-			"/api/me/playback-preferences",
-			bytes.NewReader([]byte(`{"audioLanguages":["en"]}`)),
-		)
-		patchRequest.Header.Set("Content-Type", "application/json")
-		router.ServeHTTP(patchRecorder, patchRequest)
-		if patchRecorder.Code != http.StatusUnauthorized {
-			t.Fatalf("PATCH: got %d", patchRecorder.Code)
+		for _, tc := range []struct {
+			name   string
+			method string
+			body   string
+		}{
+			{name: "GET", method: http.MethodGet},
+			{name: "PATCH", method: http.MethodPatch, body: `{"audioLanguages":["en"]}`},
+		} {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequestWithContext(
+				context.Background(),
+				tc.method,
+				"/api/me/playback-preferences",
+				strings.NewReader(tc.body),
+			)
+			request.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("%s: got %d", tc.name, recorder.Code)
+			}
 		}
 	})
 }
@@ -168,32 +166,26 @@ func TestPlaybackPreferencesHandlers_Validation(t *testing.T) {
 		router := newAuthTestRouter(t)
 		token := adminAccessToken(ctx, t, router)
 
-		tooMany := httptest.NewRecorder()
-		tooManyRequest := httptest.NewRequestWithContext(
-			ctx,
-			http.MethodPatch,
-			"/api/me/playback-preferences",
-			bytes.NewReader([]byte(`{"audioLanguages":["a","b","c","d"]}`)),
-		)
-		tooManyRequest.Header.Set("Content-Type", "application/json")
-		setBearerAuth(tooManyRequest, token)
-		router.ServeHTTP(tooMany, tooManyRequest)
-		if tooMany.Code != http.StatusBadRequest {
-			t.Fatalf("too many langs: got %d", tooMany.Code)
-		}
-
-		badJSON := httptest.NewRecorder()
-		badRequest := httptest.NewRequestWithContext(
-			ctx,
-			http.MethodPatch,
-			"/api/me/playback-preferences",
-			bytes.NewReader([]byte(`not-json`)),
-		)
-		badRequest.Header.Set("Content-Type", "application/json")
-		setBearerAuth(badRequest, token)
-		router.ServeHTTP(badJSON, badRequest)
-		if badJSON.Code != http.StatusBadRequest {
-			t.Fatalf("bad json: got %d", badJSON.Code)
+		for _, tc := range []struct {
+			name string
+			body string
+		}{
+			{name: "too many langs", body: `{"audioLanguages":["a","b","c","d"]}`},
+			{name: "bad json", body: `not-json`},
+		} {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequestWithContext(
+				ctx,
+				http.MethodPatch,
+				"/api/me/playback-preferences",
+				strings.NewReader(tc.body),
+			)
+			request.Header.Set("Content-Type", "application/json")
+			setBearerAuth(request, token)
+			router.ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("%s: got %d", tc.name, recorder.Code)
+			}
 		}
 	})
 }
@@ -230,39 +222,42 @@ func TestPlaybackPreferencesHandlers_LoadFailed(t *testing.T) {
 func TestPlaybackPreferencesHandlers_AuthUnavailable(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "playback prefs return 500 when auth service unset", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-		user := auth.PublicUser{ID: "user-id", Role: auth.RoleUser}
-		h := &handler{}
+	for _, tc := range []struct {
+		name   string
+		method string
+		body   string
+		call   func(*handler, *gin.Context)
+	}{
+		{
+			name:   "GET",
+			method: http.MethodGet,
+			call:   (*handler).getPlaybackPreferences,
+		},
+		{
+			name:   "PATCH",
+			method: http.MethodPatch,
+			body:   `{"audioLanguages":["en"]}`,
+			call:   (*handler).patchPlaybackPreferences,
+		},
+	} {
+		allure.Test(t, "playback prefs return 500 when auth service unset — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			gin.SetMode(gin.TestMode)
 
-		recorder := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodGet,
-			"/api/me/playback-preferences",
-			nil,
-		)
-		setTestUser(ctx, user)
-		h.getPlaybackPreferences(ctx)
-		if recorder.Code != http.StatusInternalServerError {
-			t.Fatalf("GET nil auth: got %d", recorder.Code)
-		}
-
-		recorder = httptest.NewRecorder()
-		ctx, _ = gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodPatch,
-			"/api/me/playback-preferences",
-			bytes.NewReader([]byte(`{"audioLanguages":["en"]}`)),
-		)
-		ctx.Request.Header.Set("Content-Type", "application/json")
-		setTestUser(ctx, user)
-		h.patchPlaybackPreferences(ctx)
-		if recorder.Code != http.StatusInternalServerError {
-			t.Fatalf("PATCH nil auth: got %d", recorder.Code)
-		}
-	})
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequestWithContext(
+				context.Background(),
+				tc.method,
+				"/api/me/playback-preferences",
+				strings.NewReader(tc.body),
+			)
+			ctx.Request.Header.Set("Content-Type", "application/json")
+			setTestUser(ctx, auth.PublicUser{ID: "user-id", Role: auth.RoleUser})
+			tc.call(&handler{}, ctx)
+			if recorder.Code != http.StatusInternalServerError {
+				t.Fatalf("got %d", recorder.Code)
+			}
+		})
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sudoStream/internal/access"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/mediafs"
@@ -379,195 +380,117 @@ func TestPatchWatch_UpdatesWatchedState(t *testing.T) {
 	})
 }
 
-func TestWatchHandlers_RequireAuth(t *testing.T) {
+func TestWatchHandlers_StatusMatrix(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "watch endpoints return 401 without user", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
+	user := auth.PublicUser{ID: watchTestUserID, Email: watchTestUserEmail, Role: auth.RoleAdmin}
 
-		watchHandler, rel := newWatchHandlerFixture(t)
+	for _, tc := range []struct {
+		name       string
+		method     string
+		body       string
+		withUser   bool
+		nilService bool
+		wantStatus int
+	}{
+		{name: "GET without user", method: http.MethodGet, wantStatus: http.StatusUnauthorized},
+		{
+			name:       "GET service nil",
+			method:     http.MethodGet,
+			withUser:   true,
+			nilService: true,
+			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
+			name:       "PATCH service nil",
+			method:     http.MethodPatch,
+			body:       `{"watched":true}`,
+			withUser:   true,
+			nilService: true,
+			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
+			name:       "PATCH invalid JSON",
+			method:     http.MethodPatch,
+			body:       "{",
+			withUser:   true,
+			wantStatus: http.StatusBadRequest,
+		},
+	} {
+		allure.Test(t, "watch handlers status matrix — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			gin.SetMode(gin.TestMode)
 
-		recorder := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodGet,
-			"/api/watch/"+rel,
-			nil,
-		)
-		ctx.Params = gin.Params{{Key: playTestPathParamKey, Value: rel}}
+			watchHandler, rel := newWatchHandlerFixture(t)
+			if tc.nilService {
+				watchHandler = &handler{}
+			}
 
-		watchHandler.getWatch(ctx)
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequestWithContext(
+				context.Background(),
+				tc.method,
+				"/api/watch/"+rel,
+				strings.NewReader(tc.body),
+			)
+			ctx.Request.Header.Set("Content-Type", "application/json")
+			ctx.Params = gin.Params{{Key: playTestPathParamKey, Value: rel}}
+			if tc.withUser {
+				setTestUser(ctx, user)
+			}
 
-		if recorder.Code != http.StatusUnauthorized {
-			t.Fatalf("get status: got %d", recorder.Code)
-		}
-	})
-}
+			if tc.method == http.MethodPatch {
+				watchHandler.patchWatch(ctx)
+			} else {
+				watchHandler.getWatch(ctx)
+			}
 
-func TestWatchHandlers_UnavailableWhenNilService(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "watch endpoints return 503 when service is nil", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-
-		watchHandler := &handler{}
-		user := auth.PublicUser{
-			ID:    watchTestUserID,
-			Email: watchTestUserEmail,
-			Role:  auth.RoleAdmin,
-		}
-
-		recorder := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodGet,
-			"/api/watch/"+playTestSampleRel,
-			nil,
-		)
-		ctx.Params = gin.Params{{Key: playTestPathParamKey, Value: playTestSampleRel}}
-		setTestUser(ctx, user)
-
-		watchHandler.getWatch(ctx)
-
-		if recorder.Code != http.StatusServiceUnavailable {
-			t.Fatalf("status: got %d", recorder.Code)
-		}
-	})
+			if recorder.Code != tc.wantStatus {
+				t.Fatalf(
+					"status: got %d want %d body=%s",
+					recorder.Code,
+					tc.wantStatus,
+					recorder.Body.String(),
+				)
+			}
+		})
+	}
 }
 
 func TestHandleWatchError_MapsDomainErrors(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(
-		t,
-		"handleWatchError maps invalid and unknown paths to 400",
-		func(a *allure.Context) {
+	for _, tc := range []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{"unknown library", watch.ErrUnknownLibrary, http.StatusBadRequest},
+		{"invalid path", mediafs.ErrInvalidPath, http.StatusBadRequest},
+		{"path outside root", mediafs.ErrPathOutsideRoot, http.StatusBadRequest},
+		{"unexpected", errTestWatchHandler, http.StatusInternalServerError},
+	} {
+		allure.Test(t, "handleWatchError maps errors to status — "+tc.name, func(a *allure.Context) {
 			t := a.T()
 			gin.SetMode(gin.TestMode)
 
-			watchHandler := &handler{}
-			cases := []error{
-				watch.ErrUnknownLibrary,
-				mediafs.ErrInvalidPath,
-				mediafs.ErrPathOutsideRoot,
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequestWithContext(
+				context.Background(),
+				http.MethodGet,
+				"/api/watch/movies/demo.mp4",
+				nil,
+			)
+
+			(&handler{}).handleWatchError(ctx, "movies/demo.mp4", tc.err)
+
+			if recorder.Code != tc.wantStatus {
+				t.Fatalf("status: got %d want %d body=%s", recorder.Code, tc.wantStatus, recorder.Body.String())
 			}
-
-			for _, domainErr := range cases {
-				recorder := httptest.NewRecorder()
-				ctx, _ := gin.CreateTestContext(recorder)
-				ctx.Request = httptest.NewRequestWithContext(
-					context.Background(),
-					http.MethodGet,
-					"/api/watch/movies/demo.mp4",
-					nil,
-				)
-
-				watchHandler.handleWatchError(ctx, "movies/demo.mp4", domainErr)
-
-				if recorder.Code != http.StatusBadRequest {
-					t.Fatalf("%v: status got %d", domainErr, recorder.Code)
-				}
-			}
-		},
-	)
-
-	allure.Test(t, "handleWatchError maps unexpected errors to 500", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-
-		watchHandler := &handler{}
-		recorder := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodPatch,
-			"/api/watch/movies/demo.mp4",
-			nil,
-		)
-
-		watchHandler.handleWatchError(ctx, "movies/demo.mp4", errTestWatchHandler)
-
-		if recorder.Code != http.StatusInternalServerError {
-			t.Fatalf("status: got %d body=%s", recorder.Code, recorder.Body.String())
-		}
-	})
-}
-
-func TestPatchWatch_RejectsInvalidBody(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "PATCH /api/watch returns 400 for invalid JSON", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-
-		watchHandler, rel := newWatchHandlerFixture(t)
-		user := auth.PublicUser{
-			ID:    watchTestUserID,
-			Email: watchTestUserEmail,
-			Role:  auth.RoleAdmin,
-		}
-
-		recorder := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodPatch,
-			"/api/watch/"+rel,
-			bytes.NewReader([]byte("{")),
-		)
-		ctx.Request.Header.Set("Content-Type", "application/json")
-		ctx.Params = gin.Params{{Key: playTestPathParamKey, Value: rel}}
-		setTestUser(ctx, user)
-
-		watchHandler.patchWatch(ctx)
-
-		if recorder.Code != http.StatusBadRequest {
-			t.Fatalf("status: got %d body=%s", recorder.Code, recorder.Body.String())
-		}
-	})
-}
-
-func TestPatchWatch_UnavailableWhenNilService(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "PATCH /api/watch returns 503 when service is nil", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-
-		watchHandler := &handler{}
-		user := auth.PublicUser{
-			ID:    watchTestUserID,
-			Email: watchTestUserEmail,
-			Role:  auth.RoleAdmin,
-		}
-
-		payload, err := json.Marshal(WatchPatchRequest{Watched: &watchedTrue})
-		if err != nil {
-			t.Fatalf("marshal: %v", err)
-		}
-
-		recorder := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(recorder)
-		ctx.Request = httptest.NewRequestWithContext(
-			context.Background(),
-			http.MethodPatch,
-			"/api/watch/"+playTestSampleRel,
-			bytes.NewReader(payload),
-		)
-		ctx.Request.Header.Set("Content-Type", "application/json")
-		ctx.Params = gin.Params{{Key: playTestPathParamKey, Value: playTestSampleRel}}
-		setTestUser(ctx, user)
-
-		watchHandler.patchWatch(ctx)
-
-		if recorder.Code != http.StatusServiceUnavailable {
-			t.Fatalf("status: got %d", recorder.Code)
-		}
-	})
+		})
+	}
 }
 
 func TestPatchWatch_ProgressWatchedAndUnwatched(t *testing.T) {

@@ -23,72 +23,86 @@ const (
 func TestAudioLabel_PrefersTitleLanguageAndChannels(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(
-		t,
-		"audio label prefers title then language then channels",
-		func(a *allure.Context) {
-			t := a.T()
-			withTitle := probeStream{
+	for _, tc := range []struct {
+		name   string
+		stream probeStream
+		want   string
+	}{
+		{
+			name: "title wins",
+			stream: probeStream{
 				Index:    2,
 				Channels: 6,
 				Tags:     map[string]string{testTagTitle: " Commentary "},
-			}
-			if got := audioLabel(withTitle); got != testAudioLabelCommentary {
-				t.Fatalf("title: got %q", got)
-			}
-
-			withLang := probeStream{
+			},
+			want: testAudioLabelCommentary,
+		},
+		{
+			name: "language",
+			stream: probeStream{
 				Index:    1,
 				Channels: 2,
 				Tags:     map[string]string{"language": testLangEng},
-			}
-			if got := audioLabel(withLang); got != testLangEng {
-				t.Fatalf("language: got %q", got)
-			}
-
-			withChannels := probeStream{Index: 3, Channels: 2}
-			if got := audioLabel(withChannels); got != "Audio 3 (2 ch)" {
-				t.Fatalf("channels: got %q", got)
-			}
-
-			fallback := probeStream{Index: 0}
-			if got := audioLabel(fallback); got != "Audio 0" {
-				t.Fatalf("fallback: got %q", got)
-			}
+			},
+			want: testLangEng,
 		},
-	)
+		{
+			name:   "channels",
+			stream: probeStream{Index: 3, Channels: 2},
+			want:   "Audio 3 (2 ch)",
+		},
+		{
+			name:   "fallback",
+			stream: probeStream{Index: 0},
+			want:   "Audio 0",
+		},
+	} {
+		allure.Test(t, "audio label — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if got := audioLabel(tc.stream); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestSubtitleLabel_PrefersTitleLanguageAndIndex(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(
-		t,
-		"subtitle label prefers title then language then stream index",
-		func(a *allure.Context) {
-			t := a.T()
-			withTitle := probeStream{
+	for _, tc := range []struct {
+		name   string
+		stream probeStream
+		want   string
+	}{
+		{
+			name: "title wins",
+			stream: probeStream{
 				Index: 1,
 				Tags:  map[string]string{testTagTitle: " English "},
-			}
-			if got := subtitleLabel(withTitle); got != testAudioLabelEnglish {
-				t.Fatalf("title: got %q", got)
-			}
-
-			withLang := probeStream{
+			},
+			want: testAudioLabelEnglish,
+		},
+		{
+			name: "language",
+			stream: probeStream{
 				Index: 2,
 				Tags:  map[string]string{"language": "spa"},
-			}
-			if got := subtitleLabel(withLang); got != "spa" {
-				t.Fatalf("language: got %q", got)
-			}
-
-			fallback := probeStream{Index: 4}
-			if got := subtitleLabel(fallback); got != "Subtitles 4" {
-				t.Fatalf("fallback: got %q", got)
-			}
+			},
+			want: "spa",
 		},
-	)
+		{
+			name:   "fallback",
+			stream: probeStream{Index: 4},
+			want:   "Subtitles 4",
+		},
+	} {
+		allure.Test(t, "subtitle label — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if got := subtitleLabel(tc.stream); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestProbeSource_ParsesSyntheticMedia(t *testing.T) {
@@ -158,40 +172,34 @@ func TestProbeSource_InvalidPathReturnsError(t *testing.T) {
 	})
 }
 
-func TestSourceInfoFromProbeOutput_SkipsAttachedPictureStreams(t *testing.T) {
+func TestSourceInfoFromProbeOutput(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "attached_pic video streams are ignored for height", func(a *allure.Context) {
-		t := a.T()
-		info := sourceInfoFromProbeOutput(probeOutput{
-			Streams: []probeStream{
-				{
-					CodecType:   codecTypeVideo,
-					Height:      720,
-					Disposition: map[string]int{"attached_pic": 1},
-				},
-				{
-					CodecType: codecTypeVideo,
-					Height:    480,
+	for _, tc := range []struct {
+		name           string
+		in             probeOutput
+		wantHeight     int
+		wantAudioCount int
+		wantFirstLabel string
+		wantAudioCodec string
+	}{
+		{
+			name: "attached_pic video streams are ignored for height",
+			in: probeOutput{
+				Streams: []probeStream{
+					{
+						CodecType:   codecTypeVideo,
+						Height:      720,
+						Disposition: map[string]int{"attached_pic": 1},
+					},
+					{CodecType: codecTypeVideo, Height: 480},
 				},
 			},
-		})
-
-		if info.Height != 480 {
-			t.Fatalf("expected 480p from non-attached stream, got %d", info.Height)
-		}
-	})
-}
-
-func TestSourceInfoFromProbeOutput_PromotesDefaultAudioDisposition(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(
-		t,
-		"disposition-flagged default audio track becomes AudioStreams[0]",
-		func(a *allure.Context) {
-			t := a.T()
-			info := sourceInfoFromProbeOutput(probeOutput{
+			wantHeight: 480,
+		},
+		{
+			name: "disposition-flagged default audio track becomes AudioStreams[0]",
+			in: probeOutput{
 				Streams: []probeStream{
 					{CodecType: codecTypeVideo, Height: 720},
 					{
@@ -208,23 +216,15 @@ func TestSourceInfoFromProbeOutput_PromotesDefaultAudioDisposition(t *testing.T)
 						Disposition: map[string]int{"default": 1},
 					},
 				},
-			})
-
-			if len(info.AudioStreams) != 2 || info.AudioStreams[0].Label != testAudioLabelJapanese {
-				t.Fatalf("expected default-flagged track first, got %+v", info.AudioStreams)
-			}
-			if info.AudioCodec != testCodecAAC {
-				t.Fatalf("expected AudioCodec to follow promoted default, got %q", info.AudioCodec)
-			}
+			},
+			wantHeight:     720,
+			wantAudioCount: 2,
+			wantFirstLabel: testAudioLabelJapanese,
+			wantAudioCodec: testCodecAAC,
 		},
-	)
-
-	allure.Test(
-		t,
-		"no disposition default falls back to first probed audio stream",
-		func(a *allure.Context) {
-			t := a.T()
-			info := sourceInfoFromProbeOutput(probeOutput{
+		{
+			name: "no disposition default falls back to first probed audio stream",
+			in: probeOutput{
 				Streams: []probeStream{
 					{CodecType: codecTypeVideo, Height: 720},
 					{
@@ -240,13 +240,33 @@ func TestSourceInfoFromProbeOutput_PromotesDefaultAudioDisposition(t *testing.T)
 						Tags:      map[string]string{testTagTitle: testAudioLabelJapanese},
 					},
 				},
-			})
-
-			if len(info.AudioStreams) != 2 || info.AudioStreams[0].Label != testAudioLabelEnglish {
-				t.Fatalf("expected fallback to first probed stream, got %+v", info.AudioStreams)
-			}
+			},
+			wantHeight:     720,
+			wantAudioCount: 2,
+			wantFirstLabel: testAudioLabelEnglish,
+			wantAudioCodec: testCodecAAC,
 		},
-	)
+	} {
+		allure.Test(t, "source info from probe output — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			info := sourceInfoFromProbeOutput(tc.in)
+			if info.Height != tc.wantHeight {
+				t.Fatalf("height: got %d, want %d", info.Height, tc.wantHeight)
+			}
+			if len(info.AudioStreams) != tc.wantAudioCount {
+				t.Fatalf("audio streams: got %+v, want %d", info.AudioStreams, tc.wantAudioCount)
+			}
+			if tc.wantAudioCount == 0 {
+				return
+			}
+			if info.AudioStreams[0].Label != tc.wantFirstLabel {
+				t.Fatalf("first audio label: got %+v, want %q", info.AudioStreams, tc.wantFirstLabel)
+			}
+			if info.AudioCodec != tc.wantAudioCodec {
+				t.Fatalf("AudioCodec: got %q, want %q", info.AudioCodec, tc.wantAudioCodec)
+			}
+		})
+	}
 }
 
 func TestParseProbeJSON_RejectsInvalidPayload(t *testing.T) {

@@ -179,7 +179,6 @@ func newCatalogHandlerFixture(
 	}, slug, sampleRel
 }
 
-//nolint:cyclop,funlen // multi-scenario catalog handler coverage
 func TestCatalogHandlers_FilmAndErrors(t *testing.T) {
 	t.Parallel()
 
@@ -305,7 +304,6 @@ func TestCatalogHandlers_FilmAndErrors(t *testing.T) {
 	)
 }
 
-//nolint:cyclop,funlen,gocognit // multi-scenario show catalog coverage
 func TestCatalogHandlers_SeriesShow(t *testing.T) {
 	t.Parallel()
 

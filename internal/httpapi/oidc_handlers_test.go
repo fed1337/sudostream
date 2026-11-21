@@ -24,63 +24,66 @@ func newOIDCUnitRouter(h *authHandler) *gin.Engine {
 	return router
 }
 
-func TestOIDCStatus_NilProvider(t *testing.T) {
+func TestOIDC_DisabledRouteMatrix(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "oidc status returns disabled when provider unset", func(a *allure.Context) {
-		t := a.T()
-		router := newOIDCUnitRouter(&authHandler{config: RouteConfig{}})
+	for _, tc := range []struct {
+		name       string
+		path       string
+		wantStatus int
+		check      func(t *testing.T, rec *httptest.ResponseRecorder)
+	}{
+		{
+			name:       "status reports disabled",
+			path:       "/api/auth/oidc/status",
+			wantStatus: http.StatusOK,
+			check: func(t *testing.T, rec *httptest.ResponseRecorder) {
+				t.Helper()
 
-		req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/status", nil)
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
-		}
-		var body oidc.PublicStatus
-		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-			t.Fatalf("decode: %v", err)
-		}
-		if body.Enabled {
-			t.Fatalf("expected disabled status: %+v", body)
-		}
-	})
-}
+				var body oidc.PublicStatus
+				err := json.Unmarshal(rec.Body.Bytes(), &body)
+				if err != nil {
+					t.Fatalf("decode: %v", err)
+				}
+				if body.Enabled {
+					t.Fatalf("expected disabled status: %+v", body)
+				}
+			},
+		},
+		{
+			name:       "start not found",
+			path:       "/api/auth/oidc/start",
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "callback redirects to login",
+			path:       "/api/auth/oidc/callback?code=x&state=y",
+			wantStatus: http.StatusFound,
+			check: func(t *testing.T, rec *httptest.ResponseRecorder) {
+				t.Helper()
 
-func TestOIDCStart_NotFoundWhenDisabled(t *testing.T) {
-	t.Parallel()
+				loc := rec.Header().Get("Location")
+				if !strings.Contains(loc, "/login") || !strings.Contains(loc, "oidc_error=") {
+					t.Fatalf("unexpected Location: %q", loc)
+				}
+			},
+		},
+	} {
+		allure.Test(t, "oidc disabled path matrix — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			router := newOIDCUnitRouter(&authHandler{config: RouteConfig{}})
 
-	allure.Test(t, "oidc start returns 404 when provider unset", func(a *allure.Context) {
-		t := a.T()
-		router := newOIDCUnitRouter(&authHandler{config: RouteConfig{}})
-
-		req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/start", nil)
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, req)
-		if rec.Code != http.StatusNotFound {
-			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
-		}
-	})
-}
-
-func TestOIDCCallback_RedirectsWhenDisabled(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "oidc callback redirects to login when disabled", func(a *allure.Context) {
-		t := a.T()
-		router := newOIDCUnitRouter(&authHandler{config: RouteConfig{}})
-
-		req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?code=x&state=y", nil)
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, req)
-		if rec.Code != http.StatusFound {
-			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
-		}
-		loc := rec.Header().Get("Location")
-		if !strings.Contains(loc, "/login") || !strings.Contains(loc, "oidc_error=") {
-			t.Fatalf("unexpected Location: %q", loc)
-		}
-	})
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status=%d want %d body=%s", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+			if tc.check != nil {
+				tc.check(t, rec)
+			}
+		})
+	}
 }
 
 func TestMapOIDCError(t *testing.T) {

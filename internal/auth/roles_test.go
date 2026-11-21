@@ -7,40 +7,74 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-func TestRoles(t *testing.T) {
+func TestValidRole(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "ValidRole accepts admin user tv and rejects unknown", func(a *allure.Context) {
-		t := a.T()
-		for _, role := range []string{RoleAdmin, RoleUser, RoleTV} {
-			if !ValidRole(role) {
-				t.Fatalf("expected %q valid", role)
+	for _, tc := range []struct {
+		name  string
+		role  string
+		valid bool
+	}{
+		{name: "admin", role: RoleAdmin, valid: true},
+		{name: "user", role: RoleUser, valid: true},
+		{name: "tv", role: RoleTV, valid: true},
+		{name: "unknown", role: "moderator", valid: false},
+	} {
+		allure.Test(t, "valid role — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if ValidRole(tc.role) != tc.valid {
+				t.Fatalf("ValidRole(%q)=%v want %v", tc.role, !tc.valid, tc.valid)
 			}
-		}
-		if ValidRole("moderator") {
-			t.Fatal("expected moderator invalid")
-		}
-	})
+		})
+	}
+}
 
-	allure.Test(t, "TV role cannot use web login", func(a *allure.Context) {
-		t := a.T()
-		if !AllowsWebLogin(RoleUser) || !AllowsWebLogin(RoleAdmin) {
-			t.Fatal("expected admin/user web login")
-		}
-		if AllowsWebLogin(RoleTV) {
-			t.Fatal("expected TV web login blocked")
-		}
-	})
+func TestAllowsWebLogin(t *testing.T) {
+	t.Parallel()
 
-	allure.Test(t, "NormalizeRole defaults empty and rejects unknown", func(a *allure.Context) {
-		t := a.T()
-		got, err := NormalizeRole("")
-		if err != nil || got != RoleUser {
-			t.Fatalf("empty: got %q %v", got, err)
-		}
-		_, err = NormalizeRole("nope")
-		if !errors.Is(err, ErrInvalidRole) {
-			t.Fatalf("expected ErrInvalidRole, got %v", err)
-		}
-	})
+	for _, tc := range []struct {
+		name string
+		role string
+		want bool
+	}{
+		{name: "user", role: RoleUser, want: true},
+		{name: "admin", role: RoleAdmin, want: true},
+		{name: "tv blocked", role: RoleTV, want: false},
+	} {
+		allure.Test(t, "allows web login — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if AllowsWebLogin(tc.role) != tc.want {
+				t.Fatalf("AllowsWebLogin(%q)=%v want %v", tc.role, !tc.want, tc.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeRole(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		in      string
+		want    string
+		wantErr error
+	}{
+		{name: "empty defaults user", in: "", want: RoleUser},
+		{name: "unknown rejected", in: "nope", wantErr: ErrInvalidRole},
+	} {
+		allure.Test(t, "normalize role — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			got, err := NormalizeRole(tc.in)
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("err=%v want %v", err, tc.wantErr)
+				}
+
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("got %q %v want %q", got, err, tc.want)
+			}
+		})
+	}
 }

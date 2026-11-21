@@ -13,7 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//nolint:paralleltest // shares SUDOSTREAM_DATABASE_URL integration fixture
 func TestRegisterFrontend_ServesAssetAndSPAFallback(t *testing.T) {
 	allure.Test(t, "frontend serves static asset and SPA fallback", func(a *allure.Context) {
 		t := a.T()
@@ -56,7 +55,6 @@ func TestRegisterFrontend_ServesAssetAndSPAFallback(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // shares SUDOSTREAM_DATABASE_URL integration fixture
 func TestRegisterFrontend_APIPathsStayNotFoundOnNoRoute(t *testing.T) {
 	allure.Test(t, "unknown API path does not return SPA index", func(a *allure.Context) {
 		t := a.T()

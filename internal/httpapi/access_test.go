@@ -22,7 +22,6 @@ import (
 
 const testSeriesRelPath = "series"
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_DisabledUserCannotLogin(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -88,7 +87,6 @@ func TestAuth_DisabledUserCannotLogin(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,cyclop,funlen // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAccess_NonAdminBrowseFilteredByGrants(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -202,7 +200,6 @@ func TestAccess_NonAdminBrowseFilteredByGrants(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,cyclop,funlen // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAccess_EncodedParentCannotBypassLibraryGrant(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -333,7 +330,6 @@ func TestAccess_EncodedParentCannotBypassLibraryGrant(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAccess_NoReadGrantsReturnsEmptyRootBrowse(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -376,8 +372,6 @@ func TestAccess_NoReadGrantsReturnsEmptyRootBrowse(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAccess_SyncPreservesLibraryType(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -432,7 +426,6 @@ func TestAccess_SyncPreservesLibraryType(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest,cyclop // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAccess_ListReadableLibrariesForUser(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

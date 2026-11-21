@@ -89,7 +89,7 @@ func serveFavorite(
 	return recorder
 }
 
-func TestFavoriteHandlers_GetPatchAuthAndErrors(t *testing.T) { //nolint:cyclop,funlen
+func TestFavoriteHandlers_GetPatchAuthAndErrors(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(

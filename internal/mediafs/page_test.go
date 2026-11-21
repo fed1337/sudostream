@@ -11,40 +11,63 @@ import (
 func TestNormalizePageOpts(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "clamps limit and offset", func(a *allure.Context) {
-		t := a.T()
-		got := NormalizePageOpts(PageOpts{Limit: 0, Offset: -3})
-		if got.Limit != DefaultPageLimit || got.Offset != 0 {
-			t.Fatalf("got %+v", got)
-		}
-		got = NormalizePageOpts(PageOpts{Limit: 500, Offset: 2})
-		if got.Limit != MaxPageLimit || got.Offset != 2 {
-			t.Fatalf("got %+v", got)
-		}
-	})
+	for _, tc := range []struct {
+		name string
+		in   PageOpts
+		want PageOpts
+	}{
+		{
+			name: "zero limit and negative offset",
+			in:   PageOpts{Limit: 0, Offset: -3},
+			want: PageOpts{Limit: DefaultPageLimit, Offset: 0},
+		},
+		{
+			name: "clamps oversize limit",
+			in:   PageOpts{Limit: 500, Offset: 2},
+			want: PageOpts{Limit: MaxPageLimit, Offset: 2},
+		},
+	} {
+		allure.Test(t, "normalize page opts — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			got := NormalizePageOpts(tc.in)
+			if got != tc.want {
+				t.Fatalf("got %+v want %+v", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestSlicePage(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "slices and reports total", func(a *allure.Context) {
-		t := a.T()
-		items := []int{1, 2, 3, 4, 5}
-		page, meta := SlicePage(items, PageOpts{Limit: 2, Offset: 2})
-		if meta.Total != 5 || meta.Limit != 2 || meta.Offset != 2 {
-			t.Fatalf("meta=%+v", meta)
-		}
-		if len(page) != 2 || page[0] != 3 || page[1] != 4 {
-			t.Fatalf("page=%v", page)
-		}
-		empty, meta := SlicePage(items, PageOpts{Limit: 2, Offset: 99})
-		if len(empty) != 0 || meta.Total != 5 {
-			t.Fatalf("empty=%v meta=%+v", empty, meta)
-		}
-	})
+	items := []int{1, 2, 3, 4, 5}
+	for _, tc := range []struct {
+		name      string
+		opts      PageOpts
+		wantLen   int
+		wantFirst int
+		wantTotal int
+	}{
+		{name: "mid page", opts: PageOpts{Limit: 2, Offset: 2}, wantLen: 2, wantFirst: 3, wantTotal: 5},
+		{name: "offset past end", opts: PageOpts{Limit: 2, Offset: 99}, wantLen: 0, wantTotal: 5},
+	} {
+		allure.Test(t, "slice page — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			page, meta := SlicePage(items, tc.opts)
+			if meta.Total != tc.wantTotal || meta.Limit != tc.opts.Limit || meta.Offset != tc.opts.Offset {
+				t.Fatalf("meta=%+v", meta)
+			}
+			if len(page) != tc.wantLen {
+				t.Fatalf("page=%v", page)
+			}
+			if tc.wantLen > 0 && page[0] != tc.wantFirst {
+				t.Fatalf("first=%d want %d", page[0], tc.wantFirst)
+			}
+		})
+	}
 }
 
-func TestBrowse_ShallowAndPaged(t *testing.T) { //nolint:cyclop // multi-assert browse paging
+func TestBrowse_ShallowAndPaged(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(t, "browse is shallow dirs-first and ApplyPage slices", func(a *allure.Context) {

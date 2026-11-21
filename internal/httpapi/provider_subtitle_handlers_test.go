@@ -68,97 +68,89 @@ func TestProviderSubtitle_ServesCachedVTT(t *testing.T) {
 	})
 }
 
-func TestProviderSubtitle_ValidationAndMissing(t *testing.T) {
+func TestProviderSubtitle_ErrorStatusMatrix(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "provider subtitle validates lang and returns 404 when missing", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
+	for _, tc := range []struct {
+		name       string
+		hdl        func(cache *provider.Cache) *handler
+		rel        string
+		lang       string
+		wantStatus int
+	}{
+		{
+			name: "invalid lang",
+			hdl: func(cache *provider.Cache) *handler {
+				return &handler{posters: &posterCache{artifacts: stubArtifacts{}, cache: cache}}
+			},
+			rel:        providerSubTestRel,
+			lang:       "english",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "unwired stack",
+			hdl:        func(*provider.Cache) *handler { return &handler{} },
+			rel:        "movies/other.mkv",
+			lang:       "en",
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "missing artifact",
+			hdl: func(cache *provider.Cache) *handler {
+				return &handler{posters: &posterCache{artifacts: stubArtifacts{}, cache: cache}}
+			},
+			rel:        providerSubTestRel,
+			lang:       "en",
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "store failure",
+			hdl: func(cache *provider.Cache) *handler {
+				return &handler{posters: &posterCache{
+					artifacts: stubArtifacts{err: errArtifactsBoom},
+					cache:     cache,
+				}}
+			},
+			rel:        providerSubTestRel,
+			lang:       "en",
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "cache path outside root",
+			hdl: func(cache *provider.Cache) *handler {
+				return &handler{posters: &posterCache{
+					artifacts: stubArtifacts{rows: map[string]provider.Artifact{
+						providerSubTestRel: {
+							RelPath:   providerSubTestRel,
+							Kind:      provider.ArtifactKindSubtitle,
+							Lang:      new("en"),
+							CachePath: "../escape.vtt",
+						},
+					}},
+					cache: cache,
+				}}
+			},
+			rel:        providerSubTestRel,
+			lang:       "en",
+			wantStatus: http.StatusInternalServerError,
+		},
+	} {
+		allure.Test(t, "provider subtitle error status matrix — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			gin.SetMode(gin.TestMode)
 
-		cache, err := provider.NewCache(filepath.Join(t.TempDir(), "providers"))
-		if err != nil {
-			t.Fatalf("cache: %v", err)
-		}
+			cache, err := provider.NewCache(filepath.Join(t.TempDir(), "providers"))
+			if err != nil {
+				t.Fatalf("cache: %v", err)
+			}
 
-		wired := &handler{posters: &posterCache{
-			artifacts: stubArtifacts{},
-			cache:     cache,
-		}}
-
-		badLang := httptest.NewRecorder()
-		wired.providerSubtitle(providerSubtitleRequest(badLang, providerSubTestRel, "english"))
-		if badLang.Code != http.StatusBadRequest {
-			t.Fatalf("bad lang: %d", badLang.Code)
-		}
-
-		unwired := &handler{}
-		noStack := httptest.NewRecorder()
-		unwired.providerSubtitle(providerSubtitleRequest(noStack, "movies/other.mkv", "en"))
-		if noStack.Code != http.StatusNotFound {
-			t.Fatalf("unwired: %d", noStack.Code)
-		}
-
-		missing := httptest.NewRecorder()
-		wired.providerSubtitle(providerSubtitleRequest(missing, providerSubTestRel, "en"))
-		if missing.Code != http.StatusNotFound {
-			t.Fatalf("missing: %d", missing.Code)
-		}
-	})
-}
-
-func TestProviderSubtitle_StoreFailureReturns500(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "provider subtitle artifact lookup failures return 500", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-
-		cache, err := provider.NewCache(filepath.Join(t.TempDir(), "providers"))
-		if err != nil {
-			t.Fatalf("cache: %v", err)
-		}
-
-		hdl := &handler{posters: &posterCache{
-			artifacts: stubArtifacts{err: errArtifactsBoom},
-			cache:     cache,
-		}}
-		recorder := httptest.NewRecorder()
-		hdl.providerSubtitle(providerSubtitleRequest(recorder, providerSubTestRel, "en"))
-		if recorder.Code != http.StatusInternalServerError {
-			t.Fatalf("status: %d", recorder.Code)
-		}
-	})
-}
-
-func TestProviderSubtitle_InvalidCachePathReturns500(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "provider subtitle rejects cache paths outside root", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-
-		cache, err := provider.NewCache(filepath.Join(t.TempDir(), "providers"))
-		if err != nil {
-			t.Fatalf("cache: %v", err)
-		}
-
-		hdl := &handler{posters: &posterCache{
-			artifacts: stubArtifacts{rows: map[string]provider.Artifact{
-				providerSubTestRel: {
-					RelPath:   providerSubTestRel,
-					Kind:      provider.ArtifactKindSubtitle,
-					Lang:      new("en"),
-					CachePath: "../escape.vtt",
-				},
-			}},
-			cache: cache,
-		}}
-		recorder := httptest.NewRecorder()
-		hdl.providerSubtitle(providerSubtitleRequest(recorder, providerSubTestRel, "en"))
-		if recorder.Code != http.StatusInternalServerError {
-			t.Fatalf("status: %d %s", recorder.Code, recorder.Body.String())
-		}
-	})
+			recorder := httptest.NewRecorder()
+			tc.hdl(cache).providerSubtitle(providerSubtitleRequest(recorder, tc.rel, tc.lang))
+			if recorder.Code != tc.wantStatus {
+				t.Fatalf("status: got %d want %d body=%s", recorder.Code, tc.wantStatus, recorder.Body.String())
+			}
+		})
+	}
 }
 
 func TestProviderSubtitleTracks_ListsCachedLangs(t *testing.T) {

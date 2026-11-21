@@ -143,11 +143,38 @@ func TestProviderPoster_ServesCachedFile(t *testing.T) {
 	})
 }
 
-func TestProviderPoster_MissingArtifactReturns404(t *testing.T) {
+func TestProviderPoster_ErrorStatusMatrix(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "uncached paths and unwired caches return 404 so clients fall back",
-		func(a *allure.Context) {
+	for _, tc := range []struct {
+		name       string
+		hdl        func(cache *provider.Cache) *handler
+		wantStatus int
+	}{
+		{
+			name:       "unwired cache returns 404",
+			hdl:        func(*provider.Cache) *handler { return &handler{} },
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "uncached path returns 404",
+			hdl: func(cache *provider.Cache) *handler {
+				return &handler{posters: &posterCache{artifacts: stubArtifacts{}, cache: cache}}
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "artifact lookup failure returns 500",
+			hdl: func(cache *provider.Cache) *handler {
+				return &handler{posters: &posterCache{
+					artifacts: stubArtifacts{err: errArtifactsBoom},
+					cache:     cache,
+				}}
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	} {
+		allure.Test(t, "provider poster error status matrix — "+tc.name, func(a *allure.Context) {
 			t := a.T()
 			gin.SetMode(gin.TestMode)
 
@@ -156,45 +183,13 @@ func TestProviderPoster_MissingArtifactReturns404(t *testing.T) {
 				t.Fatalf("cache: %v", err)
 			}
 
-			cases := []*handler{
-				{},
-				{posters: &posterCache{artifacts: stubArtifacts{}, cache: cache}},
-			}
-			for _, mediaHandler := range cases {
-				recorder := httptest.NewRecorder()
-				mediaHandler.providerPoster(posterRequest(recorder, posterTestPath))
-
-				if recorder.Code != http.StatusNotFound {
-					t.Fatalf("status: got %d body=%s", recorder.Code, recorder.Body.String())
-				}
+			recorder := httptest.NewRecorder()
+			tc.hdl(cache).providerPoster(posterRequest(recorder, posterTestPath))
+			if recorder.Code != tc.wantStatus {
+				t.Fatalf("status: got %d want %d body=%s", recorder.Code, tc.wantStatus, recorder.Body.String())
 			}
 		})
-}
-
-func TestProviderPoster_StoreFailureReturns500(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "artifact lookup failures return 500", func(a *allure.Context) {
-		t := a.T()
-		gin.SetMode(gin.TestMode)
-
-		cache, err := provider.NewCache(filepath.Join(t.TempDir(), "providers"))
-		if err != nil {
-			t.Fatalf("cache: %v", err)
-		}
-
-		mediaHandler := &handler{posters: &posterCache{
-			artifacts: stubArtifacts{err: errArtifactsBoom},
-			cache:     cache,
-		}}
-
-		recorder := httptest.NewRecorder()
-		mediaHandler.providerPoster(posterRequest(recorder, posterTestPath))
-
-		if recorder.Code != http.StatusInternalServerError {
-			t.Fatalf("status: got %d body=%s", recorder.Code, recorder.Body.String())
-		}
-	})
+	}
 }
 
 func TestPosterCache_PosterPaths(t *testing.T) {

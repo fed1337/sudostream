@@ -189,7 +189,6 @@ func TestAdminDLNASettings_StoreErrors(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // setupTestCacheEnv mutates package testCacheRoot
 func TestAdminDLNASettings_HTTPRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

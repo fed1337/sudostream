@@ -260,7 +260,6 @@ func TestListReadableLibraries_NilAccessReturnsEmpty(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestListReadableLibraries_ReturnsReadableForUser(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -327,7 +326,6 @@ func TestLibraryLabels_NilAccessUsesPathSegment(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestLibraryLabels_ResolvesRegisteredLibrary(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

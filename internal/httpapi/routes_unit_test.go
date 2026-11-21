@@ -20,24 +20,24 @@ var errRoutesUnitTestInternal = errors.New("routes unit test internal error")
 func TestClampInt_ParsesAndBoundsValues(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "clampInt parses integers and applies bounds", func(a *allure.Context) {
-		t := a.T()
-		if got := clampInt("", 5, 1, 10); got != 5 {
-			t.Fatalf("fallback: got %d", got)
-		}
-		if got := clampInt("abc", 5, 1, 10); got != 5 {
-			t.Fatalf("invalid: got %d", got)
-		}
-		if got := clampInt("0", 5, 1, 10); got != 1 {
-			t.Fatalf("min: got %d", got)
-		}
-		if got := clampInt("99", 5, 1, 10); got != 10 {
-			t.Fatalf("max: got %d", got)
-		}
-		if got := clampInt("7", 5, 1, 10); got != 7 {
-			t.Fatalf("in-range: got %d", got)
-		}
-	})
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want int
+	}{
+		{name: "empty uses fallback", raw: "", want: 5},
+		{name: "invalid uses fallback", raw: "abc", want: 5},
+		{name: "below min clamps", raw: "0", want: 1},
+		{name: "above max clamps", raw: "99", want: 10},
+		{name: "in range", raw: "7", want: 7},
+	} {
+		allure.Test(t, "clampInt parses integers and applies bounds — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			if got := clampInt(tc.raw, 5, 1, 10); got != tc.want {
+				t.Fatalf("clampInt(%q)=%d want %d", tc.raw, got, tc.want)
+			}
+		})
+	}
 }
 
 func TestHandlePathError_MapsKnownErrors(t *testing.T) {

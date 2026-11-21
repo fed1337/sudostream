@@ -39,23 +39,44 @@ func TestStereoDownmixFilter_JellyfinLayouts(t *testing.T) {
 func TestComposeAudioFilter_BoostAndPan(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "composeAudioFilter orders pan then volume", func(a *allure.Context) {
-		t := a.T()
+	for _, tc := range []struct {
+		name     string
+		algo     DownmixAlgorithm
+		channels int
+		layout   string
+		boost    float64
+		wantPan  bool
+		want     string
+		suffix   string
+	}{
+		{
+			name: "ac4 pan then volume", algo: DownmixAC4, channels: 6, layout: layout51,
+			boost: 1.5, wantPan: true, suffix: "volume=1.5",
+		},
+		{
+			name: "none boost only", algo: DownmixNone, channels: 6, layout: layout51,
+			boost: 2, want: "volume=2",
+		},
+	} {
+		allure.Test(t, "compose audio filter — "+tc.name, func(a *allure.Context) {
+			t := a.T()
+			filter := ComposeAudioFilter(tc.algo, tc.channels, tc.layout, tc.boost)
+			if tc.want != "" {
+				if filter != tc.want {
+					t.Fatalf("got %q want %q", filter, tc.want)
+				}
 
-		filter := ComposeAudioFilter(DownmixAC4, 6, layout51, 1.5)
-		if !strings.Contains(filter, "pan=stereo") {
-			t.Fatalf("expected pan filter, got %q", filter)
-		}
-		if !strings.HasSuffix(filter, "volume=1.5") {
-			t.Fatalf("expected volume suffix, got %q", filter)
-		}
-
-		noneOnly := ComposeAudioFilter(DownmixNone, 6, layout51, 2)
-		if strings.Contains(noneOnly, "pan=") {
-			t.Fatalf("none must not emit pan: %q", noneOnly)
-		}
-		if noneOnly != "volume=2" {
-			t.Fatalf("none boost: got %q", noneOnly)
-		}
-	})
+				return
+			}
+			if tc.wantPan && !strings.Contains(filter, "pan=stereo") {
+				t.Fatalf("expected pan filter, got %q", filter)
+			}
+			if !tc.wantPan && strings.Contains(filter, "pan=") {
+				t.Fatalf("must not emit pan: %q", filter)
+			}
+			if tc.suffix != "" && !strings.HasSuffix(filter, tc.suffix) {
+				t.Fatalf("expected suffix %q, got %q", tc.suffix, filter)
+			}
+		})
+	}
 }

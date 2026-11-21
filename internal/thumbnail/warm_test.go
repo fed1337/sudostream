@@ -77,6 +77,54 @@ func TestIsVideoMediaFile_AcceptsKnownExtensions(t *testing.T) {
 	})
 }
 
+func TestWarmLibraryEntry_SkipsHiddenDirectories(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "warmLibraryEntry skips dot directories", func(a *allure.Context) {
+		t := a.T()
+		root := t.TempDir()
+		hiddenDir := filepath.Join(root, "movies", ".hidden")
+		err := os.MkdirAll(hiddenDir, 0o750)
+		if err != nil {
+			t.Fatalf("mkdir hidden: %v", err)
+		}
+
+		media, err := mediafs.New(root)
+		if err != nil {
+			t.Fatalf("media service: %v", err)
+		}
+
+		cacheRoot := t.TempDir()
+		thumb, err := NewVideoThumbnailer(cacheRoot)
+		if err != nil {
+			t.Fatalf("new thumbnailer: %v", err)
+		}
+
+		_, err = thumb.warmLibraryEntry(
+			context.Background(),
+			media,
+			filepath.Join(root, "movies"),
+			hiddenDir,
+			hiddenDirEntry{name: ".hidden"},
+			nil,
+		)
+		if !errors.Is(err, filepath.SkipDir) {
+			t.Fatalf("expected SkipDir, got %v", err)
+		}
+	})
+}
+
+type hiddenDirEntry struct {
+	name string
+}
+
+func (d hiddenDirEntry) Name() string               { return d.name }
+func (d hiddenDirEntry) IsDir() bool                { return true }
+func (d hiddenDirEntry) Type() os.FileMode          { return 0 }
+func (d hiddenDirEntry) Info() (os.FileInfo, error) { return nil, errHiddenDirNoInfo }
+
+var errHiddenDirNoInfo = errors.New("no info in hidden dir stub")
+
 func TestPosterCached_UsesOpenCached(t *testing.T) {
 	t.Parallel()
 

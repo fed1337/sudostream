@@ -291,6 +291,11 @@ func (h *authHandler) acceptInvite(c *gin.Context) {
 
 	err = h.auth.AcceptInvite(c.Request.Context(), body.Token, body.Password)
 	if err != nil {
+		if errors.Is(err, auth.ErrPasswordUnchanged) {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: errPasswordUnchanged})
+
+			return
+		}
 		writeTokenError(c, err)
 
 		return

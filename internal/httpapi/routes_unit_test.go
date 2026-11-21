@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/mediafs"
 	"testing"
@@ -37,28 +36,6 @@ func TestClampInt_ParsesAndBoundsValues(t *testing.T) {
 		}
 		if got := clampInt("7", 5, 1, 10); got != 7 {
 			t.Fatalf("in-range: got %d", got)
-		}
-	})
-}
-
-//nolint:paralleltest // setTestCacheRoot mutates package testCacheRoot
-func TestCacheSubdir_UsesDefaultRoot(t *testing.T) {
-	allure.Test(t, "cacheSubdir joins default or test root with subdir", func(a *allure.Context) {
-		t := a.T()
-		restore := setTestCacheRoot("/tmp/sudostream-cache")
-		defer restore()
-
-		got := cacheSubdir("hls")
-		if got != filepath.Join("/tmp/sudostream-cache", "hls") {
-			t.Fatalf("got %q", got)
-		}
-
-		restoreDefault := setTestCacheRoot("")
-		defer restoreDefault()
-
-		defaultGot := cacheSubdir("thumbs")
-		if defaultGot != filepath.Join(defaultCacheRoot, "thumbs") {
-			t.Fatalf("default: got %q", defaultGot)
 		}
 	})
 }

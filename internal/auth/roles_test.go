@@ -7,7 +7,7 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-func TestValidRole_KnownRoles(t *testing.T) {
+func TestRoles(t *testing.T) {
 	t.Parallel()
 
 	allure.Test(t, "ValidRole accepts admin user tv and rejects unknown", func(a *allure.Context) {
@@ -21,10 +21,6 @@ func TestValidRole_KnownRoles(t *testing.T) {
 			t.Fatal("expected moderator invalid")
 		}
 	})
-}
-
-func TestAllowsWebLogin_TVBlocked(t *testing.T) {
-	t.Parallel()
 
 	allure.Test(t, "TV role cannot use web login", func(a *allure.Context) {
 		t := a.T()
@@ -35,10 +31,6 @@ func TestAllowsWebLogin_TVBlocked(t *testing.T) {
 			t.Fatal("expected TV web login blocked")
 		}
 	})
-}
-
-func TestNormalizeRole_DefaultsAndErrors(t *testing.T) {
-	t.Parallel()
 
 	allure.Test(t, "NormalizeRole defaults empty and rejects unknown", func(a *allure.Context) {
 		t := a.T()

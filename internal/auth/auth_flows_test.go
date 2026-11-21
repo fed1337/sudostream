@@ -9,7 +9,6 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-//nolint:paralleltest,cyclop,gocognit,funlen // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthChangeEmail_SelfAndAdminConfirmFlows(t *testing.T) {
 	allure.Test(
 		t,
@@ -69,10 +68,9 @@ func TestAuthChangeEmail_SelfAndAdminConfirmFlows(t *testing.T) {
 			if err != nil {
 				t.Fatalf("confirm change email: %v", err)
 			}
-			// Second confirm (Strict Mode / double-click) must stay successful.
 			err = service.ConfirmEmail(ctx, token)
-			if err != nil {
-				t.Fatalf("idempotent confirm change email: %v", err)
+			if !errors.Is(err, auth.ErrTokenUsed) {
+				t.Fatalf("reuse confirm token: got %v want %v", err, auth.ErrTokenUsed)
 			}
 
 			reloaded, err := service.GetUserByID(ctx, member.ID)
@@ -136,7 +134,6 @@ func TestAuthChangeEmail_SelfAndAdminConfirmFlows(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest,cyclop,gocognit // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthConfirmRequired_LoginAndForgotAutoResend(t *testing.T) {
 	allure.Test(
 		t,
@@ -235,7 +232,6 @@ func TestAuthConfirmRequired_LoginAndForgotAutoResend(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthDeleteUser_OnlyDisabledAndFreesEmail(t *testing.T) {
 	allure.Test(t, "delete disabled users and reject enabled deletes", func(a *allure.Context) {
 		t := a.T()
@@ -284,7 +280,6 @@ func TestAuthDeleteUser_OnlyDisabledAndFreesEmail(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,cyclop // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthChangePassword_RejectsReuseAndReissuesTokens(t *testing.T) {
 	allure.Test(
 		t,

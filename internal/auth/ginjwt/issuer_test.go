@@ -19,7 +19,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//nolint:paralleltest,cyclop,gocognit,funlen // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestIssuer_IssueRefreshAndAuthenticate(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -168,7 +167,6 @@ func openIssuerTestDatabase(ctx context.Context, t *testing.T) *db.Database {
 		t.Fatalf("create schema: %v", err)
 	}
 
-	//nolint:contextcheck // cleanup runs after the test context is cancelled
 	t.Cleanup(func() {
 		dropCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

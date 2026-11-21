@@ -12,7 +12,6 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-//nolint:paralleltest,cyclop // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthSettings_DefaultsAndUpdate(t *testing.T) {
 	allure.Test(
 		t,
@@ -61,7 +60,6 @@ func TestAuthSettings_DefaultsAndUpdate(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthLogin_PendingInviteRejectsWithoutPasswordCheck(t *testing.T) {
 	allure.Test(
 		t,
@@ -124,7 +122,6 @@ func TestAuthLogin_PendingInviteRejectsWithoutPasswordCheck(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest,cyclop // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthInvites_Lifecycle(t *testing.T) {
 	allure.Test(t, "invites create, list, resend, accept, and revoke", func(a *allure.Context) {
 		t := a.T()
@@ -193,7 +190,6 @@ func TestAuthInvites_Lifecycle(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthPasswordReset_ResetsAndRejectsInvalidToken(t *testing.T) {
 	allure.Test(
 		t,
@@ -257,7 +253,6 @@ func TestAuthPasswordReset_ResetsAndRejectsInvalidToken(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthAcceptInvite_EnablesEvenWhenConfirmationRequired(t *testing.T) {
 	allure.Test(
 		t,
@@ -307,7 +302,6 @@ func TestAuthAcceptInvite_EnablesEvenWhenConfirmationRequired(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthAdminUserManagement_UpdatesAndGuardsLastAdmin(t *testing.T) {
 	allure.Test(t, "admin user management enforces the last-admin guard", func(a *allure.Context) {
 		t := a.T()
@@ -364,7 +358,6 @@ func TestAuthAdminUserManagement_UpdatesAndGuardsLastAdmin(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,cyclop // integration test drives the full 2FA lifecycle
 func TestAuthTwoFactor_EnrollLoginDisable(t *testing.T) {
 	allure.Test(
 		t,
@@ -440,7 +433,6 @@ func TestAuthTwoFactor_EnrollLoginDisable(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthTwoFactor_DisableErrors(t *testing.T) {
 	allure.Test(
 		t,
@@ -487,7 +479,6 @@ func TestAuthTwoFactor_DisableErrors(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest,cyclop // integration tests share the SUDOSTREAM_DATABASE_URL fixture
 func TestAuthSessions_UserAndAdminRevoke(t *testing.T) {
 	allure.Test(t, "users and admins can list and revoke sessions", func(a *allure.Context) {
 		t := a.T()

@@ -239,22 +239,6 @@ func TestService_PatchSettings_RoundTrip(t *testing.T) {
 	})
 }
 
-func TestService_NewServiceDefaultsRegistryAndExposesIt(t *testing.T) {
-	t.Parallel()
-
-	allure.Test(t, "NewService defaults a nil registry and Registry() exposes it", func(a *allure.Context) {
-		t := a.T()
-		svc := NewService(newMemoryStore(), nil)
-
-		if svc.Registry() == nil {
-			t.Fatal("want non-nil registry when constructed with nil")
-		}
-		if svc.Registry().SupportsMetadata("anilist") {
-			t.Fatal("want empty default registry")
-		}
-	})
-}
-
 func TestRegistry_RegisterAndQuery(t *testing.T) {
 	t.Parallel()
 

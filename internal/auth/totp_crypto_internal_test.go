@@ -11,7 +11,7 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-const testTOTPSecret = "JBSWY3DPEHPK3PXP" //nolint:gosec // test-only fixed TOTP secret
+const testTOTPSecret = "JBSWY3DPEHPK3PXP"
 
 func TestTOTPSecret_EncryptDecryptRoundTrip(t *testing.T) {
 	t.Parallel()

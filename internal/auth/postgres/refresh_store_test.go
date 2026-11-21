@@ -14,7 +14,6 @@ import (
 	"github.com/appleboy/gin-jwt/v3/core"
 )
 
-//nolint:paralleltest,cyclop // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestRefreshTokenStore_SetGetDelete(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

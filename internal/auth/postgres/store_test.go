@@ -15,7 +15,6 @@ import (
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
 
-//nolint:paralleltest,gocognit,cyclop,funlen // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestStore_AuthPersistence(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -166,7 +165,6 @@ func openAuthStoreDatabase(ctx context.Context, t *testing.T) *db.Database {
 		t.Fatalf("create schema: %v", err)
 	}
 
-	//nolint:contextcheck // cleanup runs after the test context is cancelled
 	t.Cleanup(func() {
 		dropCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

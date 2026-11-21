@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_BrowseRequiresSession(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -41,7 +40,6 @@ func TestAuth_BrowseRequiresSession(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_LoginRejectsInvalidPassword(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -70,7 +68,6 @@ func TestAuth_LoginRejectsInvalidPassword(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_LogoutClearsSession(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -117,7 +114,6 @@ func TestAuth_LogoutClearsSession(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share one SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_LoginSetsCookieAndAllowsBrowse(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -133,7 +129,6 @@ func TestAuth_LoginSetsCookieAndAllowsBrowse(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_PasswordResetFlow(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -204,7 +199,6 @@ func TestAuth_PasswordResetFlow(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_ChangePasswordInvalidCurrentPassword(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -285,7 +279,6 @@ func TestAuth_ChangePasswordInvalidCurrentPassword(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_ChangePasswordRevokesOtherSessions(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -351,7 +344,6 @@ func TestAuth_ChangePasswordRevokesOtherSessions(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_SessionsListAndRevoke(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -412,7 +404,6 @@ func TestAuth_SessionsListAndRevoke(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_ChangeEmailAndRevokeAllSessions(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -508,7 +499,6 @@ func TestAuth_ChangeEmailAndRevokeAllSessions(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest,funlen // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_HandlerValidationBranches(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -741,7 +731,6 @@ func TestAuth_HandlerValidationBranches(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest,funlen // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_HandlerErrorBranches(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")
@@ -813,7 +802,6 @@ func TestAuth_HandlerErrorBranches(t *testing.T) {
 				"/api/auth/refresh",
 				nil,
 			)
-			//nolint:gosec // G124: insecure cookie is intentional for a stale-token negative case
 			refreshRequest.AddCookie(&http.Cookie{
 				Name:     refreshCookieName,
 				Value:    "stale-token",
@@ -885,7 +873,6 @@ func TestAuth_HandlerErrorBranches(t *testing.T) {
 	)
 }
 
-//nolint:paralleltest // integration tests share SUDOSTREAM_DATABASE_URL fixture
 func TestAuth_RefreshCookieIssuesNewAccessToken(t *testing.T) {
 	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
 		t.Skip("SUDOSTREAM_DATABASE_URL not set")

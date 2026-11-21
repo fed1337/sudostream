@@ -8,7 +8,7 @@
 //   - Store — users, sessions, MFA, auth tokens, policy settings
 //   - TokenIssuer — JWT access + opaque refresh issuance (ginjwt.Issuer in sudoStream)
 //   - email.Mailer — invite, confirm, reset notifications (injected via Service deps)
-//   - ExternalIdentityMapper — future OIDC relying-party hook; absent means deny federation
+//   - OIDC RP — CompleteOIDCLogin + external_identities (wired via httpapi + auth/oidc)
 //   - Observability — metrics and structured logs wired at the httpapi boundary
 //
 // Library ACL (internal/access) stays outside this package.
@@ -150,6 +150,7 @@ type Store interface {
 	EnableUserTOTP(ctx context.Context, userID, secretEncrypted string, backupHashes []string) error
 	DeleteUserTOTP(ctx context.Context, userID string) error
 	ConsumeBackupCode(ctx context.Context, userID string, index int) error
+	ExternalIdentityStore
 }
 
 // SessionRecord is a stored session row.

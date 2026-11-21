@@ -180,6 +180,9 @@ func RegisterRoutes(
 		authGroup.GET("/confirm-email", authRoutes.confirmEmail)
 		authGroup.POST("/accept-invite", authRoutes.acceptInvite)
 		authGroup.POST("/2fa/verify", authRoutes.verifyTwoFactor)
+		authGroup.GET("/oidc/status", authRoutes.oidcStatus)
+		authGroup.GET("/oidc/start", authRoutes.oidcStart)
+		authGroup.GET("/oidc/callback", authRoutes.oidcCallback)
 		if authService != nil {
 			authGroup.POST("/2fa/setup", optionalAuth(authService), authRoutes.setupTwoFactor)
 			authGroup.POST("/2fa/confirm", optionalAuth(authService), authRoutes.confirmTwoFactor)

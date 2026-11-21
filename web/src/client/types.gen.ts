@@ -132,6 +132,10 @@ export type InternalHttpapiLoginResponse = {
   user?: SudoStreamInternalAuthPublicUser;
 };
 
+export type InternalHttpapiLogoutResponse = {
+  endSessionUrl?: string;
+};
+
 export type InternalHttpapiMaintenanceRunResponse = {
   run?: SudoStreamInternalMaintenanceRun;
 };
@@ -427,6 +431,13 @@ export type SudoStreamInternalAuthTwoFactorConfirmResult = {
 export type SudoStreamInternalAuthTwoFactorSetup = {
   otpauthURL?: string;
   secret?: string;
+};
+
+export type SudoStreamInternalAuthOidcPublicStatus = {
+  autoRedirect?: boolean;
+  enabled?: boolean;
+  issuerName?: string;
+  only?: boolean;
 };
 
 export type SudoStreamInternalCatalogEpisode = {
@@ -2698,20 +2709,11 @@ export type PostApiAuthLogoutData = {
   url: '/api/auth/logout';
 };
 
-export type PostApiAuthLogoutErrors = {
-  /**
-   * Unauthorized
-   */
-  401: InternalHttpapiErrorResponse;
-};
-
-export type PostApiAuthLogoutError = PostApiAuthLogoutErrors[keyof PostApiAuthLogoutErrors];
-
 export type PostApiAuthLogoutResponses = {
   /**
-   * No Content
+   * OK
    */
-  204: void;
+  200: InternalHttpapiLogoutResponse;
 };
 
 export type PostApiAuthLogoutResponse = PostApiAuthLogoutResponses[keyof PostApiAuthLogoutResponses];
@@ -2740,6 +2742,62 @@ export type GetApiAuthMeResponses = {
 };
 
 export type GetApiAuthMeResponse = GetApiAuthMeResponses[keyof GetApiAuthMeResponses];
+
+export type GetApiAuthOidcCallbackData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Authorization code
+     */
+    code?: string;
+    /**
+     * OAuth state
+     */
+    state?: string;
+    /**
+     * IdP error
+     */
+    error?: string;
+  };
+  url: '/api/auth/oidc/callback';
+};
+
+export type GetApiAuthOidcStartData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/auth/oidc/start';
+};
+
+export type GetApiAuthOidcStartErrors = {
+  /**
+   * Not Found
+   */
+  404: InternalHttpapiErrorResponse;
+  /**
+   * Internal Server Error
+   */
+  500: InternalHttpapiErrorResponse;
+};
+
+export type GetApiAuthOidcStartError = GetApiAuthOidcStartErrors[keyof GetApiAuthOidcStartErrors];
+
+export type GetApiAuthOidcStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/auth/oidc/status';
+};
+
+export type GetApiAuthOidcStatusResponses = {
+  /**
+   * OK
+   */
+  200: SudoStreamInternalAuthOidcPublicStatus;
+};
+
+export type GetApiAuthOidcStatusResponse = GetApiAuthOidcStatusResponses[keyof GetApiAuthOidcStatusResponses];
 
 export type PostApiAuthRefreshData = {
   body?: never;

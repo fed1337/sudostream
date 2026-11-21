@@ -38,6 +38,21 @@ services:
       SUDOSTREAM_SMTP_FROM: "sudostream@router.lan"
       SUDOSTREAM_SMTP_FROM_NAME: "sudoStream"
       SUDOSTREAM_COOKIE_SECURE: "false"
+      # OIDC SSO (optional) — see docs/admin/oidc-sso.md and compose.oidc-authelia.yml
+      # SUDOSTREAM_OIDC_ENABLED: "false"
+      # SUDOSTREAM_OIDC_ISSUER_URL: ""
+      # SUDOSTREAM_OIDC_ISSUER_NAME: "Authelia"
+      # SUDOSTREAM_OIDC_CLIENT_ID: ""
+      # SUDOSTREAM_OIDC_CLIENT_SECRET: ""
+      # SUDOSTREAM_OIDC_ONLY: "false"
+      # SUDOSTREAM_OIDC_AUTO_REDIRECT: "false"
+      # SUDOSTREAM_OIDC_ADMIN_GROUP: ""
+      # SUDOSTREAM_OIDC_USERNAME_CLAIM: "preferred_username"
+      # SUDOSTREAM_OIDC_SCOPE: "openid email profile groups"
+      # SUDOSTREAM_OIDC_AUTO_REGISTER: "false"
+      # SUDOSTREAM_OIDC_MERGE_USERS: "false"
+      # SUDOSTREAM_OIDC_REQUIRE_EMAIL_VERIFICATION: "false"
+      # SUDOSTREAM_OIDC_INSECURE_SKIP_VERIFY: "false"
       # HTTP description / SOAP / progressive streams (admin must enable, create and pick TV account)
       SUDOSTREAM_DLNA_HTTP_PORT: "8200"
       # Optional listen host (empty = 0.0.0.0)

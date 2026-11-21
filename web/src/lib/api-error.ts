@@ -106,6 +106,12 @@ export const API_ERROR_SLUGS: Record<string, string> = {
   "new password must differ from the current password":
     "newPasswordMustDifferFromTheCurrentPassword",
   "not found": "notFound",
+  "oidc account not linked": "oidcAccountNotLinked",
+  "oidc email already registered": "oidcEmailAlreadyRegistered",
+  "oidc email not verified": "oidcEmailNotVerified",
+  "oidc email required": "oidcEmailRequired",
+  "oidc login failed": "oidcLoginFailed",
+  "oidc not enabled": "oidcNotEnabled",
   "path is not a supported video file": "pathIsNotASupportedVideoFile",
   "playback metadata unavailable": "playbackMetadataUnavailable",
   "provider poster not available": "providerPosterNotAvailable",

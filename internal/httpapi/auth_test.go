@@ -93,8 +93,8 @@ func TestAuth_LogoutClearsSession(t *testing.T) {
 		logoutRequest.AddCookie(credentials.RefreshCookie)
 		router.ServeHTTP(logoutRecorder, logoutRequest)
 
-		if logoutRecorder.Code != http.StatusNoContent {
-			t.Fatalf("logout status: got %d want %d", logoutRecorder.Code, http.StatusNoContent)
+		if logoutRecorder.Code != http.StatusOK {
+			t.Fatalf("logout status: got %d want %d", logoutRecorder.Code, http.StatusOK)
 		}
 
 		browseRecorder := httptest.NewRecorder()

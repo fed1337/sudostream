@@ -14,6 +14,7 @@ import (
 	"sudoStream/internal/access"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/auth/ginjwt"
+	"sudoStream/internal/auth/oidc"
 	"sudoStream/internal/catalog"
 	"sudoStream/internal/db"
 	"sudoStream/internal/dlna"
@@ -139,6 +140,11 @@ func main() { //nolint:funlen,cyclop // composition root wiring
 	router.GET("/metrics", observability.MetricsHandler())
 	router.HandleMethodNotAllowed = true
 
+	oidcProvider, err := initOIDCProvider(context.Background())
+	if err != nil {
+		log.Fatalf("init oidc: %v", err)
+	}
+
 	workers := httpapi.RegisterRoutes(
 		router,
 		fsService,
@@ -163,6 +169,7 @@ func main() { //nolint:funlen,cyclop // composition root wiring
 			SkipIntro:         authBundle.skipIntro,
 			DLNASettings:      authBundle.dlnaSettings,
 			DLNAController:    authBundle.dlnaController,
+			OIDC:              oidcProvider,
 		},
 	)
 
@@ -472,6 +479,48 @@ func newAuthService(authStore *authpostgres.Store, mail *email.Mailer) (*auth.Se
 	}
 
 	return authService, nil
+}
+
+func initOIDCProvider(ctx context.Context) (*oidc.Provider, error) {
+	cfg := oidc.LoadConfigFromEnv(envOrDefault("SUDOSTREAM_BASE_URL", defaultAppBaseURL))
+	if !cfg.Enabled {
+		//nolint:nilnil // disabled OIDC is a valid zero configuration
+		return nil, nil
+	}
+
+	const (
+		oidcInitAttempts = 15
+		oidcInitDelay    = 2 * time.Second
+	)
+	var provider *oidc.Provider
+	var err error
+	for attempt := 1; attempt <= oidcInitAttempts; attempt++ {
+		provider, err = oidc.NewProvider(ctx, cfg)
+		if err == nil {
+			break
+		}
+		if attempt == oidcInitAttempts {
+			return nil, fmt.Errorf("init oidc provider: %w", err)
+		}
+		slog.Warn("oidc discovery not ready, retrying",
+			"attempt", attempt,
+			"issuer", cfg.IssuerURL,
+			"err", err,
+		)
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("init oidc provider: %w", ctx.Err())
+		case <-time.After(oidcInitDelay):
+		}
+	}
+
+	slog.Info("oidc sso enabled",
+		"issuer", cfg.IssuerURL,
+		"issuerName", cfg.IssuerName,
+		"redirectURI", cfg.RedirectURI(),
+	)
+
+	return provider, nil
 }
 
 func bootstrapAuthAdmin(ctx context.Context, authService *auth.Service) error {

@@ -3,6 +3,7 @@ import { AdminRoute, GuestRoute, ProtectedRoute } from "./layouts/AuthGuards";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import LoginPage from "./routes/login";
 import LoginTwoFactorPage from "./routes/login/2fa";
+import LoginOidcCallbackPage from "./routes/login/oidc-callback";
 import ForgotPasswordPage from "./routes/forgot-password";
 import ResetPasswordPage from "./routes/reset-password";
 import ConfirmEmailPage from "./routes/confirm-email";
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/login", element: <LoginPage /> },
       { path: "/login/2fa", element: <LoginTwoFactorPage /> },
+      { path: "/login/oidc/callback", element: <LoginOidcCallbackPage /> },
       { path: "/forgot-password", element: <ForgotPasswordPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
       { path: "/confirm-email", element: <ConfirmEmailPage /> },

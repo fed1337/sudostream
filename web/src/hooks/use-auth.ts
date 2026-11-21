@@ -31,11 +31,13 @@ export function invalidateCurrentUserQuery(queryClient: {
 
 export function useLogout() {
   return async () => {
+    let endSessionUrl: string | undefined;
     try {
-      await postApiAuthLogout();
+      const response = await postApiAuthLogout();
+      endSessionUrl = response.data?.endSessionUrl;
     } finally {
       clearAccessToken();
-      window.location.href = "/login";
+      window.location.href = endSessionUrl || "/login";
     }
   };
 }

@@ -60,6 +60,13 @@ Per-user toggles under **Account → Playback** (defaults off):
 
 ---
 
+## Auth & OIDC SSO
+
+Local email/password (+ optional 2FA) remains the default. OIDC setup is possible via environment variables.
+See [OIDC SSO](admin/oidc-sso.md).
+
+---
+
 ## Libraries & ACL
 
 Mapped folders become permissioned collections; the on-disk tree stays visible in browse.

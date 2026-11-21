@@ -22,6 +22,11 @@ type RefreshResponse struct {
 	User        auth.PublicUser `json:"user"`
 }
 
+// LogoutResponse is returned by POST /api/auth/logout.
+type LogoutResponse struct {
+	EndSessionURL string `json:"endSessionUrl,omitempty"`
+}
+
 // MeResponse is returned by GET /api/auth/me.
 type MeResponse struct {
 	User auth.PublicUser `json:"user"`

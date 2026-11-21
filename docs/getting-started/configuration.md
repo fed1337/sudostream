@@ -75,6 +75,29 @@ Leave `SUDOSTREAM_SMTP_HOST` empty to disable outbound mail, therefore user invi
 | `SUDOSTREAM_SMTP_FROM`      | From address                          |
 | `SUDOSTREAM_SMTP_FROM_NAME` | From display name                     |
 
+### OIDC SSO
+
+Optional external IdP (Authelia / Authentik / Keycloak / social OIDC). Full guide: [OIDC SSO](../admin/oidc-sso.md).
+
+| Variable | Description |
+|----------|-------------|
+| `SUDOSTREAM_OIDC_ENABLED` | Master switch |
+| `SUDOSTREAM_OIDC_ISSUER_URL` | OIDC issuer URL (discovery) |
+| `SUDOSTREAM_OIDC_ISSUER_NAME` | Login button label |
+| `SUDOSTREAM_OIDC_CLIENT_ID` | Confidential client id |
+| `SUDOSTREAM_OIDC_CLIENT_SECRET` | Client secret |
+| `SUDOSTREAM_OIDC_ONLY` | Hide local password form |
+| `SUDOSTREAM_OIDC_AUTO_REDIRECT` | Auto-bounce `/login` to IdP |
+| `SUDOSTREAM_OIDC_ADMIN_GROUP` | `groups` value → admin role |
+| `SUDOSTREAM_OIDC_USERNAME_CLAIM` | Username claim (default `preferred_username`) |
+| `SUDOSTREAM_OIDC_SCOPE` | Default `openid email profile groups` |
+| `SUDOSTREAM_OIDC_AUTO_REGISTER` | Provision unknown users |
+| `SUDOSTREAM_OIDC_MERGE_USERS` | Link unknown `sub` by email |
+| `SUDOSTREAM_OIDC_REQUIRE_EMAIL_VERIFICATION` | Require `email_verified` for merge/register |
+| `SUDOSTREAM_OIDC_INSECURE_SKIP_VERIFY` | Skip TLS verify for IdP (local self-signed only) |
+
+Redirect URI: `{SUDOSTREAM_BASE_URL}/api/auth/oidc/callback`
+
 ### DLNA
 
 Admin must still **enable** DLNA and pick a **TV** user. Envs only sets network behavior:

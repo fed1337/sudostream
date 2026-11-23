@@ -190,6 +190,7 @@ func (s *Service) ResolveSegment(
 			session.noteRequested(index)
 			session.applyThrottle()
 		}
+		s.touchCache(cacheKey)
 
 		return segmentPath, nil
 	}
@@ -210,7 +211,12 @@ func (s *Service) ResolveSegment(
 		session.applyThrottle()
 	}
 
-	return waitForSegment(ctx, session, variantDir, index, segmentPath)
+	path, waitErr := waitForSegment(ctx, session, variantDir, index, segmentPath)
+	if waitErr == nil {
+		s.touchCache(cacheKey)
+	}
+
+	return path, waitErr
 }
 
 // needsRestart decides between waiting for the live encoder and seeking a new one into place.

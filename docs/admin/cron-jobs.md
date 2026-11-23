@@ -20,7 +20,7 @@ Background work runs on a **cron** expression or **Run now**. **Cancel** is avai
 | Action ID | Name | What it does |
 |-----------|------|----------------|
 | `libraries.scan` | Libraries scan | Reconcile roots / inventory vs disk |
-| `playback.cache.purge` | Playback cache purge | Clears HLS (and related) cache; UI may show cache size |
+| `playback.cache.purge` | Playback cache purge | Delete HLS cache not in jobs/sessions and unused ≥15 minutes; UI shows cache size |
 
 ---
 

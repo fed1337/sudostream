@@ -143,15 +143,15 @@ func TestRunAction_CoversRunners(t *testing.T) {
 			_, err = store.UpsertSchedule(ctx, Schedule{
 				Action: ActionPlaybackCachePurge,
 				Config: map[string]any{
-					ConfigKeyMaxAgeHours: float64(12),
-				}, // ignored; retention is fixed
+					ConfigKeyUnusedMinutes: float64(30),
+				}, // ignored; unused grace is fixed
 			})
 			if err != nil {
 				t.Fatalf("upsert purge schedule: %v", err)
 			}
 			summary, err := svc.runAction(ctx, ActionPlaybackCachePurge, "")
 			if err != nil || summary["deleted"] != 2 ||
-				summary[ConfigKeyMaxAgeHours] != PurgeRetentionHours {
+				summary[ConfigKeyUnusedMinutes] != PurgeUnusedMinutes {
 				t.Fatalf("purge: summary=%v err=%v", summary, err)
 			}
 

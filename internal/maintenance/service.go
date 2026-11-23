@@ -26,9 +26,9 @@ type PosterWarmer interface {
 	WarmLibrary(ctx context.Context, media *mediafs.Service, libraryRelPath string) (int, error)
 }
 
-// CachePurger deletes stale HLS cache directories and reports cache size.
+// CachePurger deletes unused HLS cache packages and reports tracked cache size.
 type CachePurger interface {
-	PurgeStaleCache(maxAge time.Duration) (int, int64, error)
+	PurgeStaleCache(unusedFor time.Duration) (int, int64, error)
 	CacheDirBytes() int64
 }
 

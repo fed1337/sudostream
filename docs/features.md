@@ -140,7 +140,7 @@ Recycle-bin retention managed at **Admin → Settings**; expired items (now>=del
 
 | Action ID | Name | What it does |
 |-----------|------|----------------|
-| `metadata.scan` | Metadata scan | ffprobe / index into SQL (needed before catalog is useful) |
+| `metadata.scan` | Metadata scan | ffprobe / index into SQL; drops stale index + orphaned watched/favorite rows |
 | `thumbnails.warm` | Thumbnails warm | Pre-generate thumbnails |
 | `providers.metadata` | Providers → metadata | Enrich into DB/file per library settings |
 | `providers.posters` | Providers → posters | Fetch / cache poster art |

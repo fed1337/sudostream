@@ -135,6 +135,15 @@ func (s *Service) DeleteForPath(ctx context.Context, rawPath string) error {
 		return fmt.Errorf("resolve favorite path: %w", resolveErr)
 	}
 
+	return s.DeleteForLibraryPath(ctx, libraryID, relPath)
+}
+
+// DeleteForLibraryPath removes favorite rows for a known library-relative path (and descendants).
+func (s *Service) DeleteForLibraryPath(ctx context.Context, libraryID, relPath string) error {
+	if s == nil || s.store == nil || libraryID == "" || relPath == "" {
+		return nil
+	}
+
 	err := s.store.DeleteForPath(ctx, libraryID, relPath)
 	if err != nil {
 		return fmt.Errorf("delete favorite: %w", err)

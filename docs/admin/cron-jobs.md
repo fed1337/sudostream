@@ -62,7 +62,9 @@ Open **Admin → Libraries → (library)**. Every card shares the same schedule 
 
 ### `metadata.scan` — Scan metadata
 
-Probes video files under the library roots with ffprobe and refreshes the SQL metadata index (titles, duration, codecs, identity hashes, …). Catalog **tiles** stay empty or stale until this has run successfully at least once; **browse** still shows files without it.
+Probes video files under the library roots with ffprobe and refreshes the DB metadata index (titles, duration, codecs, etc).
+Paths that disappeared from disk are dropped from the index, and orphaned **watched** / **favorite** rows for those paths are removed.
+Catalog **tiles** stay empty or stale until this has run successfully at least once; **browse** still shows files.
 
 | Setting | Description |
 |---------|-------------|

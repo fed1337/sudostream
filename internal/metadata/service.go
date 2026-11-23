@@ -40,18 +40,25 @@ type IndexStore interface {
 
 // Indexer walks libraries and caches ffprobe results.
 type Indexer struct {
-	media    *mediafs.Service
-	store    IndexStore
-	frozen   FrozenPaths
-	probe    func(ctx context.Context, absPath string) (VideoFields, error)
-	stopCh   chan struct{}
-	stopOnce sync.Once
-	wg       sync.WaitGroup
+	media        *mediafs.Service
+	store        IndexStore
+	frozen       FrozenPaths
+	pathCleaners []PathStateCleaner
+	probe        func(ctx context.Context, absPath string) (VideoFields, error)
+	stopCh       chan struct{}
+	stopOnce     sync.Once
+	wg           sync.WaitGroup
 }
 
 // FrozenPaths lists original rel paths sitting in the recycle bin.
 type FrozenPaths interface {
 	OriginalPrefixes(ctx context.Context) ([]string, error)
+}
+
+// PathStateCleaner removes per-user flags (watch / favorite) when indexed media
+// disappears from disk during metadata.scan stale prune.
+type PathStateCleaner interface {
+	DeleteForLibraryPath(ctx context.Context, libraryID, relPath string) error
 }
 
 // NewIndexer constructs a metadata indexer.
@@ -69,6 +76,14 @@ func (i *Indexer) SetFrozenPaths(frozen FrozenPaths) {
 		return
 	}
 	i.frozen = frozen
+}
+
+// SetPathStateCleaners registers watch/favorite (etc.) cleaners for stale-path prune.
+func (i *Indexer) SetPathStateCleaners(cleaners ...PathStateCleaner) {
+	if i == nil {
+		return
+	}
+	i.pathCleaners = append([]PathStateCleaner(nil), cleaners...)
 }
 
 // Shutdown cancels in-flight indexing work and waits for background goroutines.
@@ -490,6 +505,27 @@ func (i *Indexer) deleteStalePaths(
 				slog.String("library_id", library.ID),
 				slog.String("path", relPath),
 				slog.String("error", err.Error()),
+			)
+
+			continue
+		}
+
+		i.cleanPathState(ctx, library.ID, relPath)
+	}
+}
+
+func (i *Indexer) cleanPathState(ctx context.Context, libraryID, relPath string) {
+	for _, cleaner := range i.pathCleaners {
+		if cleaner == nil {
+			continue
+		}
+		cleanErr := cleaner.DeleteForLibraryPath(ctx, libraryID, relPath)
+		if cleanErr != nil {
+			slog.Warn("metadata index path state cleanup failed",
+				slog.String("action", "metadata.index"),
+				slog.String("library_id", libraryID),
+				slog.String("path", relPath),
+				slog.String("error", cleanErr.Error()),
 			)
 		}
 	}

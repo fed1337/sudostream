@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sudoStream/internal/auth"
 	"sudoStream/internal/mediafs"
+	"time"
 	"unicode"
 )
 
@@ -90,11 +91,29 @@ type Store interface {
 // Service checks and manages library access.
 type Service struct {
 	store Store
+	cache *aclCache
 }
 
-// NewService constructs an access service.
+// NewService constructs an access service with the default ACL cache TTL.
 func NewService(store Store) *Service {
-	return &Service{store: store}
+	return NewServiceWithCacheTTL(store, DefaultACLCacheTTL)
+}
+
+// NewServiceWithCacheTTL constructs an access service with a custom ACL cache TTL
+// (tests may use a short TTL; production should use DefaultACLCacheTTL).
+func NewServiceWithCacheTTL(store Store, ttl time.Duration) *Service {
+	return &Service{
+		store: store,
+		cache: newACLCache(ttl),
+	}
+}
+
+// InvalidateACLCache clears library and grant snapshots (tests / rare ops).
+func (s *Service) InvalidateACLCache() {
+	if s == nil || s.cache == nil {
+		return
+	}
+	s.cache.invalidateAll()
 }
 
 // CanRead reports whether role/user may read the given media path.
@@ -185,15 +204,24 @@ func (s *Service) FilterBrowseResponse(
 	user auth.PublicUser,
 	response mediafs.BrowseResponse,
 ) (mediafs.BrowseResponse, error) {
-	libraries, err := s.store.ListLibraries(ctx)
+	libraries, err := s.loadLibraries(ctx)
 	if err != nil {
-		return mediafs.BrowseResponse{}, fmt.Errorf("list libraries: %w", err)
+		return mediafs.BrowseResponse{}, err
+	}
+
+	var grants map[string]LibraryPermissions
+	if user.Role != auth.RoleAdmin {
+		grants, err = s.loadGrants(ctx, user.ID)
+		if err != nil {
+			return mediafs.BrowseResponse{}, err
+		}
 	}
 
 	filtered := make([]mediafs.Item, 0, len(response.Folder.Children))
 
 	for _, child := range response.Folder.Children {
-		if _, ok := MatchLibrary(libraries, child.Path); !ok {
+		library, ok := MatchLibrary(libraries, child.Path)
+		if !ok {
 			continue
 		}
 		if user.Role == auth.RoleAdmin {
@@ -202,11 +230,8 @@ func (s *Service) FilterBrowseResponse(
 			continue
 		}
 
-		allowed, readErr := s.CanRead(ctx, user, child.Path)
-		if readErr != nil {
-			return mediafs.BrowseResponse{}, readErr
-		}
-		if allowed {
+		perms, found := grants[library.ID]
+		if found && perms.Read {
 			filtered = append(filtered, child)
 		}
 	}
@@ -218,12 +243,7 @@ func (s *Service) FilterBrowseResponse(
 
 // ListLibraries returns registered libraries.
 func (s *Service) ListLibraries(ctx context.Context) ([]Library, error) {
-	libraries, err := s.store.ListLibraries(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list libraries: %w", err)
-	}
-
-	return libraries, nil
+	return s.loadLibraries(ctx)
 }
 
 // GetLibrary returns a registered library by ID.
@@ -241,9 +261,9 @@ func (s *Service) LibraryForRelPath(
 	ctx context.Context,
 	rawPath string,
 ) (Library, bool, error) {
-	libraries, err := s.store.ListLibraries(ctx)
+	libraries, err := s.loadLibraries(ctx)
 	if err != nil {
-		return Library{}, false, fmt.Errorf("list libraries: %w", err)
+		return Library{}, false, err
 	}
 
 	library, ok := MatchLibrary(libraries, rawPath)
@@ -289,6 +309,7 @@ func (s *Service) CreateLibrary(
 	if err != nil {
 		return Library{}, fmt.Errorf("create library: %w", err)
 	}
+	s.cache.invalidateLibraries()
 
 	return library, nil
 }
@@ -308,9 +329,9 @@ func (s *Service) AddRoot( //nolint:cyclop // exclusive merge vs overlap is one 
 		return Library{}, fmt.Errorf("add library root: %w", err)
 	}
 
-	libraries, err := s.store.ListLibraries(ctx)
+	libraries, err := s.loadLibraries(ctx)
 	if err != nil {
-		return Library{}, fmt.Errorf("list libraries: %w", err)
+		return Library{}, err
 	}
 
 	for _, library := range libraries {
@@ -324,6 +345,7 @@ func (s *Service) AddRoot( //nolint:cyclop // exclusive merge vs overlap is one 
 				if addErr != nil {
 					return Library{}, fmt.Errorf("add library root: %w", addErr)
 				}
+				s.cache.invalidateLibraries()
 
 				return merged, nil
 			}
@@ -337,6 +359,7 @@ func (s *Service) AddRoot( //nolint:cyclop // exclusive merge vs overlap is one 
 	if err != nil {
 		return Library{}, fmt.Errorf("add library root: %w", err)
 	}
+	s.cache.invalidateLibraries()
 
 	return library, nil
 }
@@ -352,6 +375,7 @@ func (s *Service) RemoveRoot(ctx context.Context, libraryID, relPath string) (Li
 	if err != nil {
 		return Library{}, fmt.Errorf("remove library root: %w", err)
 	}
+	s.cache.invalidateLibraries()
 
 	return library, nil
 }
@@ -362,6 +386,7 @@ func (s *Service) DeleteLibrary(ctx context.Context, libraryID string) error {
 	if err != nil {
 		return fmt.Errorf("delete library: %w", err)
 	}
+	s.cache.invalidateLibraries()
 
 	return nil
 }
@@ -431,6 +456,8 @@ func (s *Service) pruneLibraryRoots( //nolint:funcorder // prune helper used by 
 		updated, removeErr := s.store.RemoveRoot(ctx, library.ID, root)
 		if removeErr != nil {
 			if errors.Is(removeErr, ErrLibraryNotFound) {
+				s.cache.invalidateLibraries()
+
 				return Library{}, removed + 1, nil
 			}
 
@@ -439,20 +466,23 @@ func (s *Service) pruneLibraryRoots( //nolint:funcorder // prune helper used by 
 		removed++
 		current = updated
 	}
+	if removed > 0 {
+		s.cache.invalidateLibraries()
+	}
 
 	return current, removed, nil
 }
 
 // GetUserGrants returns all libraries with the user's permissions.
 func (s *Service) GetUserGrants(ctx context.Context, userID string) ([]UserGrantView, error) {
-	libraries, err := s.store.ListLibraries(ctx)
+	libraries, err := s.loadLibraries(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list libraries: %w", err)
+		return nil, err
 	}
 
-	grantMap, err := s.store.GetUserGrantMap(ctx, userID)
+	grantMap, err := s.loadGrants(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("load grants: %w", err)
+		return nil, err
 	}
 
 	views := make([]UserGrantView, 0, len(libraries))
@@ -473,18 +503,18 @@ func (s *Service) ListReadableLibraries(
 	ctx context.Context,
 	user auth.PublicUser,
 ) ([]Library, error) {
-	libraries, err := s.store.ListLibraries(ctx)
+	libraries, err := s.loadLibraries(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list libraries: %w", err)
+		return nil, err
 	}
 
 	if user.Role == auth.RoleAdmin {
 		return libraries, nil
 	}
 
-	grantMap, err := s.store.GetUserGrantMap(ctx, user.ID)
+	grantMap, err := s.loadGrants(ctx, user.ID)
 	if err != nil {
-		return nil, fmt.Errorf("load grants: %w", err)
+		return nil, err
 	}
 
 	readable := make([]Library, 0, len(libraries))
@@ -531,6 +561,7 @@ func (s *Service) UpdateLibrary(
 	if err != nil {
 		return Library{}, fmt.Errorf("update library: %w", err)
 	}
+	s.cache.invalidateLibraries()
 
 	return library, nil
 }
@@ -546,9 +577,9 @@ func (s *Service) SetUserGrants(
 		return ErrAdminGrantsImmutable
 	}
 
-	libraries, err := s.store.ListLibraries(ctx)
+	libraries, err := s.loadLibraries(ctx)
 	if err != nil {
-		return fmt.Errorf("list libraries: %w", err)
+		return err
 	}
 
 	err = validateGrantInputs(libraries, grants)
@@ -560,8 +591,31 @@ func (s *Service) SetUserGrants(
 	if err != nil {
 		return fmt.Errorf("replace grants: %w", err)
 	}
+	s.cache.invalidateUserGrants(userID)
 
 	return nil
+}
+
+// MarkCanDelete sets Actions.CanDelete on items (and nested children) from one ACL snapshot.
+func (s *Service) MarkCanDelete(
+	ctx context.Context,
+	user auth.PublicUser,
+	items []mediafs.Item,
+) ([]mediafs.Item, error) {
+	if user.Role == auth.RoleAdmin {
+		return markCanDeleteAdmin(items), nil
+	}
+
+	libraries, err := s.loadLibraries(ctx)
+	if err != nil {
+		return items, err
+	}
+	grants, err := s.loadGrants(ctx, user.ID)
+	if err != nil {
+		return items, err
+	}
+
+	return markCanDeleteWithGrants(items, libraries, grants), nil
 }
 
 func validateGrantInputs(libraries []Library, grants []GrantInput) error {
@@ -612,9 +666,9 @@ func (s *Service) permissionsForPath(
 		return LibraryPermissions{}, false, nil
 	}
 
-	libraries, err := s.store.ListLibraries(ctx)
+	libraries, err := s.loadLibraries(ctx)
 	if err != nil {
-		return LibraryPermissions{}, false, fmt.Errorf("list libraries: %w", err)
+		return LibraryPermissions{}, false, err
 	}
 
 	library, ok := MatchLibrary(libraries, canonical)
@@ -622,9 +676,9 @@ func (s *Service) permissionsForPath(
 		return LibraryPermissions{}, false, nil
 	}
 
-	grants, err := s.store.GetUserGrantMap(ctx, userID)
+	grants, err := s.loadGrants(ctx, userID)
 	if err != nil {
-		return LibraryPermissions{}, false, fmt.Errorf("load grants: %w", err)
+		return LibraryPermissions{}, false, err
 	}
 
 	perms, found := grants[library.ID]
@@ -633,6 +687,42 @@ func (s *Service) permissionsForPath(
 	}
 
 	return perms, true, nil
+}
+
+func markCanDeleteAdmin(items []mediafs.Item) []mediafs.Item {
+	for index := range items {
+		items[index].Actions.CanDelete = true
+		if len(items[index].Children) > 0 {
+			items[index].Children = markCanDeleteAdmin(items[index].Children)
+		}
+	}
+
+	return items
+}
+
+func markCanDeleteWithGrants(
+	items []mediafs.Item,
+	libraries []Library,
+	grants map[string]LibraryPermissions,
+) []mediafs.Item {
+	for index := range items {
+		library, ok := MatchLibrary(libraries, items[index].Path)
+		if ok {
+			perms, found := grants[library.ID]
+			if found && perms.Delete {
+				items[index].Actions.CanDelete = true
+			}
+		}
+		if len(items[index].Children) > 0 {
+			items[index].Children = markCanDeleteWithGrants(
+				items[index].Children,
+				libraries,
+				grants,
+			)
+		}
+	}
+
+	return items
 }
 
 func validateRootPath(relPath string) (string, error) {

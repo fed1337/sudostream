@@ -762,18 +762,12 @@ func (h *handler) enrichItemsPermissions(
 		return items
 	}
 
-	for index := range items {
-		canDelete, err := h.access.CanDelete(c.Request.Context(), user, items[index].Path)
-		if err == nil && canDelete {
-			items[index].Actions.CanDelete = true
-		}
-
-		if len(items[index].Children) > 0 {
-			items[index].Children = h.enrichItemsPermissions(c, user, items[index].Children)
-		}
+	enriched, err := h.access.MarkCanDelete(c.Request.Context(), user, items)
+	if err != nil {
+		return items
 	}
 
-	return items
+	return enriched
 }
 
 func (h *handler) handlePathError(

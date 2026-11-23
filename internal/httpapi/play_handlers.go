@@ -386,9 +386,9 @@ func (h *handler) respondPlayback(c *gin.Context, req PlaybackNegotiateRequest) 
 	masterURL := "/api/play/" + escaped + "/" + hlsMasterPlaylist
 	streamURL := "/api/stream/" + escaped
 
-	decision, caps, capsOK := h.decidePlaybackMethod(c, req, filePath, mediaPath, outDir)
+	decision, caps, chapters, capsOK := h.decidePlaybackMethod(c, req, filePath, mediaPath, outDir)
 	if capsOK && decision.Method == playback.MethodDirectPlay {
-		h.respondDirectPlay(c, mediaPath, filePath, streamURL, caps)
+		h.respondDirectPlay(c, mediaPath, filePath, streamURL, caps, chapters)
 
 		return
 	}
@@ -402,31 +402,33 @@ func (h *handler) respondPlayback(c *gin.Context, req PlaybackNegotiateRequest) 
 		}
 	}
 
-	h.respondHLSPlayback(c, mediaPath, filePath, cacheKey, outDir, masterURL, decision, capsOK)
+	h.respondHLSPlayback(c, mediaPath, filePath, cacheKey, outDir, masterURL, decision, capsOK, chapters)
 }
 
 func (h *handler) decidePlaybackMethod(
 	c *gin.Context,
 	req PlaybackNegotiateRequest,
 	filePath, mediaPath, outDir string,
-) (playback.Decision, playback.SourceCaps, bool) {
+) (playback.Decision, playback.SourceCaps, []transcode.ChapterInfo, bool) {
 	decision := playback.Decision{Method: playback.MethodTranscode}
 
 	if req.DeviceProfile != nil {
-		caps, capsErr := h.sourceCapsForPlayback(c, filePath, mediaPath, outDir)
+		caps, chapters, capsErr := h.sourceCapsForPlayback(c, filePath, mediaPath, outDir)
 		if capsErr != nil {
-			return decision, playback.SourceCaps{}, false
+			return decision, playback.SourceCaps{}, nil, false
 		}
 
-		return playback.Decide(*req.DeviceProfile, caps, req.QualityHeight), caps, true
+		return playback.Decide(*req.DeviceProfile, caps, req.QualityHeight), caps, chapters, true
 	}
 
 	if meta, ok := transcode.ReadSourceMeta(outDir); ok &&
 		meta.PackagingMode == transcode.PackagingRemux {
 		decision = playback.Decision{Method: playback.MethodRemux}
+
+		return decision, playback.SourceCaps{}, meta.Chapters, false
 	}
 
-	return decision, playback.SourceCaps{}, false
+	return decision, playback.SourceCaps{}, nil, false
 }
 
 func (h *handler) respondHLSPlayback(
@@ -434,6 +436,7 @@ func (h *handler) respondHLSPlayback(
 	mediaPath, filePath, cacheKey, outDir, masterURL string,
 	decision playback.Decision,
 	capsOK bool,
+	cachedChapters []transcode.ChapterInfo,
 ) {
 	jobStatus := h.transcode.Status(cacheKey)
 	playbackInfo := transcode.BuildPlaybackInfoWithUserPrefs(
@@ -446,6 +449,9 @@ func (h *handler) respondHLSPlayback(
 
 	playMethod := resolvePlayMethod(decision, playbackInfo.PackagingMode, capsOK)
 	chapters := playbackInfo.Chapters
+	if chapters == nil {
+		chapters = cachedChapters
+	}
 	if jobStatus.Status == transcode.StatusReady && chapters == nil {
 		probed, probeErr := transcode.ProbeChapters(c.Request.Context(), filePath)
 		if probeErr == nil {
@@ -507,11 +513,13 @@ func (h *handler) respondDirectPlay(
 	c *gin.Context,
 	mediaPath, filePath, streamURL string,
 	caps playback.SourceCaps,
+	chapters []transcode.ChapterInfo,
 ) {
-	var chapters []transcode.ChapterInfo
-	probed, probeErr := transcode.ProbeChapters(c.Request.Context(), filePath)
-	if probeErr == nil {
-		chapters = probed
+	if chapters == nil {
+		probed, probeErr := transcode.ProbeChapters(c.Request.Context(), filePath)
+		if probeErr == nil {
+			chapters = probed
+		}
 	}
 
 	librarySlug, _ := h.libraryLabels(c, mediaPath)
@@ -584,7 +592,7 @@ func skipIntroFromChapters(chapters []transcode.ChapterInfo, durationSeconds flo
 func (h *handler) sourceCapsForPlayback(
 	c *gin.Context,
 	filePath, mediaPath, outDir string,
-) (playback.SourceCaps, error) {
+) (playback.SourceCaps, []transcode.ChapterInfo, error) {
 	container := playback.ContainerFromPath(mediaPath)
 
 	if meta, ok := transcode.ReadSourceMeta(outDir); ok {
@@ -600,12 +608,16 @@ func (h *handler) sourceCapsForPlayback(
 			Height:          meta.Height,
 			DurationSeconds: meta.DurationSeconds,
 			RemuxOK:         meta.PackagingMode == transcode.PackagingRemux,
-		}, nil
+		}, meta.Chapters, nil
+	}
+
+	if caps, ok := h.capsFromMetadataIndex(c, mediaPath, container); ok {
+		return caps, nil, nil
 	}
 
 	source, err := transcode.ProbeSource(c.Request.Context(), filePath)
 	if err != nil {
-		return playback.SourceCaps{}, fmt.Errorf("probe source for playback: %w", err)
+		return playback.SourceCaps{}, nil, fmt.Errorf("probe source for playback: %w", err)
 	}
 
 	return playback.SourceCaps{
@@ -616,7 +628,45 @@ func (h *handler) sourceCapsForPlayback(
 		Height:          source.Height,
 		DurationSeconds: source.DurationSeconds,
 		RemuxOK:         transcode.RemuxEligible(source),
-	}, nil
+	}, source.Chapters, nil
+}
+
+// capsFromMetadataIndex builds SourceCaps from the SQL metadata index when present.
+// RemuxOK stays false: the index lacks HDR/color fields needed for RemuxEligible.
+func (h *handler) capsFromMetadataIndex(
+	c *gin.Context,
+	mediaPath, container string,
+) (playback.SourceCaps, bool) {
+	if h.metadata == nil {
+		return playback.SourceCaps{}, false
+	}
+
+	response, err := h.metadata.Get(c.Request.Context(), mediaPath)
+	if err != nil || response.ProbedAt == nil {
+		return playback.SourceCaps{}, false
+	}
+
+	fields := response.Effective
+	if fields.VideoCodec == nil || fields.Height == nil {
+		return playback.SourceCaps{}, false
+	}
+
+	caps := playback.SourceCaps{
+		Container:  container,
+		VideoCodec: *fields.VideoCodec,
+		Height:     *fields.Height,
+	}
+	if fields.AudioCodec != nil {
+		caps.AudioCodec = *fields.AudioCodec
+	}
+	if fields.Bitrate != nil {
+		caps.Bitrate = *fields.Bitrate
+	}
+	if fields.DurationSeconds != nil {
+		caps.DurationSeconds = *fields.DurationSeconds
+	}
+
+	return caps, true
 }
 
 func (h *handler) playbackSeriesContext(c *gin.Context, mediaPath string) *PlaybackSeriesContext {

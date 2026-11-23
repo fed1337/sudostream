@@ -40,18 +40,25 @@ type IndexStore interface {
 
 // Indexer walks libraries and caches ffprobe results.
 type Indexer struct {
-	media    *mediafs.Service
-	store    IndexStore
-	frozen   FrozenPaths
-	probe    func(ctx context.Context, absPath string) (VideoFields, error)
-	stopCh   chan struct{}
-	stopOnce sync.Once
-	wg       sync.WaitGroup
+	media        *mediafs.Service
+	store        IndexStore
+	frozen       FrozenPaths
+	pathCleaners []PathStateCleaner
+	probe        func(ctx context.Context, absPath string) (VideoFields, error)
+	stopCh       chan struct{}
+	stopOnce     sync.Once
+	wg           sync.WaitGroup
 }
 
 // FrozenPaths lists original rel paths sitting in the recycle bin.
 type FrozenPaths interface {
 	OriginalPrefixes(ctx context.Context) ([]string, error)
+}
+
+// PathStateCleaner removes per-user flags (watch / favorite) when indexed media
+// disappears from disk during metadata.scan stale prune.
+type PathStateCleaner interface {
+	DeleteForLibraryPath(ctx context.Context, libraryID, relPath string) error
 }
 
 // NewIndexer constructs a metadata indexer.
@@ -69,6 +76,14 @@ func (i *Indexer) SetFrozenPaths(frozen FrozenPaths) {
 		return
 	}
 	i.frozen = frozen
+}
+
+// SetPathStateCleaners registers watch/favorite (etc.) cleaners for stale-path prune.
+func (i *Indexer) SetPathStateCleaners(cleaners ...PathStateCleaner) {
+	if i == nil {
+		return
+	}
+	i.pathCleaners = append([]PathStateCleaner(nil), cleaners...)
 }
 
 // Shutdown cancels in-flight indexing work and waits for background goroutines.
@@ -491,6 +506,27 @@ func (i *Indexer) deleteStalePaths(
 				slog.String("path", relPath),
 				slog.String("error", err.Error()),
 			)
+
+			continue
+		}
+
+		i.cleanPathState(ctx, library.ID, relPath)
+	}
+}
+
+func (i *Indexer) cleanPathState(ctx context.Context, libraryID, relPath string) {
+	for _, cleaner := range i.pathCleaners {
+		if cleaner == nil {
+			continue
+		}
+		cleanErr := cleaner.DeleteForLibraryPath(ctx, libraryID, relPath)
+		if cleanErr != nil {
+			slog.Warn("metadata index path state cleanup failed",
+				slog.String("action", "metadata.index"),
+				slog.String("library_id", libraryID),
+				slog.String("path", relPath),
+				slog.String("error", cleanErr.Error()),
+			)
 		}
 	}
 }
@@ -549,6 +585,8 @@ type Repository interface {
 		probedAt time.Time,
 	) error
 	DeletePath(ctx context.Context, libraryID, relPath string) error
+	MarkTrashed(ctx context.Context, libraryID, relPath string, trashedAt time.Time) error
+	ClearTrashed(ctx context.Context, libraryID, relPath string) error
 	Search(
 		ctx context.Context,
 		libraryIDs []string,
@@ -734,27 +772,57 @@ func (s *Service) ListCatalogSeasonEpisodes(
 
 // DeleteForPath removes cached metadata for a media path.
 func (s *Service) DeleteForPath(ctx context.Context, rawPath string) error {
-	if s == nil || s.store == nil || s.access == nil {
+	library, relPath, err := s.libraryRelPath(ctx, rawPath)
+	if err != nil {
+		return err
+	}
+	if library.ID == "" {
 		return nil
-	}
-
-	relPath := normalizeMediaPath(rawPath)
-	if relPath == "" {
-		return mediafs.ErrInvalidPath
-	}
-
-	library, _, lookupErr := s.libraryForPath(ctx, relPath)
-	if lookupErr != nil {
-		if errors.Is(lookupErr, ErrUnknownLibrary) {
-			return nil
-		}
-
-		return fmt.Errorf("lookup library for delete: %w", lookupErr)
 	}
 
 	delErr := s.store.DeletePath(ctx, library.ID, relPath)
 	if delErr != nil {
 		return fmt.Errorf("delete metadata path: %w", delErr)
+	}
+
+	return nil
+}
+
+// MarkTrashedForPath soft-deletes index rows for a path (and descendants) so catalog/search
+// exclude them without joining trash_items.
+func (s *Service) MarkTrashedForPath(ctx context.Context, rawPath string, trashedAt time.Time) error {
+	library, relPath, err := s.libraryRelPath(ctx, rawPath)
+	if err != nil {
+		return err
+	}
+	if library.ID == "" {
+		return nil
+	}
+	if trashedAt.IsZero() {
+		trashedAt = time.Now().UTC()
+	}
+
+	markErr := s.store.MarkTrashed(ctx, library.ID, relPath, trashedAt)
+	if markErr != nil {
+		return fmt.Errorf("mark metadata trashed: %w", markErr)
+	}
+
+	return nil
+}
+
+// ClearTrashedForPath clears soft-delete flags after a recycle-bin restore.
+func (s *Service) ClearTrashedForPath(ctx context.Context, rawPath string) error {
+	library, relPath, err := s.libraryRelPath(ctx, rawPath)
+	if err != nil {
+		return err
+	}
+	if library.ID == "" {
+		return nil
+	}
+
+	clearErr := s.store.ClearTrashed(ctx, library.ID, relPath)
+	if clearErr != nil {
+		return fmt.Errorf("clear metadata trashed: %w", clearErr)
 	}
 
 	return nil
@@ -810,19 +878,14 @@ func (s *Service) Search( //nolint:cyclop // hydrate hits from rows + library ma
 			continue
 		}
 
-		stored, getErr := s.store.Get(ctx, row.LibraryID, row.RelPath)
-		original := VideoFields{}
-		override := StoredOverride{}
-		if getErr == nil {
-			original = stored.Original
-			override = stored.Override
-		} else if !errors.Is(getErr, ErrNotFound) {
-			return nil, 0, fmt.Errorf("hydrate search hit: %w", getErr)
+		title := strings.TrimSpace(row.Title)
+		if title == "" {
+			title = strings.TrimSuffix(filepath.Base(row.RelPath), filepath.Ext(row.RelPath))
 		}
 
 		hit := SearchHit{
 			Path:        row.RelPath,
-			Title:       DisplayName(library.Type, row.RelPath, original, override),
+			Title:       title,
 			LibrarySlug: library.Slug,
 			LibraryType: library.Type,
 		}
@@ -830,7 +893,10 @@ func (s *Service) Search( //nolint:cyclop // hydrate hits from rows + library ma
 			hit.LibrarySlug = library.RelPath
 		}
 		if library.Type == access.LibraryTypeSeries {
-			hit.ShowKey = ParseSeriesIdentity(row.RelPath).ShowKey
+			hit.ShowKey = row.ShowKey
+			if hit.ShowKey == "" {
+				hit.ShowKey = ParseSeriesIdentity(row.RelPath).ShowKey
+			}
 		}
 
 		hits = append(hits, hit)
@@ -1115,6 +1181,31 @@ func (s *Service) libraryForPath(
 	}
 
 	return library, library.Type, nil
+}
+
+func (s *Service) libraryRelPath(
+	ctx context.Context,
+	rawPath string,
+) (access.Library, string, error) {
+	if s == nil || s.store == nil || s.access == nil {
+		return access.Library{}, "", nil
+	}
+
+	relPath := normalizeMediaPath(rawPath)
+	if relPath == "" {
+		return access.Library{}, "", mediafs.ErrInvalidPath
+	}
+
+	library, _, lookupErr := s.libraryForPath(ctx, relPath)
+	if lookupErr != nil {
+		if errors.Is(lookupErr, ErrUnknownLibrary) {
+			return access.Library{}, relPath, nil
+		}
+
+		return access.Library{}, "", fmt.Errorf("lookup library for path: %w", lookupErr)
+	}
+
+	return library, relPath, nil
 }
 
 func normalizeMediaPath(rawPath string) string {

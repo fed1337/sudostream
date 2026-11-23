@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -16,11 +15,10 @@ import (
 )
 
 const (
-	completeMarker        = ".complete"
-	errorMarker           = ".error"
-	hlsPlaylistHeader     = "#EXTM3U"
-	hlsPlaylistVersion6   = "#EXT-X-VERSION:6"
-	defaultHLSCacheMaxAge = 6 * time.Hour
+	completeMarker      = ".complete"
+	errorMarker         = ".error"
+	hlsPlaylistHeader   = "#EXTM3U"
+	hlsPlaylistVersion6 = "#EXT-X-VERSION:6"
 )
 
 // Status represents the state of a transcode job.
@@ -49,6 +47,9 @@ type Service struct {
 	jobs         map[string]*Job
 	sessions     map[string]map[string]*segmentSession
 	resolveLocks map[string]*sync.Mutex
+	lastUsed     map[string]time.Time
+	packageBytes map[string]int64
+	cacheBytes   int64
 	mu           sync.Mutex
 	stopCh       chan struct{}
 	stopOnce     sync.Once
@@ -68,12 +69,15 @@ func NewService(cacheDir string) (*Service, error) {
 	}
 
 	service := &Service{
-		cacheDir: cacheDir,
-		jobs:     make(map[string]*Job),
-		sessions: make(map[string]map[string]*segmentSession),
-		stopCh:   make(chan struct{}),
-		settings: DefaultTranscodeSettings,
+		cacheDir:     cacheDir,
+		jobs:         make(map[string]*Job),
+		sessions:     make(map[string]map[string]*segmentSession),
+		lastUsed:     make(map[string]time.Time),
+		packageBytes: make(map[string]int64),
+		stopCh:       make(chan struct{}),
+		settings:     DefaultTranscodeSettings,
 	}
+	service.hydrateCacheAccounting()
 
 	service.wg.Add(1)
 
@@ -230,20 +234,25 @@ func (s *Service) HoldProcessingJob(cacheKey string) {
 // StartJob probes a source and publishes its HLS playlists if that has not happened yet.
 func (s *Service) StartJob(_ context.Context, cacheKey, mediaPath string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	outDir := filepath.Join(s.cacheDir, cacheKey)
 	if isTranscodeComplete(outDir) {
+		s.mu.Unlock()
 		observability.RecordHLSCacheLookup("hit")
+		s.touchCache(cacheKey)
 
 		return nil
 	}
 
 	if _, ok := s.jobs[cacheKey]; ok {
+		s.mu.Unlock()
+
 		return nil
 	}
 
 	if _, hasErr := readTranscodeError(outDir); hasErr {
+		s.mu.Unlock()
+
 		return nil
 	}
 
@@ -252,17 +261,20 @@ func (s *Service) StartJob(_ context.Context, cacheKey, mediaPath string) error 
 	//nolint:mnd // permissions
 	err := os.MkdirAll(outDir, 0o750)
 	if err != nil {
+		s.mu.Unlock()
+
 		return fmt.Errorf("create out dir: %w", err)
 	}
 
 	job := &Job{cacheKey: cacheKey, mediaPath: mediaPath, outDir: outDir}
 	s.jobs[cacheKey] = job
 	s.publishJobGaugesLocked()
-
 	s.wg.Add(1)
+	s.mu.Unlock()
 
 	//nolint:contextcheck // background probe uses service-owned shutdown context
 	go job.Run(s)
+	s.touchCache(cacheKey)
 
 	return nil
 }
@@ -285,60 +297,37 @@ func (s *Service) RemoveCache(cacheKey string) {
 		<-session.done
 	}
 
+	s.forgetPackageAccounting(cacheKey)
 	_ = os.RemoveAll(filepath.Join(s.cacheDir, cacheKey))
 	s.publishCacheStats()
 }
 
-// PurgeStaleCache deletes top-level HLS cache directories older than maxAge.
-func (s *Service) PurgeStaleCache(maxAge time.Duration) (int, int64, error) {
+// PurgeStaleCache deletes top-level HLS packages that are not in jobs/sessions and have
+// been unused for at least unusedFor (default 15m). Eligibility uses top-level dir mtime
+// plus in-memory last-used; sizes come from tracked package bytes (no full-tree walk).
+func (s *Service) PurgeStaleCache(unusedFor time.Duration) (int, int64, error) {
 	if s == nil || s.cacheDir == "" {
 		return 0, 0, nil
 	}
-	if maxAge <= 0 {
-		maxAge = defaultHLSCacheMaxAge
+	if unusedFor <= 0 {
+		unusedFor = defaultUnusedGrace
 	}
 
-	cutoff := time.Now().Add(-maxAge)
 	entries, err := os.ReadDir(s.cacheDir)
 	if err != nil {
 		return 0, 0, fmt.Errorf("read hls cache dir: %w", err)
 	}
 
+	now := time.Now()
+	inUse := s.inUseCacheKeys()
 	var deleted int
 	var bytesRemoved int64
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+		removed, size := s.purgePackageIfUnused(entry, now, unusedFor, inUse)
+		if removed {
+			deleted++
+			bytesRemoved += size
 		}
-
-		info, infoErr := entry.Info()
-		if infoErr != nil {
-			continue
-		}
-		if !info.ModTime().Before(cutoff) {
-			continue
-		}
-
-		abs := filepath.Join(s.cacheDir, entry.Name())
-		size := dirSize(abs)
-		slog.Debug("purging stale hls cache",
-			slog.String("action", "playback.cache.purge"),
-			slog.String("path", abs),
-		)
-		removeErr := os.RemoveAll(abs)
-		if removeErr != nil {
-			slog.Warn("purge hls cache failed",
-				slog.String("action", "playback.cache.purge"),
-				slog.String("path", abs),
-				slog.String("error", removeErr.Error()),
-			)
-
-			continue
-		}
-
-		deleted++
-		bytesRemoved += size
-		s.RemoveCache(entry.Name())
 	}
 
 	s.publishCacheStats()
@@ -346,15 +335,14 @@ func (s *Service) PurgeStaleCache(maxAge time.Duration) (int, int64, error) {
 	return deleted, bytesRemoved, nil
 }
 
-// CacheDirBytes returns the total size of the HLS cache directory.
+// CacheDirBytes returns the tracked total size of HLS cache packages.
 func (s *Service) CacheDirBytes() int64 {
-	entries, bytes := s.CacheDirStats()
-	_ = entries
+	_, bytes := s.CacheDirStats()
 
 	return bytes
 }
 
-// CacheDirStats returns top-level package count and total bytes under the HLS cache.
+// CacheDirStats returns top-level package count and tracked total bytes (no full-tree walk).
 func (s *Service) CacheDirStats() (int, int64) {
 	if s == nil || s.cacheDir == "" {
 		return 0, 0
@@ -371,25 +359,11 @@ func (s *Service) CacheDirStats() (int, int64) {
 		}
 	}
 
-	return entries, dirSize(s.cacheDir)
-}
+	s.mu.Lock()
+	bytes := s.cacheBytes
+	s.mu.Unlock()
 
-func dirSize(root string) int64 {
-	var total int64
-	_ = filepath.WalkDir(root, func(_ string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return err
-		}
-		info, infoErr := entry.Info()
-		if infoErr != nil {
-			return nil //nolint:nilerr // skip unreadable entries while summing size
-		}
-		total += info.Size()
-
-		return nil
-	})
-
-	return total
+	return entries, bytes
 }
 
 // CurrentSettings returns the live admin transcode preferences.
@@ -442,6 +416,9 @@ func (s *Service) finishJob(job *Job) {
 	}
 
 	markTranscodeComplete(job.outDir)
+	s.recordPackageSize(job.cacheKey)
+	s.touchCache(job.cacheKey)
+	s.publishCacheStats()
 }
 
 // publishJobGaugesLocked refreshes active job/session Prometheus gauges. Caller holds s.mu.
@@ -492,4 +469,45 @@ func markTranscodeComplete(outDir string) {
 	//nolint:mnd // outDir is under the transcode cache root
 	_ = os.WriteFile(filepath.Join(outDir, completeMarker), []byte("ok"), 0o600)
 	_ = os.Remove(filepath.Join(outDir, errorMarker))
+}
+
+func (s *Service) purgePackageIfUnused(
+	entry os.DirEntry,
+	now time.Time,
+	unusedFor time.Duration,
+	inUse map[string]struct{},
+) (bool, int64) {
+	if !entry.IsDir() {
+		return false, 0
+	}
+
+	cacheKey := entry.Name()
+	if _, busy := inUse[cacheKey]; busy {
+		return false, 0
+	}
+
+	info, err := entry.Info()
+	if err != nil {
+		return false, 0
+	}
+	lastUsed := s.lastUsedOf(cacheKey, info.ModTime())
+	if now.Sub(lastUsed) < unusedFor {
+		return false, 0
+	}
+
+	s.mu.Lock()
+	size := s.packageSizeLocked(cacheKey)
+	s.mu.Unlock()
+	if size == 0 {
+		size = dirSize(filepath.Join(s.cacheDir, cacheKey))
+	}
+
+	slog.Debug("purging unused hls cache",
+		slog.String("action", "playback.cache.purge"),
+		slog.String("cache_key", cacheKey),
+		slog.Duration("unused_for", now.Sub(lastUsed)),
+	)
+	s.RemoveCache(cacheKey)
+
+	return true, size
 }

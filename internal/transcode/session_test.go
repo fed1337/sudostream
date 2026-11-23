@@ -40,13 +40,16 @@ func TestSegmentComplete_RequiresASuccessorWhileEncoding(t *testing.T) {
 		variantDir := filepath.Join(t.TempDir(), "v720")
 		writeSegmentFiles(t, variantDir, 0, 1)
 
-		live := &segmentSession{done: make(chan struct{})}
+		live := &segmentSession{done: make(chan struct{}), highest: -1, variantDir: variantDir}
 
 		if !segmentComplete(variantDir, 0, live) {
 			t.Fatal("segment 0 is closed once segment 1 exists")
 		}
 		if segmentComplete(variantDir, 1, live) {
 			t.Fatal("the newest segment is still open while the session runs")
+		}
+		if highest, ok := live.rememberedHighest(); !ok || highest != 1 {
+			t.Fatalf("expected in-memory highest 1, got %d ok=%v", highest, ok)
 		}
 
 		close(live.done)
@@ -68,24 +71,29 @@ func TestNeedsRestart_SeeksInsteadOfWaitingOnLargeGaps(t *testing.T) {
 		variantDir := filepath.Join(t.TempDir(), "v720")
 		writeSegmentFiles(t, variantDir, 10, 11)
 
-		live := &segmentSession{startIndex: 10, done: make(chan struct{})}
+		live := &segmentSession{
+			startIndex: 10,
+			variantDir: variantDir,
+			done:       make(chan struct{}),
+			highest:    -1,
+		}
 
-		if !needsRestart(nil, variantDir, 12) {
+		if !needsRestart(nil, 12) {
 			t.Fatal("no session means a fresh encoder is required")
 		}
-		if !needsRestart(live, variantDir, 4) {
+		if !needsRestart(live, 4) {
 			t.Fatal("seeking backwards must restart")
 		}
-		if needsRestart(live, variantDir, 13) {
+		if needsRestart(live, 13) {
 			t.Fatal("a request just ahead of the encoder should wait, not restart")
 		}
-		if !needsRestart(live, variantDir, 40) {
+		if !needsRestart(live, 40) {
 			t.Fatal("a far-ahead seek must restart")
 		}
 
 		close(live.done)
 
-		if !needsRestart(live, variantDir, 12) {
+		if !needsRestart(live, 12) {
 			t.Fatal("a dead session must be replaced")
 		}
 	})
@@ -327,7 +335,12 @@ func TestWaitForSegment_CancelFailureAndMissing(t *testing.T) {
 			}
 
 			// Segment appears while a live session is polled.
-			producing := &segmentSession{done: make(chan struct{}), lastAccess: time.Now()}
+			producing := &segmentSession{
+				done:       make(chan struct{}),
+				lastAccess: time.Now(),
+				highest:    -1,
+				variantDir: variantDir,
+			}
 			go func() {
 				time.Sleep(80 * time.Millisecond)
 				_ = os.WriteFile(segmentPath, []byte("ts"), 0o600)
@@ -340,8 +353,27 @@ func TestWaitForSegment_CancelFailureAndMissing(t *testing.T) {
 			if got != segmentPath {
 				t.Fatalf("path: got %q", got)
 			}
+			if highest, ok := producing.rememberedHighest(); !ok || highest < 1 {
+				t.Fatalf("expected wait to track highest >= 1, got %d ok=%v", highest, ok)
+			}
 		},
 	)
+}
+
+func TestSegmentSession_RefreshHighestAdvancesWithoutReadDir(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "refreshHighest advances via Stat after an in-memory seed", func(a *allure.Context) {
+		t := a.T()
+		variantDir := filepath.Join(t.TempDir(), "v720")
+		writeSegmentFiles(t, variantDir, 0, 1, 2)
+
+		session := &segmentSession{variantDir: variantDir, highest: 0, done: make(chan struct{})}
+		highest, ok := session.refreshHighest()
+		if !ok || highest != 2 {
+			t.Fatalf("highest: got %d ok=%v want 2", highest, ok)
+		}
+	})
 }
 
 func TestThrottleShouldPause_Hysteresis(t *testing.T) {
@@ -489,11 +521,16 @@ func TestNeedsRestart_EmptyDirUsesStartGap(t *testing.T) {
 			t.Fatalf("mkdir: %v", err)
 		}
 
-		live := &segmentSession{startIndex: 0, done: make(chan struct{})}
-		if needsRestart(live, variantDir, 1) {
+		live := &segmentSession{
+			startIndex: 0,
+			variantDir: variantDir,
+			done:       make(chan struct{}),
+			highest:    -1,
+		}
+		if needsRestart(live, 1) {
 			t.Fatal("small forward gap should wait")
 		}
-		if !needsRestart(live, variantDir, segmentGapThreshold+2) {
+		if !needsRestart(live, segmentGapThreshold+2) {
 			t.Fatal("large gap with no segments must restart")
 		}
 	})
@@ -709,6 +746,12 @@ func TestResolveSegment_CopyRestartsLandOnTheTimelineKeyframe(t *testing.T) {
 				// HEVC is not remux-eligible; the restart still must land on the shared table.
 				if container != "hevc" && meta.PackagingMode != PackagingRemux {
 					t.Fatalf("fixture must be remux-eligible, got %q", meta.PackagingMode)
+				}
+
+				// Copy-run seek needs the async keyframe refine; prefer the rewritten table.
+				_ = awaitKeyframes(context.Background(), outDir, keyframeAwaitTimeout)
+				if refined, ok := ReadSourceMeta(outDir); ok {
+					meta = refined
 				}
 
 				seekIndex := 3

@@ -12,6 +12,8 @@ import (
 	"sudoStream/internal/mediafs"
 	"sudoStream/internal/metadata"
 	"sudoStream/internal/watch"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -109,9 +111,13 @@ type metadataLister interface {
 	) ([]metadata.ShelfRow, error)
 }
 
-// PosterIndex reports which media paths of a library have a locally cached provider poster.
+// PosterIndex reports which of the given media paths have a locally cached provider poster.
 type PosterIndex interface {
-	PosterPaths(ctx context.Context, libraryID string) (map[string]struct{}, error)
+	PosterPathsFor(
+		ctx context.Context,
+		libraryID string,
+		relPaths []string,
+	) (map[string]struct{}, error)
 }
 
 // Service collects home shelf data from ACL, state, and metadata stores.
@@ -164,14 +170,33 @@ func (s *Service) Favorites(
 	}
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
-	total, err := s.favorites.CountForUser(ctx, user.ID, ids)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("count favorites: %w", err)
+
+	var total int64
+	var rows []favorite.Row
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		count, countErr := s.favorites.CountForUser(groupCtx, user.ID, ids)
+		if countErr != nil {
+			return fmt.Errorf("count favorites: %w", countErr)
+		}
+		total = count
+
+		return nil
+	})
+	group.Go(func() error {
+		listed, listErr := s.favorites.ListForUser(groupCtx, user.ID, ids, limit, offset)
+		if listErr != nil {
+			return fmt.Errorf("list favorites: %w", listErr)
+		}
+		rows = listed
+
+		return nil
+	})
+	waitErr := group.Wait()
+	if waitErr != nil {
+		return ItemPage{}, fmt.Errorf("favorites count/list: %w", waitErr)
 	}
-	rows, err := s.favorites.ListForUser(ctx, user.ID, ids, limit, offset)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("list favorites: %w", err)
-	}
+
 	items, err := s.itemsFromFavorites(ctx, libraries, ids, rows)
 	if err != nil {
 		return ItemPage{}, err
@@ -202,14 +227,33 @@ func (s *Service) Watched(
 	}
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
-	total, err := s.watch.CountForUser(ctx, user.ID, ids)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("count watched: %w", err)
+
+	var total int64
+	var rows []watch.Row
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		count, countErr := s.watch.CountForUser(groupCtx, user.ID, ids)
+		if countErr != nil {
+			return fmt.Errorf("count watched: %w", countErr)
+		}
+		total = count
+
+		return nil
+	})
+	group.Go(func() error {
+		listed, listErr := s.watch.ListForUser(groupCtx, user.ID, ids, limit, offset)
+		if listErr != nil {
+			return fmt.Errorf("list watched: %w", listErr)
+		}
+		rows = listed
+
+		return nil
+	})
+	waitErr := group.Wait()
+	if waitErr != nil {
+		return ItemPage{}, fmt.Errorf("watched count/list: %w", waitErr)
 	}
-	rows, err := s.watch.ListForUser(ctx, user.ID, ids, limit, offset)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("list watched: %w", err)
-	}
+
 	items, err := s.itemsFromWatchRows(ctx, libraries, ids, rows)
 	if err != nil {
 		return ItemPage{}, err
@@ -239,14 +283,33 @@ func (s *Service) Continue(
 	}
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
-	total, err := s.watch.CountContinue(ctx, user.ID, ids)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("count continue: %w", err)
+
+	var total int64
+	var rows []watch.Row
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		count, countErr := s.watch.CountContinue(groupCtx, user.ID, ids)
+		if countErr != nil {
+			return fmt.Errorf("count continue: %w", countErr)
+		}
+		total = count
+
+		return nil
+	})
+	group.Go(func() error {
+		listed, listErr := s.watch.ListContinue(groupCtx, user.ID, ids, limit, offset)
+		if listErr != nil {
+			return fmt.Errorf("list continue: %w", listErr)
+		}
+		rows = listed
+
+		return nil
+	})
+	waitErr := group.Wait()
+	if waitErr != nil {
+		return ItemPage{}, fmt.Errorf("continue count/list: %w", waitErr)
 	}
-	rows, err := s.watch.ListContinue(ctx, user.ID, ids, limit, offset)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("list continue: %w", err)
-	}
+
 	items, err := s.itemsFromWatchRows(ctx, libraries, ids, rows)
 	if err != nil {
 		return ItemPage{}, err
@@ -271,13 +334,31 @@ func (s *Service) Unwatched(
 	}
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
-	total, err := s.metadata.CountUnwatched(ctx, user.ID, ids)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("count unwatched: %w", err)
-	}
-	rows, err := s.metadata.ListUnwatched(ctx, user.ID, ids, limit, offset)
-	if err != nil {
-		return ItemPage{}, fmt.Errorf("list unwatched: %w", err)
+
+	var total int64
+	var rows []metadata.ShelfRow
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		count, countErr := s.metadata.CountUnwatched(groupCtx, user.ID, ids)
+		if countErr != nil {
+			return fmt.Errorf("count unwatched: %w", countErr)
+		}
+		total = count
+
+		return nil
+	})
+	group.Go(func() error {
+		listed, listErr := s.metadata.ListUnwatched(groupCtx, user.ID, ids, limit, offset)
+		if listErr != nil {
+			return fmt.Errorf("list unwatched: %w", listErr)
+		}
+		rows = listed
+
+		return nil
+	})
+	waitErr := group.Wait()
+	if waitErr != nil {
+		return ItemPage{}, fmt.Errorf("unwatched count/list: %w", waitErr)
 	}
 
 	return ItemPage{
@@ -298,13 +379,31 @@ func (s *Service) Stats(ctx context.Context, user auth.PublicUser) ([]LibrarySta
 	if err != nil {
 		return nil, err
 	}
-	totals, err := s.metadata.CountByLibraries(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("count indexed media: %w", err)
-	}
-	watched, err := s.watch.CountByLibraries(ctx, user.ID, ids)
-	if err != nil {
-		return nil, fmt.Errorf("count watched media: %w", err)
+
+	var totals map[string]int64
+	var watched map[string]int64
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		counts, countErr := s.metadata.CountByLibraries(groupCtx, ids)
+		if countErr != nil {
+			return fmt.Errorf("count indexed media: %w", countErr)
+		}
+		totals = counts
+
+		return nil
+	})
+	group.Go(func() error {
+		counts, countErr := s.watch.CountByLibraries(groupCtx, user.ID, ids)
+		if countErr != nil {
+			return fmt.Errorf("count watched media: %w", countErr)
+		}
+		watched = counts
+
+		return nil
+	})
+	waitErr := group.Wait()
+	if waitErr != nil {
+		return nil, fmt.Errorf("stats counts: %w", waitErr)
 	}
 
 	stats := make([]LibraryStat, 0, len(libraries))
@@ -398,36 +497,46 @@ func (s *Service) itemsFromShelfRows(
 	rows []metadata.ShelfRow,
 ) []ShelfItem {
 	byLibrary := librariesByID(libraries)
-	posterCache := map[string]map[string]struct{}{}
+	postersByLibrary := s.posterPathsForPage(ctx, rows)
 	items := make([]ShelfItem, 0, len(rows))
 	for _, row := range rows {
 		item := shelfItem(byLibrary, row)
-		item.PosterURL = s.posterURL(ctx, posterCache, row.LibraryID, row.RelPath)
+		item.PosterURL = posterURLFor(postersByLibrary[row.LibraryID], row.RelPath)
 		items = append(items, item)
 	}
 
 	return items
 }
 
-func (s *Service) posterURL(
+func (s *Service) posterPathsForPage(
 	ctx context.Context,
-	cache map[string]map[string]struct{},
-	libraryID, relPath string,
-) string {
-	if s == nil || s.posters == nil || libraryID == "" || relPath == "" {
-		return ""
+	rows []metadata.ShelfRow,
+) map[string]map[string]struct{} {
+	if s == nil || s.posters == nil || len(rows) == 0 {
+		return nil
 	}
-	paths, ok := cache[libraryID]
-	if !ok {
-		listed, err := s.posters.PosterPaths(ctx, libraryID)
-		if err != nil {
-			cache[libraryID] = nil
 
-			return ""
+	pathsByLibrary := map[string][]string{}
+	for _, row := range rows {
+		if row.LibraryID == "" || row.RelPath == "" {
+			continue
 		}
-		cache[libraryID] = listed
-		paths = listed
+		pathsByLibrary[row.LibraryID] = append(pathsByLibrary[row.LibraryID], row.RelPath)
 	}
+
+	out := make(map[string]map[string]struct{}, len(pathsByLibrary))
+	for libraryID, paths := range pathsByLibrary {
+		listed, err := s.posters.PosterPathsFor(ctx, libraryID, paths)
+		if err != nil {
+			continue
+		}
+		out[libraryID] = listed
+	}
+
+	return out
+}
+
+func posterURLFor(paths map[string]struct{}, relPath string) string {
 	if paths == nil {
 		return ""
 	}

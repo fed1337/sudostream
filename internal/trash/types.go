@@ -59,7 +59,9 @@ type SettingsKV interface {
 	SaveSettingValue(ctx context.Context, key string, value []byte) error
 }
 
-// Cleaner runs after a permanent delete while the trash copy may still exist.
+// Cleaner runs soft-delete / restore index updates and permanent-delete cleanup.
 type Cleaner interface {
+	OnSoftDelete(ctx context.Context, item Item) error
+	OnRestore(ctx context.Context, item Item) error
 	OnPermanentDelete(ctx context.Context, item Item) error
 }

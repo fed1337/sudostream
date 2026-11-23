@@ -26,6 +26,7 @@ type metadataModel struct {
 	CatalogYear         *int           `gorm:"column:catalog_year"`
 	CatalogEpisodeTitle string         `gorm:"column:catalog_episode_title"`
 	CatalogDisplayName  string         `gorm:"column:catalog_display_name"`
+	TrashedAt           *time.Time     `gorm:"column:trashed_at"`
 }
 
 func (metadataModel) TableName() string {

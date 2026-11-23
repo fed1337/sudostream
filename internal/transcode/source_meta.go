@@ -191,27 +191,17 @@ func ReadSourceMeta(outDir string) (SourceMeta, bool) {
 // This is the whole "make it playable" step: after it returns the client has a complete,
 // seekable VOD timeline for every rung, audio track and subtitle track, with zero media
 // encoded. Segments are produced later, on request.
+//
+// Equal-length segments are published first so playback is not blocked on a full packet
+// scan. Keyframe/bitrate refinement runs asynchronously and rewrites playlists only when
+// no segments have been produced yet.
 func ProbeAndPublish(ctx context.Context, outDir, mediaPath string) (SourceMeta, error) {
 	source, err := ProbeSource(ctx, mediaPath)
 	if err != nil {
 		return SourceMeta{}, err
 	}
 
-	// Keyframe extraction is best effort; equal-length segments are the documented fallback.
-	// ProbeVideoPackets applies its own timeout so a full-file packet scan cannot stall publish.
-	packets, kfErr := ProbeVideoPackets(ctx, mediaPath)
-	if kfErr != nil {
-		slog.Warn("keyframe probe skipped",
-			slog.String("path", mediaPath),
-			slog.String("error", kfErr.Error()),
-		)
-		packets = PacketIndex{}
-	} else {
-		packets = packets.normalized(source.StartSeconds)
-		_ = WriteKeyframes(outDir, packets.Keyframes)
-	}
-
-	meta := sourceMetaFromProbe(source, packets)
+	meta := sourceMetaFromProbe(source, PacketIndex{})
 	if len(meta.Segments) == 0 {
 		return SourceMeta{}, fmt.Errorf(
 			"%w: no timeline for %s",
@@ -230,7 +220,94 @@ func ProbeAndPublish(ctx context.Context, outDir, mediaPath string) (SourceMeta,
 		return SourceMeta{}, err
 	}
 
+	go refineKeyframesAsync(context.WithoutCancel(ctx), outDir, mediaPath, source)
+
 	return meta, nil
+}
+
+// refineKeyframesAsync probes packet keyframes and, when still useful, rewrites the
+// timeline + playlists. Keyframes are always cached for copy-run seeks even if the
+// segment table is left alone.
+func refineKeyframesAsync(ctx context.Context, outDir, mediaPath string, source SourceInfo) {
+	packets, kfErr := ProbeVideoPackets(ctx, mediaPath)
+	if kfErr != nil {
+		slog.Warn("keyframe probe skipped",
+			slog.String("path", mediaPath),
+			slog.String("error", kfErr.Error()),
+		)
+
+		return
+	}
+
+	packets = packets.normalized(source.StartSeconds)
+	if len(packets.Keyframes) == 0 {
+		return
+	}
+
+	writeErr := WriteKeyframes(outDir, packets.Keyframes)
+	if writeErr != nil {
+		slog.Warn("keyframe cache write failed",
+			slog.String("path", mediaPath),
+			slog.String("error", writeErr.Error()),
+		)
+	}
+
+	if hasProducedSegments(outDir) {
+		return
+	}
+
+	refined := sourceMetaFromProbe(source, packets)
+	if len(refined.Segments) == 0 {
+		return
+	}
+
+	err := WriteSourceMeta(outDir, refined)
+	if err != nil {
+		slog.Warn("keyframe timeline rewrite failed",
+			slog.String("path", mediaPath),
+			slog.String("error", err.Error()),
+		)
+
+		return
+	}
+
+	err = PublishPlaylists(outDir, refined)
+	if err != nil {
+		slog.Warn("keyframe playlist rewrite failed",
+			slog.String("path", mediaPath),
+			slog.String("error", err.Error()),
+		)
+	}
+}
+
+// hasProducedSegments reports whether any HLS media segment already exists under outDir.
+func hasProducedSegments(outDir string) bool {
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		return true
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		variantEntries, readErr := os.ReadDir(filepath.Join(outDir, entry.Name()))
+		if readErr != nil {
+			continue
+		}
+
+		for _, file := range variantEntries {
+			if file.IsDir() {
+				continue
+			}
+			if _, ok := SegmentIndexFromName(file.Name()); ok {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // PublishPlaylists writes the master plus every media playlist from the segment table.

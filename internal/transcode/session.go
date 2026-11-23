@@ -57,7 +57,10 @@ type segmentSession struct {
 	stderr        string
 	lastAccess    time.Time
 	lastRequested int
-	paused        bool
+	// highest is the largest segment index observed on disk for this session (-1 = none).
+	// Updated when wait/complete paths Stat segment files so hot polls avoid ReadDir.
+	highest int
+	paused  bool
 }
 
 func (ss *segmentSession) finished() bool {
@@ -94,6 +97,65 @@ func (ss *segmentSession) noteRequested(index int) {
 	ss.mu.Unlock()
 }
 
+// noteHighest records that a segment file at index exists on disk.
+func (ss *segmentSession) noteHighest(index int) {
+	if ss == nil || index < 0 {
+		return
+	}
+
+	ss.mu.Lock()
+	if index > ss.highest {
+		ss.highest = index
+	}
+	ss.mu.Unlock()
+}
+
+// rememberedHighest returns the in-memory highest segment index when one has been observed.
+func (ss *segmentSession) rememberedHighest() (int, bool) {
+	if ss == nil {
+		return 0, false
+	}
+
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	if ss.highest < 0 {
+		return 0, false
+	}
+
+	return ss.highest, true
+}
+
+// refreshHighest advances the remembered highest index by Stating successive segment files.
+// Falls back to a single ReadDir only when nothing has been observed yet.
+func (ss *segmentSession) refreshHighest() (int, bool) {
+	if ss == nil {
+		return 0, false
+	}
+
+	if highest, ok := ss.rememberedHighest(); ok {
+		dir := ss.variantDir
+		for {
+			next := highest + 1
+			info, err := os.Stat(filepath.Join(dir, SegmentName(next)))
+			if err != nil || info.Size() == 0 {
+				break
+			}
+			highest = next
+		}
+		ss.noteHighest(highest)
+
+		return highest, true
+	}
+
+	highest, ok := highestSegmentIndex(ss.variantDir)
+	if ok {
+		ss.noteHighest(highest)
+	}
+
+	return highest, ok
+}
+
 // throttleShouldPause reports whether the encoder should be stopped given its lead over playback.
 func throttleShouldPause(gap int, paused bool) bool {
 	if paused {
@@ -108,7 +170,7 @@ func (ss *segmentSession) applyThrottle() {
 		return
 	}
 
-	highest, ok := highestSegmentIndex(ss.variantDir)
+	highest, ok := ss.refreshHighest()
 	if !ok {
 		highest = ss.startIndex - 1
 	}
@@ -180,7 +242,6 @@ func (s *Service) ResolveSegment(
 
 	lock := s.resolveLock(cacheKey, variant)
 	lock.Lock()
-	defer lock.Unlock()
 
 	session := s.session(cacheKey, variant)
 	if segmentComplete(variantDir, index, session) {
@@ -190,11 +251,13 @@ func (s *Service) ResolveSegment(
 			session.noteRequested(index)
 			session.applyThrottle()
 		}
+		lock.Unlock()
+		s.touchCache(cacheKey)
 
 		return segmentPath, nil
 	}
 
-	if needsRestart(session, variantDir, index) {
+	if needsRestart(session, index) {
 		observability.RecordHLSSegmentRequest(segmentResultRestart)
 		s.stopSession(cacheKey, variant)
 
@@ -202,6 +265,8 @@ func (s *Service) ResolveSegment(
 
 		session, err = s.startSession(ctx, cacheKey, mediaPath, meta, variant, index)
 		if err != nil {
+			lock.Unlock()
+
 			return "", err
 		}
 	} else {
@@ -210,11 +275,19 @@ func (s *Service) ResolveSegment(
 		session.applyThrottle()
 	}
 
-	return waitForSegment(ctx, session, variantDir, index, segmentPath)
+	// Wait outside the resolve lock so same-variant prefetch can share the live session.
+	lock.Unlock()
+
+	path, waitErr := waitForSegment(ctx, session, variantDir, index, segmentPath)
+	if waitErr == nil {
+		s.touchCache(cacheKey)
+	}
+
+	return path, waitErr
 }
 
 // needsRestart decides between waiting for the live encoder and seeking a new one into place.
-func needsRestart(session *segmentSession, variantDir string, index int) bool {
+func needsRestart(session *segmentSession, index int) bool {
 	if session == nil || session.finished() {
 		return true
 	}
@@ -223,7 +296,7 @@ func needsRestart(session *segmentSession, variantDir string, index int) bool {
 		return true
 	}
 
-	highest, ok := highestSegmentIndex(variantDir)
+	highest, ok := session.refreshHighest()
 	if !ok {
 		return index > session.startIndex+segmentGapThreshold
 	}
@@ -234,20 +307,34 @@ func needsRestart(session *segmentSession, variantDir string, index int) bool {
 // segmentComplete reports whether a segment file is fully written.
 //
 // The segment muxer keeps the current file open, so a segment only counts as complete once a
-// later one exists or the process has exited.
+// later one exists or the process has exited. Prefer in-memory highest + Stat of the successor
+// over ReadDir on every poll.
 func segmentComplete(variantDir string, index int, session *segmentSession) bool {
 	info, err := os.Stat(filepath.Join(variantDir, SegmentName(index)))
 	if err != nil || info.Size() == 0 {
 		return false
 	}
 
+	if session != nil {
+		session.noteHighest(index)
+	}
+
 	if session == nil || session.finished() {
 		return true
 	}
 
-	highest, ok := highestSegmentIndex(variantDir)
+	if highest, ok := session.rememberedHighest(); ok && highest > index {
+		return true
+	}
 
-	return ok && highest > index
+	nextInfo, nextErr := os.Stat(filepath.Join(variantDir, SegmentName(index+1)))
+	if nextErr != nil || nextInfo.Size() == 0 {
+		return false
+	}
+
+	session.noteHighest(index + 1)
+
+	return true
 }
 
 func highestSegmentIndex(variantDir string) (int, bool) {
@@ -347,6 +434,7 @@ func (s *Service) startSession(
 		done:          make(chan struct{}),
 		lastAccess:    time.Now(),
 		lastRequested: index,
+		highest:       -1,
 	}
 
 	settings := s.currentSettings()
@@ -370,7 +458,9 @@ func (s *Service) startSession(
 		downmixBoost: settings.DownmixBoost,
 	}
 	if run.canCopyVideo() && index > 0 {
-		run.keyframes, _ = ReadKeyframes(s.CacheOutDir(cacheKey))
+		// Async ProbeAndPublish may still be writing keyframes; wait briefly so copy
+		// seeks land on real IDR boundaries instead of equal-length guesses.
+		run.keyframes = awaitKeyframes(sessionCtx, s.CacheOutDir(cacheKey), keyframeAwaitTimeout)
 	}
 
 	args := buildSegmentArgs(run)

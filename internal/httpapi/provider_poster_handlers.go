@@ -19,8 +19,7 @@ type posterCache struct {
 	cache     *provider.Cache
 }
 
-// PosterPaths returns the media paths in a library that own a cached provider poster. Used by
-// the catalog to prefer a provider poster over the generated video thumbnail.
+// PosterPaths returns every media path in a library that owns a cached provider poster.
 func (p *posterCache) PosterPaths(
 	ctx context.Context,
 	libraryID string,
@@ -32,6 +31,32 @@ func (p *posterCache) PosterPaths(
 	rows, err := p.artifacts.ListArtifacts(ctx, libraryID, provider.ArtifactKindPoster)
 	if err != nil {
 		return nil, fmt.Errorf("list provider posters: %w", err)
+	}
+
+	paths := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		paths[row.RelPath] = struct{}{}
+	}
+
+	return paths, nil
+}
+
+// PosterPathsFor returns which of the given media paths own a cached provider poster.
+// Catalog/shelf page builders pass only the current page paths (E-48).
+func (p *posterCache) PosterPathsFor(
+	ctx context.Context,
+	libraryID string,
+	relPaths []string,
+) (map[string]struct{}, error) {
+	if p == nil || p.artifacts == nil || len(relPaths) == 0 {
+		return map[string]struct{}{}, nil
+	}
+
+	rows, err := p.artifacts.ListArtifactsForPaths(
+		ctx, libraryID, provider.ArtifactKindPoster, relPaths,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list provider posters for paths: %w", err)
 	}
 
 	paths := make(map[string]struct{}, len(rows))

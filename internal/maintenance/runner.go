@@ -117,16 +117,16 @@ func (s *Service) runPlaybackCachePurge(ctx context.Context) (map[string]any, er
 	}
 
 	deleted, bytesRemoved, err := s.deps.Purger.PurgeStaleCache(
-		time.Duration(PurgeRetentionHours) * time.Hour,
+		time.Duration(PurgeUnusedMinutes) * time.Minute,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("purge cache: %w", err)
 	}
 
 	return map[string]any{
-		"deleted":            deleted,
-		"bytesRemoved":       bytesRemoved,
-		ConfigKeyMaxAgeHours: PurgeRetentionHours,
+		"deleted":              deleted,
+		"bytesRemoved":         bytesRemoved,
+		ConfigKeyUnusedMinutes: PurgeUnusedMinutes,
 	}, nil
 }
 

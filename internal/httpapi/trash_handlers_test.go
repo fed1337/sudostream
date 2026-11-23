@@ -222,6 +222,18 @@ func TestAdminTrash_EmptyPatchUnavailableAndErrors(t *testing.T) {
 			}
 
 			cleanup := trashCleanup{}
+			err = cleanup.OnSoftDelete(context.Background(), trash.Item{
+				OriginalRelPath: "movies/clip.mp4",
+			})
+			if err != nil {
+				t.Fatalf("soft delete nil metadata: %v", err)
+			}
+			err = cleanup.OnRestore(context.Background(), trash.Item{
+				OriginalRelPath: "movies/clip.mp4",
+			})
+			if err != nil {
+				t.Fatalf("restore nil metadata: %v", err)
+			}
 			err = cleanup.OnPermanentDelete(context.Background(), trash.Item{
 				OriginalRelPath: "movies/clip.mp4",
 				TrashRelPath:    ".trash/id/movies/clip.mp4",

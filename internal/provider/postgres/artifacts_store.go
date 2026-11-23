@@ -79,6 +79,33 @@ func (s *ArtifactStore) ListArtifacts(
 	return artifacts, nil
 }
 
+// ListArtifactsForPaths returns artifacts of kind for the given media paths only.
+func (s *ArtifactStore) ListArtifactsForPaths(
+	ctx context.Context,
+	libraryID, kind string,
+	relPaths []string,
+) ([]provider.Artifact, error) {
+	if len(relPaths) == 0 {
+		return nil, nil
+	}
+
+	var models []artifactModel
+	err := s.db.WithContext(ctx).
+		Where("library_id = ? AND kind = ? AND rel_path IN ?", libraryID, kind, relPaths).
+		Order("rel_path, COALESCE(lang, '')").
+		Find(&models).Error
+	if err != nil {
+		return nil, fmt.Errorf("list provider artifacts for paths: %w", err)
+	}
+
+	artifacts := make([]provider.Artifact, 0, len(models))
+	for _, model := range models {
+		artifacts = append(artifacts, artifactFromModel(model))
+	}
+
+	return artifacts, nil
+}
+
 // ListArtifactsByPath returns every artifact of kind for a media path (typically all subtitle langs).
 func (s *ArtifactStore) ListArtifactsByPath(
 	ctx context.Context,

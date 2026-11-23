@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -39,6 +40,32 @@ type trashCleanup struct {
 	favorite  *favorite.Service
 	thumbs    *thumbnail.VideoThumbnailer
 	transcode *transcode.Service
+}
+
+func (c trashCleanup) OnSoftDelete(ctx context.Context, item trash.Item) error {
+	if c.metadata == nil {
+		return nil
+	}
+
+	err := c.metadata.MarkTrashedForPath(ctx, item.OriginalRelPath, item.DeletedAt)
+	if err != nil {
+		return fmt.Errorf("mark metadata trashed: %w", err)
+	}
+
+	return nil
+}
+
+func (c trashCleanup) OnRestore(ctx context.Context, item trash.Item) error {
+	if c.metadata == nil {
+		return nil
+	}
+
+	err := c.metadata.ClearTrashedForPath(ctx, item.OriginalRelPath)
+	if err != nil {
+		return fmt.Errorf("clear metadata trashed: %w", err)
+	}
+
+	return nil
 }
 
 func (c trashCleanup) OnPermanentDelete(ctx context.Context, item trash.Item) error {

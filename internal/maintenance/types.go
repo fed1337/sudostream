@@ -39,13 +39,12 @@ const (
 	StatusCanceled = "canceled"
 )
 
-// PurgeRetentionHours is how old an HLS cache dir must be before purge deletes it.
-// Hardcoded so schedules only control when purge runs, not how aggressive it is —
-// keeps in-flight transcodes (active cache dirs) safe.
-const PurgeRetentionHours = 6
+// PurgeUnusedMinutes is how long an HLS cache package must be unused (and not present
+// in live jobs/sessions) before playback.cache.purge may delete it.
+const PurgeUnusedMinutes = 15
 
-// ConfigKeyMaxAgeHours is reported in purge run summaries (not admin-configurable).
-const ConfigKeyMaxAgeHours = "maxAgeHours"
+// ConfigKeyUnusedMinutes is reported in purge run summaries (not admin-configurable).
+const ConfigKeyUnusedMinutes = "unusedMinutes"
 
 var (
 	// ErrConflict is returned when the same action+library is already running.

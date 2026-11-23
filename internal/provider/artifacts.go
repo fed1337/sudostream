@@ -39,6 +39,12 @@ type ArtifactStore interface {
 	) (Artifact, error)
 	// ListArtifacts returns every row of kind for a library.
 	ListArtifacts(ctx context.Context, libraryID, kind string) ([]Artifact, error)
+	// ListArtifactsForPaths returns rows of kind whose rel_path is in relPaths.
+	ListArtifactsForPaths(
+		ctx context.Context,
+		libraryID, kind string,
+		relPaths []string,
+	) ([]Artifact, error)
 	// ListArtifactsByPath returns every row of kind for a media path (all langs).
 	ListArtifactsByPath(ctx context.Context, relPath, kind string) ([]Artifact, error)
 	// UpsertArtifact inserts or replaces a row, keyed by (library, path, kind, lang).

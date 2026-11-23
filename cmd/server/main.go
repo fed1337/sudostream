@@ -293,6 +293,7 @@ func initAuthServices( //nolint:funlen // composition root: DB + services wiring
 	metadataService := metadata.NewService(fsService, accessService, metadataStore, indexer)
 	watchService := watch.NewService(fsService, accessService, watchStore)
 	favoriteService := favorite.NewService(fsService, accessService, favoriteStore)
+	indexer.SetPathStateCleaners(watchService, favoriteService)
 	homeShelfService := homeshelf.NewService(
 		accessService,
 		favoriteStore,

@@ -163,6 +163,32 @@ func (f *fakeArtifacts) ListArtifacts(
 	return rows, nil
 }
 
+func (f *fakeArtifacts) ListArtifactsForPaths(
+	_ context.Context,
+	libraryID, kind string,
+	relPaths []string,
+) ([]Artifact, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+
+	wanted := make(map[string]struct{}, len(relPaths))
+	for _, path := range relPaths {
+		wanted[path] = struct{}{}
+	}
+	rows := make([]Artifact, 0, len(relPaths))
+	for _, row := range f.rows {
+		if row.LibraryID != libraryID || row.Kind != kind {
+			continue
+		}
+		if _, ok := wanted[row.RelPath]; ok {
+			rows = append(rows, row)
+		}
+	}
+
+	return rows, nil
+}
+
 func (f *fakeArtifacts) ListArtifactsByPath(
 	_ context.Context,
 	relPath, kind string,

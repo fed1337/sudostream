@@ -29,6 +29,7 @@ var testWebMHeader = []byte{
 
 type memoryRepository struct {
 	rows      map[string]Row
+	trashed   map[string]struct{}
 	getErr    error
 	updateErr error
 }
@@ -100,6 +101,51 @@ func (m *memoryRepository) DeletePath(_ context.Context, libraryID, relPath stri
 	return nil
 }
 
+func (m *memoryRepository) MarkTrashed(
+	_ context.Context,
+	libraryID, relPath string,
+	_ time.Time,
+) error {
+	if m.trashed == nil {
+		m.trashed = map[string]struct{}{}
+	}
+	for _, row := range m.rows {
+		if row.LibraryID != libraryID {
+			continue
+		}
+		if row.RelPath == relPath || strings.HasPrefix(row.RelPath, relPath+"/") {
+			m.trashed[m.key(libraryID, row.RelPath)] = struct{}{}
+		}
+	}
+
+	return nil
+}
+
+func (m *memoryRepository) ClearTrashed(_ context.Context, libraryID, relPath string) error {
+	for key := range m.trashed {
+		row, ok := m.rows[key]
+		if !ok || row.LibraryID != libraryID {
+			delete(m.trashed, key)
+
+			continue
+		}
+		if row.RelPath == relPath || strings.HasPrefix(row.RelPath, relPath+"/") {
+			delete(m.trashed, key)
+		}
+	}
+
+	return nil
+}
+
+func (m *memoryRepository) isTrashed(libraryID, relPath string) bool {
+	if m.trashed == nil {
+		return false
+	}
+	_, ok := m.trashed[m.key(libraryID, relPath)]
+
+	return ok
+}
+
 func (m *memoryRepository) Search(
 	_ context.Context,
 	libraryIDs []string,
@@ -117,13 +163,30 @@ func (m *memoryRepository) Search(
 		if _, ok := allowed[row.LibraryID]; !ok {
 			continue
 		}
+		if row.RelPath == ".trash" || strings.HasPrefix(row.RelPath, ".trash/") {
+			continue
+		}
+		if m.isTrashed(row.LibraryID, row.RelPath) {
+			continue
+		}
 
 		document := BuildSearchDocument(row.RelPath, row.Original, row.Override.VideoFields)
 		if !documentHasAllTokens(document, tokens) {
 			continue
 		}
 
-		matches = append(matches, SearchRow{LibraryID: row.LibraryID, RelPath: row.RelPath})
+		denorm := CatalogDenormFrom(
+			access.LibraryTypeSeries,
+			row.RelPath,
+			row.Original,
+			row.Override,
+		)
+		matches = append(matches, SearchRow{
+			LibraryID: row.LibraryID,
+			RelPath:   row.RelPath,
+			Title:     denorm.DisplayName,
+			ShowKey:   denorm.ShowKey,
+		})
 	}
 
 	total := len(matches)
@@ -148,6 +211,9 @@ func (m *memoryRepository) ListActiveIndexedPaths(
 			continue
 		}
 		if row.RelPath == ".trash" || strings.HasPrefix(row.RelPath, ".trash/") {
+			continue
+		}
+		if m.isTrashed(row.LibraryID, row.RelPath) {
 			continue
 		}
 		paths = append(paths, row.RelPath)

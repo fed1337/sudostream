@@ -55,8 +55,8 @@ func TestLockKeyAndActionHelpers(t *testing.T) {
 		if LockKey(ActionMetadataScan, "abc") != "metadata.scan|abc" {
 			t.Fatal("lock key")
 		}
-		if PurgeRetentionHours != 6 {
-			t.Fatalf("purge retention want 6, got %d", PurgeRetentionHours)
+		if PurgeUnusedMinutes != 15 {
+			t.Fatalf("purge unused minutes want 15, got %d", PurgeUnusedMinutes)
 		}
 	})
 }

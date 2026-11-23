@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sudoStream/internal/access"
 	"sudoStream/internal/metadata"
 
@@ -143,20 +144,15 @@ func (s *Store) Search(
 	}
 
 	caps := s.searchCaps(ctx)
-	if caps.unaccent {
-		tokens = s.unaccentTokens(ctx, tokens)
-		rawQuery = s.unaccentValue(ctx, rawQuery)
+	tokens, rawQuery = s.foldSearchQuery(ctx, caps, tokens, rawQuery)
+	if len(tokens) == 0 {
+		return nil, 0, nil
 	}
 
 	base := s.db.WithContext(ctx).
 		Model(&metadataModel{}).
 		Where("library_id IN ?", libraryIDs).
-		Where("rel_path <> ? AND rel_path NOT LIKE ?", ".trash", ".trash/%").
-		Where(`NOT EXISTS (
-			SELECT 1 FROM trash_items t
-			WHERE media_metadata.rel_path = t.original_rel_path
-			   OR media_metadata.rel_path LIKE t.original_rel_path || '/%'
-		)`)
+		Scopes(activeMetadataFilter)
 
 	for _, token := range tokens {
 		base = base.Where(
@@ -180,7 +176,7 @@ func (s *Store) Search(
 
 	var models []metadataModel
 	err = query.Limit(limit).Offset(offset).
-		Select("library_id", "rel_path").
+		Select("library_id", "rel_path", "catalog_display_name", "catalog_show_key").
 		Find(&models).Error
 	if err != nil {
 		return nil, 0, fmt.Errorf("search metadata: %w", err)
@@ -188,34 +184,74 @@ func (s *Store) Search(
 
 	rows := make([]metadata.SearchRow, 0, len(models))
 	for _, model := range models {
-		rows = append(rows, metadata.SearchRow{LibraryID: model.LibraryID, RelPath: model.RelPath})
+		rows = append(rows, metadata.SearchRow{
+			LibraryID: model.LibraryID,
+			RelPath:   model.RelPath,
+			Title:     model.CatalogDisplayName,
+			ShowKey:   model.CatalogShowKey,
+		})
 	}
 
 	return rows, int(total), nil
 }
 
-func (s *Store) unaccentTokens(ctx context.Context, tokens []string) []string {
-	out := make([]string, 0, len(tokens))
-	for _, token := range tokens {
-		folded := s.unaccentValue(ctx, token)
-		if folded != "" {
-			out = append(out, folded)
+func (s *Store) foldSearchQuery(
+	ctx context.Context,
+	caps searchCapabilities,
+	tokens []string,
+	rawQuery string,
+) ([]string, string) {
+	if !caps.unaccent {
+		return tokens, rawQuery
+	}
+
+	folded := s.unaccentBatch(ctx, append([]string{rawQuery}, tokens...))
+	if len(folded) != len(tokens)+1 {
+		return tokens, rawQuery
+	}
+
+	return nonEmptyStrings(folded[1:]), folded[0]
+}
+
+// unaccentBatch folds values in one SQL round-trip via VALUES (preserves input order).
+func (s *Store) unaccentBatch(ctx context.Context, values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	args := make([]any, len(values))
+	var query strings.Builder
+	query.WriteString(`SELECT public.unaccent(v.t) FROM (VALUES `)
+	for i, value := range values {
+		if i > 0 {
+			query.WriteByte(',')
+		}
+		query.WriteString("(?)")
+		args[i] = value
+	}
+	query.WriteString(`) AS v(t)`)
+
+	var folded []string
+	err := s.db.WithContext(ctx).Raw(query.String(), args...).Scan(&folded).Error
+	if err != nil || len(folded) != len(values) {
+		return values
+	}
+	for i, value := range folded {
+		if value == "" {
+			folded[i] = values[i]
+		}
+	}
+
+	return folded
+}
+
+func nonEmptyStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != "" {
+			out = append(out, value)
 		}
 	}
 
 	return out
-}
-
-func (s *Store) unaccentValue(ctx context.Context, value string) string {
-	if value == "" {
-		return ""
-	}
-
-	var folded string
-	err := s.db.WithContext(ctx).Raw("SELECT public.unaccent(?)", value).Scan(&folded).Error
-	if err != nil || folded == "" {
-		return value
-	}
-
-	return folded
 }

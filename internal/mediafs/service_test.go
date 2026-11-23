@@ -88,10 +88,10 @@ func TestBrowse_WebMFilesAreStreamableVideo(t *testing.T) {
 	})
 }
 
-func TestBrowse_ExtensionlessVideoMimeGetsPlayAction(t *testing.T) {
+func TestBrowse_ExtensionlessSkipsContentSniff(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "extensionless video/webm sniff gets play action", func(a *allure.Context) {
+	allure.Test(t, "browse does not open extensionless files to sniff MIME", func(a *allure.Context) {
 		t := a.T()
 		root := t.TempDir()
 		library := filepath.Join(root, "clips")
@@ -100,8 +100,6 @@ func TestBrowse_ExtensionlessVideoMimeGetsPlayAction(t *testing.T) {
 			t.Fatalf("mkdir: %v", err)
 		}
 
-		// Minimal EBML header resembling webm enough for DetectContentType in some builds;
-		// force mime via buildActions fallback when sniff returns video/webm.
 		filePath := filepath.Join(library, "SDSO8J~0")
 		payload := []byte{0x1a, 0x45, 0xdf, 0xa3, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f}
 		err = os.WriteFile(filePath, payload, 0o600)
@@ -120,8 +118,38 @@ func TestBrowse_ExtensionlessVideoMimeGetsPlayAction(t *testing.T) {
 		}
 
 		item := response.Folder.Children[0]
-		if !strings.HasPrefix(item.MimeType, "video/") && item.Actions.Play == "" {
-			t.Fatalf("expected play for sniffed video file, mime=%q", item.MimeType)
+		if item.MimeType != octetStreamMimeType {
+			t.Fatalf("browse mime: got %q want octet-stream (no sniff)", item.MimeType)
+		}
+		if item.Actions.Play != "" {
+			t.Fatal("browse must not invent play action without a video extension")
+		}
+	})
+}
+
+func TestDetectMimeType_ExtensionVsSniff(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "extension map skips I/O; sniff opens when extension unknown", func(a *allure.Context) {
+		t := a.T()
+		root := t.TempDir()
+		mp4Path := filepath.Join(root, "clip.mp4")
+		err := os.WriteFile(mp4Path, []byte("not-really-mp4"), 0o600)
+		if err != nil {
+			t.Fatalf("write mp4: %v", err)
+		}
+
+		if got := DetectMimeTypeByExtension(".mp4", false); !strings.HasPrefix(got, "video/") {
+			t.Fatalf("by extension: got %q", got)
+		}
+		if got := DetectMimeType(mp4Path, ".mp4", false); !strings.HasPrefix(got, "video/") {
+			t.Fatalf("detect with known ext: got %q", got)
+		}
+		if got := DetectMimeTypeByExtension("", false); got != octetStreamMimeType {
+			t.Fatalf("by extension empty: got %q", got)
+		}
+		if got := DetectMimeTypeByExtension(".mp4", true); got != directoryMimeType {
+			t.Fatalf("directory: got %q", got)
 		}
 	})
 }

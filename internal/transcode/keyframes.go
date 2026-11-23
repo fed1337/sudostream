@@ -18,6 +18,9 @@ const (
 	// keyframeProbeTimeout bounds packet-index scans. Large HEVC/MKV files can take
 	// minutes to dump every packet; equal-length segments are the documented fallback.
 	keyframeProbeTimeout = 20 * time.Second
+	// keyframeAwaitTimeout is how long a copy-run restart waits for the async refine
+	// to publish .keyframes.json before falling back to equal-length seek math.
+	keyframeAwaitTimeout = 5 * time.Second
 	bitsPerByte          = 8
 )
 
@@ -198,4 +201,34 @@ func ReadKeyframes(outDir string) ([]float64, bool) {
 	}
 
 	return keyframes, true
+}
+
+// awaitKeyframes waits until ReadKeyframes succeeds or the timeout/context ends.
+func awaitKeyframes(ctx context.Context, outDir string, timeout time.Duration) []float64 {
+	if frames, ok := ReadKeyframes(outDir); ok {
+		return frames
+	}
+
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+
+	ticker := time.NewTicker(20 * time.Millisecond) //nolint:mnd // short poll for cache appear
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			frames, _ := ReadKeyframes(outDir)
+
+			return frames
+		case <-deadline.C:
+			frames, _ := ReadKeyframes(outDir)
+
+			return frames
+		case <-ticker.C:
+			if frames, ok := ReadKeyframes(outDir); ok {
+				return frames
+			}
+		}
+	}
 }

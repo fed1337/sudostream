@@ -114,6 +114,19 @@ func (s stubFrozenPaths) OriginalPrefixes(_ context.Context) ([]string, error) {
 	return s.prefixes, nil
 }
 
+type recordingPathCleaner struct {
+	calls []string
+}
+
+func (r *recordingPathCleaner) DeleteForLibraryPath(
+	_ context.Context,
+	libraryID, relPath string,
+) error {
+	r.calls = append(r.calls, libraryID+"|"+relPath)
+
+	return nil
+}
+
 func TestIndexer_ProbesNewFilesAndDeletesStalePaths(t *testing.T) {
 	t.Parallel()
 
@@ -147,7 +160,9 @@ func TestIndexer_ProbesNewFilesAndDeletesStalePaths(t *testing.T) {
 				t.Fatalf("new media service: %v", err)
 			}
 
+			cleaner := &recordingPathCleaner{}
 			indexer := NewIndexer(media, store)
+			indexer.SetPathStateCleaners(cleaner)
 			probedTitle := testIndexedProbedTitle
 			indexer.probe = func(context.Context, string) (VideoFields, error) {
 				return VideoFields{Title: &probedTitle}, nil
@@ -172,6 +187,9 @@ func TestIndexer_ProbesNewFilesAndDeletesStalePaths(t *testing.T) {
 
 			if _, ok := store.originals[store.key("lib-1", stalePath)]; ok {
 				t.Fatal("expected stale metadata row to be deleted")
+			}
+			if len(cleaner.calls) != 1 || cleaner.calls[0] != "lib-1|"+stalePath {
+				t.Fatalf("path cleaners: %+v", cleaner.calls)
 			}
 		},
 	)

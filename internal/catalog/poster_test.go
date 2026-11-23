@@ -19,11 +19,25 @@ type stubPosterIndex struct {
 	err   error
 }
 
-func (s stubPosterIndex) PosterPaths(
+func (s stubPosterIndex) PosterPathsFor(
 	_ context.Context,
 	_ string,
+	relPaths []string,
 ) (map[string]struct{}, error) {
-	return s.paths, s.err
+	if s.err != nil {
+		return nil, s.err
+	}
+	if len(relPaths) == 0 || s.paths == nil {
+		return map[string]struct{}{}, nil
+	}
+	out := make(map[string]struct{}, len(relPaths))
+	for _, path := range relPaths {
+		if _, ok := s.paths[path]; ok {
+			out[path] = struct{}{}
+		}
+	}
+
+	return out, nil
 }
 
 func newPosterCatalog(t *testing.T, libraryType access.LibraryType, files []string) *Service {
@@ -173,5 +187,60 @@ func TestCatalog_PosterIndexFailureFallsBackToThumbnails(t *testing.T) {
 
 			var nilService *Service
 			nilService.SetPosterIndex(stubPosterIndex{})
+		})
+}
+
+type recordingPosterIndex struct {
+	requested []string
+	paths     map[string]struct{}
+}
+
+func (r *recordingPosterIndex) PosterPathsFor(
+	_ context.Context,
+	_ string,
+	relPaths []string,
+) (map[string]struct{}, error) {
+	r.requested = append([]string{}, relPaths...)
+	out := make(map[string]struct{}, len(relPaths))
+	for _, path := range relPaths {
+		if _, ok := r.paths[path]; ok {
+			out[path] = struct{}{}
+		}
+	}
+
+	return out, nil
+}
+
+func TestCatalog_PosterPathsForReceivesPagePathsOnly(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "catalog asks poster index only for current page paths",
+		func(a *allure.Context) {
+			t := a.T()
+			ctx := context.Background()
+			admin := auth.PublicUser{Role: auth.RoleAdmin}
+
+			films := newPosterCatalog(
+				t,
+				access.LibraryTypeFilm,
+				[]string{"Casino 1995.mkv", "Blow 2001.mkv"},
+			)
+			recorder := &recordingPosterIndex{paths: map[string]struct{}{
+				"movies/Casino 1995.mkv": {},
+			}}
+			films.SetPosterIndex(recorder)
+
+			result, err := films.GetLibraryCatalog(ctx, admin, catalogMoviesSlug, mediafs.PageOpts{
+				Limit: 1, Offset: 0,
+			})
+			if err != nil || len(result.Movies) != 1 {
+				t.Fatalf("catalog: %+v %v", result.Movies, err)
+			}
+			if len(recorder.requested) != 1 {
+				t.Fatalf("want one page path queried, got %v", recorder.requested)
+			}
+			if recorder.requested[0] != result.Movies[0].Path {
+				t.Fatalf("queried %q want %q", recorder.requested[0], result.Movies[0].Path)
+			}
 		})
 }

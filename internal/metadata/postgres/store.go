@@ -155,12 +155,7 @@ func (s *Store) ListActiveIndexedPaths(ctx context.Context, libraryID string) ([
 	err := s.db.WithContext(ctx).
 		Model(&metadataModel{}).
 		Where("library_id = ?", libraryID).
-		Where("rel_path <> ? AND rel_path NOT LIKE ?", ".trash", ".trash/%").
-		Where(`NOT EXISTS (
-			SELECT 1 FROM trash_items t
-			WHERE media_metadata.rel_path = t.original_rel_path
-			   OR media_metadata.rel_path LIKE t.original_rel_path || '/%'
-		)`).
+		Scopes(activeMetadataFilter).
 		Order("rel_path ASC").
 		Pluck("rel_path", &paths).Error
 	if err != nil {
@@ -190,6 +185,7 @@ func (s *Store) CountByLibraries(
 		Model(&metadataModel{}).
 		Select("library_id, COUNT(*) AS count").
 		Where("library_id IN ?", libraryIDs).
+		Scopes(activeMetadataFilter).
 		Group("library_id").
 		Scan(&rows).Error
 	if err != nil {
@@ -299,6 +295,36 @@ func (s *Store) DeletePath(ctx context.Context, libraryID, relPath string) error
 	return nil
 }
 
+// MarkTrashed sets trashed_at on the path and any descendant index rows.
+func (s *Store) MarkTrashed(
+	ctx context.Context,
+	libraryID, relPath string,
+	trashedAt time.Time,
+) error {
+	err := s.db.WithContext(ctx).
+		Model(&metadataModel{}).
+		Where("library_id = ? AND (rel_path = ? OR rel_path LIKE ?)", libraryID, relPath, relPath+"/%").
+		Update("trashed_at", trashedAt.UTC()).Error
+	if err != nil {
+		return fmt.Errorf("mark metadata trashed: %w", err)
+	}
+
+	return nil
+}
+
+// ClearTrashed clears trashed_at on the path and any descendant index rows.
+func (s *Store) ClearTrashed(ctx context.Context, libraryID, relPath string) error {
+	err := s.db.WithContext(ctx).
+		Model(&metadataModel{}).
+		Where("library_id = ? AND (rel_path = ? OR rel_path LIKE ?)", libraryID, relPath, relPath+"/%").
+		Update("trashed_at", nil).Error
+	if err != nil {
+		return fmt.Errorf("clear metadata trashed: %w", err)
+	}
+
+	return nil
+}
+
 // NeedsProbe reports whether file stat differs from the cached row or identity
 // hashes are still missing (backfill without waiting for mtime change).
 func (s *Store) NeedsProbe(
@@ -345,10 +371,12 @@ func (s *Store) unwatchedQuery(ctx context.Context, userID string, libraryIDs []
 				"AND watch.rel_path = metadata.rel_path AND watch.user_id = ?",
 			userID,
 		).
+		Where("metadata.library_id IN ?", libraryIDs).
+		Where("metadata.rel_path <> ? AND metadata.rel_path NOT LIKE ?", ".trash", ".trash/%").
+		Where("metadata.trashed_at IS NULL").
 		Where(
-			"metadata.library_id IN ? AND (watch.user_id IS NULL OR "+
-				"(watch.watched = FALSE AND COALESCE(watch.position_seconds, 0) < ?))",
-			libraryIDs,
+			"watch.user_id IS NULL OR "+
+				"(watch.watched = FALSE AND COALESCE(watch.position_seconds, 0) < ?)",
 			watch.MinProgressSeconds,
 		)
 }

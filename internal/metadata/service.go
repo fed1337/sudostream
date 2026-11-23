@@ -549,6 +549,8 @@ type Repository interface {
 		probedAt time.Time,
 	) error
 	DeletePath(ctx context.Context, libraryID, relPath string) error
+	MarkTrashed(ctx context.Context, libraryID, relPath string, trashedAt time.Time) error
+	ClearTrashed(ctx context.Context, libraryID, relPath string) error
 	Search(
 		ctx context.Context,
 		libraryIDs []string,
@@ -734,27 +736,57 @@ func (s *Service) ListCatalogSeasonEpisodes(
 
 // DeleteForPath removes cached metadata for a media path.
 func (s *Service) DeleteForPath(ctx context.Context, rawPath string) error {
-	if s == nil || s.store == nil || s.access == nil {
+	library, relPath, err := s.libraryRelPath(ctx, rawPath)
+	if err != nil {
+		return err
+	}
+	if library.ID == "" {
 		return nil
-	}
-
-	relPath := normalizeMediaPath(rawPath)
-	if relPath == "" {
-		return mediafs.ErrInvalidPath
-	}
-
-	library, _, lookupErr := s.libraryForPath(ctx, relPath)
-	if lookupErr != nil {
-		if errors.Is(lookupErr, ErrUnknownLibrary) {
-			return nil
-		}
-
-		return fmt.Errorf("lookup library for delete: %w", lookupErr)
 	}
 
 	delErr := s.store.DeletePath(ctx, library.ID, relPath)
 	if delErr != nil {
 		return fmt.Errorf("delete metadata path: %w", delErr)
+	}
+
+	return nil
+}
+
+// MarkTrashedForPath soft-deletes index rows for a path (and descendants) so catalog/search
+// exclude them without joining trash_items.
+func (s *Service) MarkTrashedForPath(ctx context.Context, rawPath string, trashedAt time.Time) error {
+	library, relPath, err := s.libraryRelPath(ctx, rawPath)
+	if err != nil {
+		return err
+	}
+	if library.ID == "" {
+		return nil
+	}
+	if trashedAt.IsZero() {
+		trashedAt = time.Now().UTC()
+	}
+
+	markErr := s.store.MarkTrashed(ctx, library.ID, relPath, trashedAt)
+	if markErr != nil {
+		return fmt.Errorf("mark metadata trashed: %w", markErr)
+	}
+
+	return nil
+}
+
+// ClearTrashedForPath clears soft-delete flags after a recycle-bin restore.
+func (s *Service) ClearTrashedForPath(ctx context.Context, rawPath string) error {
+	library, relPath, err := s.libraryRelPath(ctx, rawPath)
+	if err != nil {
+		return err
+	}
+	if library.ID == "" {
+		return nil
+	}
+
+	clearErr := s.store.ClearTrashed(ctx, library.ID, relPath)
+	if clearErr != nil {
+		return fmt.Errorf("clear metadata trashed: %w", clearErr)
 	}
 
 	return nil
@@ -1115,6 +1147,31 @@ func (s *Service) libraryForPath(
 	}
 
 	return library, library.Type, nil
+}
+
+func (s *Service) libraryRelPath(
+	ctx context.Context,
+	rawPath string,
+) (access.Library, string, error) {
+	if s == nil || s.store == nil || s.access == nil {
+		return access.Library{}, "", nil
+	}
+
+	relPath := normalizeMediaPath(rawPath)
+	if relPath == "" {
+		return access.Library{}, "", mediafs.ErrInvalidPath
+	}
+
+	library, _, lookupErr := s.libraryForPath(ctx, relPath)
+	if lookupErr != nil {
+		if errors.Is(lookupErr, ErrUnknownLibrary) {
+			return access.Library{}, relPath, nil
+		}
+
+		return access.Library{}, "", fmt.Errorf("lookup library for path: %w", lookupErr)
+	}
+
+	return library, relPath, nil
 }
 
 func normalizeMediaPath(rawPath string) string {

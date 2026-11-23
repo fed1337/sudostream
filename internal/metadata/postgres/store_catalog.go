@@ -11,12 +11,14 @@ import (
 func (s *Store) activeMetadataScope(db *gorm.DB, libraryID string) *gorm.DB {
 	return db.Model(&metadataModel{}).
 		Where("library_id = ?", libraryID).
+		Scopes(activeMetadataFilter)
+}
+
+// activeMetadataFilter excludes recycle-bin paths and soft-deleted index rows.
+func activeMetadataFilter(db *gorm.DB) *gorm.DB {
+	return db.
 		Where("rel_path <> ? AND rel_path NOT LIKE ?", ".trash", ".trash/%").
-		Where(`NOT EXISTS (
-			SELECT 1 FROM trash_items t
-			WHERE media_metadata.rel_path = t.original_rel_path
-			   OR media_metadata.rel_path LIKE t.original_rel_path || '/%'
-		)`)
+		Where("trashed_at IS NULL")
 }
 
 // ListCatalogMoviesPage returns one film page ordered by sort title.

@@ -96,6 +96,16 @@ func (s *Service) Move(ctx context.Context, rawPath, deletedBy string) (Item, er
 		return Item{}, fmt.Errorf("insert trash item: %w", err)
 	}
 
+	if s.cleaner != nil {
+		softErr := s.cleaner.OnSoftDelete(ctx, item)
+		if softErr != nil {
+			slog.Warn("trash soft-delete index update failed",
+				slog.String("id", item.ID),
+				slog.String("error", softErr.Error()),
+			)
+		}
+	}
+
 	slog.Info("media moved to trash",
 		slog.String("action", "trash.move"),
 		slog.String("id", item.ID),
@@ -140,6 +150,16 @@ func (s *Service) Restore(ctx context.Context, itemID string) (Item, error) {
 	err = s.store.Delete(ctx, item.ID)
 	if err != nil {
 		return Item{}, fmt.Errorf("delete trash row: %w", err)
+	}
+
+	if s.cleaner != nil {
+		restoreErr := s.cleaner.OnRestore(ctx, item)
+		if restoreErr != nil {
+			slog.Warn("trash restore index update failed",
+				slog.String("id", item.ID),
+				slog.String("error", restoreErr.Error()),
+			)
+		}
 	}
 
 	slog.Info("media restored from trash",

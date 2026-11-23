@@ -151,12 +151,7 @@ func (s *Store) Search(
 	base := s.db.WithContext(ctx).
 		Model(&metadataModel{}).
 		Where("library_id IN ?", libraryIDs).
-		Where("rel_path <> ? AND rel_path NOT LIKE ?", ".trash", ".trash/%").
-		Where(`NOT EXISTS (
-			SELECT 1 FROM trash_items t
-			WHERE media_metadata.rel_path = t.original_rel_path
-			   OR media_metadata.rel_path LIKE t.original_rel_path || '/%'
-		)`)
+		Scopes(activeMetadataFilter)
 
 	for _, token := range tokens {
 		base = base.Where(

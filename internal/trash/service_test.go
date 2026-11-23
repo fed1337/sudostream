@@ -235,7 +235,21 @@ func TestNormalizeSettings(t *testing.T) {
 }
 
 type recordingCleaner struct {
-	last Item
+	last        Item
+	softDeletes []Item
+	restores    []Item
+}
+
+func (r *recordingCleaner) OnSoftDelete(_ context.Context, item Item) error {
+	r.softDeletes = append(r.softDeletes, item)
+
+	return nil
+}
+
+func (r *recordingCleaner) OnRestore(_ context.Context, item Item) error {
+	r.restores = append(r.restores, item)
+
+	return nil
 }
 
 func (r *recordingCleaner) OnPermanentDelete(_ context.Context, item Item) error {
@@ -293,6 +307,9 @@ func TestService_EmptyAllSaveSettingsAndReconcile(t *testing.T) { //nolint:cyclo
 			itemB, err := svc.Move(ctx, "movies/b.mp4", "")
 			if err != nil {
 				t.Fatalf("move b: %v", err)
+			}
+			if len(cleaner.softDeletes) != 2 {
+				t.Fatalf("soft deletes: got %d want 2", len(cleaner.softDeletes))
 			}
 
 			store.mu.Lock()

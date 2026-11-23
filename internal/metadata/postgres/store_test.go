@@ -328,20 +328,99 @@ func TestStore_Search_SceneRelease( //nolint:cyclop,paralleltest // integration 
 				t.Fatalf("trash leaked: rows=%+v total=%d", rows, total)
 			}
 
-			_, err = database.SQLDB().ExecContext(ctx, `
-				INSERT INTO trash_items (id, original_rel_path, trash_rel_path, deleted_at)
-				VALUES ($1, $2, $3, NOW())
-			`, "44444444-4444-4444-4444-444444444444", relPath, ".trash/id/"+relPath)
+			err = store.MarkTrashed(ctx, library.ID, relPath, time.Now().UTC())
 			if err != nil {
-				t.Fatalf("insert trash_items: %v", err)
+				t.Fatalf("mark trashed: %v", err)
 			}
 
 			rows, total, err = store.Search(ctx, []string{library.ID}, tokens, "friends", 20, 0)
 			if err != nil {
-				t.Fatalf("search after trash_items: %v", err)
+				t.Fatalf("search after mark trashed: %v", err)
 			}
 			if total != 0 || len(rows) != 0 {
-				t.Fatalf("frozen original leaked: rows=%+v total=%d", rows, total)
+				t.Fatalf("soft-deleted original leaked: rows=%+v total=%d", rows, total)
+			}
+
+			err = store.ClearTrashed(ctx, library.ID, relPath)
+			if err != nil {
+				t.Fatalf("clear trashed: %v", err)
+			}
+			rows, total, err = store.Search(ctx, []string{library.ID}, tokens, "friends", 20, 0)
+			if err != nil || total != 1 || len(rows) != 1 {
+				t.Fatalf("after clear: rows=%+v total=%d err=%v", rows, total, err)
+			}
+		},
+	)
+}
+
+func TestStore_MarkTrashedExcludesCatalog( //nolint:cyclop,paralleltest // integration soft-delete
+	t *testing.T,
+) {
+	if os.Getenv("SUDOSTREAM_DATABASE_URL") == "" {
+		t.Skip("SUDOSTREAM_DATABASE_URL not set")
+	}
+
+	allure.Test(
+		t,
+		"mark trashed hides film from catalog page until cleared",
+		func(a *allure.Context) {
+			t := a.T()
+			ctx := context.Background()
+			database := setupMetadataTestDatabase(ctx, t)
+			accessStore := accesspostgres.NewStore(database.GORM)
+			store := NewStore(database.GORM)
+			now := time.Now().UTC()
+
+			films, err := accessStore.UpsertLibrary(ctx, access.Library{
+				Slug: "films-trash-flag", RelPath: "films-trash-flag", Name: "Films",
+				Type: access.LibraryTypeFilm,
+			})
+			if err != nil {
+				t.Fatalf("upsert films: %v", err)
+			}
+
+			relPath := "films-trash-flag/Movie (2020).mkv"
+			title := "Movie"
+			year := 2020
+			err = store.UpsertOriginal(
+				ctx,
+				films.ID,
+				relPath,
+				metadata.VideoFields{Title: &title, Year: &year},
+				now,
+				10,
+				now,
+			)
+			if err != nil {
+				t.Fatalf("upsert: %v", err)
+			}
+
+			rows, total, err := store.ListCatalogMoviesPage(ctx, films.ID, 20, 0)
+			if err != nil || total != 1 || len(rows) != 1 {
+				t.Fatalf("before trash: rows=%+v total=%d err=%v", rows, total, err)
+			}
+
+			err = store.MarkTrashed(ctx, films.ID, relPath, now)
+			if err != nil {
+				t.Fatalf("mark: %v", err)
+			}
+			rows, total, err = store.ListCatalogMoviesPage(ctx, films.ID, 20, 0)
+			if err != nil || total != 0 || len(rows) != 0 {
+				t.Fatalf("after mark: rows=%+v total=%d err=%v", rows, total, err)
+			}
+
+			active, err := store.ListActiveIndexedPaths(ctx, films.ID)
+			if err != nil || len(active) != 0 {
+				t.Fatalf("active paths after mark: %+v err=%v", active, err)
+			}
+
+			err = store.ClearTrashed(ctx, films.ID, relPath)
+			if err != nil {
+				t.Fatalf("clear: %v", err)
+			}
+			rows, total, err = store.ListCatalogMoviesPage(ctx, films.ID, 20, 0)
+			if err != nil || total != 1 || len(rows) != 1 {
+				t.Fatalf("after clear: rows=%+v total=%d err=%v", rows, total, err)
 			}
 		},
 	)

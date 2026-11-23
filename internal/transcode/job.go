@@ -82,6 +82,11 @@ func (j *Job) Run(service *Service) {
 		)
 	}
 
+	// Prefer the on-disk meta in case async keyframe refine already rewrote the timeline.
+	if latest, ok := ReadSourceMeta(j.outDir); ok {
+		meta = latest
+	}
+
 	err = PublishPlaylists(j.outDir, meta)
 	if err != nil {
 		slog.Warn("subtitle playlist refresh failed",

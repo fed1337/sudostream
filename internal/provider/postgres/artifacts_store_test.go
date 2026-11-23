@@ -97,6 +97,22 @@ func TestArtifactStore_CRUD(t *testing.T) {
 				t.Fatalf("list posters: %+v %v", posters, err)
 			}
 
+			pagePosters, err := store.ListArtifactsForPaths(
+				ctx,
+				providerTestLibraryID,
+				provider.ArtifactKindPoster,
+				[]string{artifactTestPath, "movies/missing.mkv"},
+			)
+			if err != nil || len(pagePosters) != 1 || pagePosters[0].RelPath != artifactTestPath {
+				t.Fatalf("list posters for paths: %+v %v", pagePosters, err)
+			}
+			emptyPage, err := store.ListArtifactsForPaths(
+				ctx, providerTestLibraryID, provider.ArtifactKindPoster, nil,
+			)
+			if err != nil || len(emptyPage) != 0 {
+				t.Fatalf("empty path filter: %+v %v", emptyPage, err)
+			}
+
 			subtitles, err := store.ListArtifacts(
 				ctx,
 				providerTestLibraryID,

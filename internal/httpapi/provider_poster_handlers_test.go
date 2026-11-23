@@ -58,6 +58,32 @@ func (s stubArtifacts) ListArtifacts(
 	return rows, nil
 }
 
+func (s stubArtifacts) ListArtifactsForPaths(
+	_ context.Context,
+	libraryID, _ string,
+	relPaths []string,
+) ([]provider.Artifact, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	wanted := make(map[string]struct{}, len(relPaths))
+	for _, path := range relPaths {
+		wanted[path] = struct{}{}
+	}
+	rows := make([]provider.Artifact, 0, len(relPaths))
+	for _, row := range s.rows {
+		if row.LibraryID != libraryID {
+			continue
+		}
+		if _, ok := wanted[row.RelPath]; ok {
+			rows = append(rows, row)
+		}
+	}
+
+	return rows, nil
+}
+
 func (s stubArtifacts) ListArtifactsByPath(
 	_ context.Context,
 	relPath, kind string,
@@ -222,6 +248,43 @@ func TestPosterCache_PosterPaths(t *testing.T) {
 		paths, err = nilIndex.PosterPaths(ctx, "lib-1")
 		if len(paths) != 0 || err != nil {
 			t.Fatalf("nil index: %v %v", paths, err)
+		}
+	})
+}
+
+func TestPosterCache_PosterPathsFor(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "poster path filter returns only requested page paths", func(a *allure.Context) {
+		t := a.T()
+		ctx := context.Background()
+
+		index := &posterCache{artifacts: stubArtifacts{rows: map[string]provider.Artifact{
+			posterTestPath: {
+				LibraryID: providerTestLibraryID, RelPath: posterTestPath,
+			},
+			"movies/other.mkv": {
+				LibraryID: providerTestLibraryID, RelPath: "movies/other.mkv",
+			},
+		}}}
+
+		paths, err := index.PosterPathsFor(ctx, "lib-1", []string{posterTestPath})
+		if err != nil {
+			t.Fatalf("poster paths for: %v", err)
+		}
+		if _, ok := paths[posterTestPath]; !ok || len(paths) != 1 {
+			t.Fatalf("want only requested path, got %v", paths)
+		}
+
+		empty, err := index.PosterPathsFor(ctx, "lib-1", nil)
+		if err != nil || len(empty) != 0 {
+			t.Fatalf("empty paths: %v %v", empty, err)
+		}
+
+		_, err = (&posterCache{artifacts: stubArtifacts{err: errArtifactsBoom}}).
+			PosterPathsFor(ctx, "lib-1", []string{posterTestPath})
+		if !errors.Is(err, errArtifactsBoom) {
+			t.Fatalf("want store error surfaced, got %v", err)
 		}
 	})
 }

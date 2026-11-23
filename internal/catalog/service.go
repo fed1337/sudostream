@@ -57,9 +57,13 @@ type AccessGateway interface {
 	CanRead(ctx context.Context, user auth.PublicUser, rawPath string) (bool, error)
 }
 
-// PosterIndex reports which media paths of a library have a locally cached provider poster.
+// PosterIndex reports which of the given media paths have a locally cached provider poster.
 type PosterIndex interface {
-	PosterPaths(ctx context.Context, libraryID string) (map[string]struct{}, error)
+	PosterPathsFor(
+		ctx context.Context,
+		libraryID string,
+		relPaths []string,
+	) (map[string]struct{}, error)
 }
 
 // Service builds film/series catalogs from denorm metadata columns (no library-wide scans).
@@ -185,7 +189,10 @@ func (s *Service) GetShow(
 	}
 	if agg.PosterPath != "" {
 		detail.Actions = videoActions(agg.PosterPath)
-		detail.PosterURL = providerPosterURL(s.posterPaths(ctx, library), agg.PosterPath)
+		detail.PosterURL = providerPosterURL(
+			s.posterPathsFor(ctx, library, []string{agg.PosterPath}),
+			agg.PosterPath,
+		)
 	}
 
 	return detail, nil
@@ -234,7 +241,11 @@ func (s *Service) ListSeasonEpisodes( //nolint:cyclop // ACL + existence + page 
 		return SeasonEpisodes{}, fmt.Errorf("catalog season episodes: %w", listErr)
 	}
 
-	posters := s.posterPaths(ctx, library)
+	pagePaths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		pagePaths = append(pagePaths, row.RelPath)
+	}
+	posters := s.posterPathsFor(ctx, library, pagePaths)
 	episodes := make([]Episode, 0, len(rows))
 	for _, row := range rows {
 		title := row.Title
@@ -346,7 +357,11 @@ func (s *Service) listMoviesPage(
 		return nil, 0, fmt.Errorf("list catalog movies: %w", err)
 	}
 
-	posters := s.posterPaths(ctx, library)
+	pagePaths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		pagePaths = append(pagePaths, row.RelPath)
+	}
+	posters := s.posterPathsFor(ctx, library, pagePaths)
 	movies := make([]Movie, 0, len(rows))
 	for _, row := range rows {
 		title := row.Title
@@ -365,14 +380,18 @@ func (s *Service) listMoviesPage(
 	return movies, total, nil
 }
 
-// posterPaths loads the library's cached provider posters in one query so cards can prefer
-// them over generated thumbnails. Failures degrade to thumbnails only.
-func (s *Service) posterPaths(ctx context.Context, library access.Library) map[string]struct{} {
-	if s.posters == nil {
+// posterPathsFor loads cached provider posters for the given page paths only. Failures
+// degrade to thumbnails.
+func (s *Service) posterPathsFor(
+	ctx context.Context,
+	library access.Library,
+	relPaths []string,
+) map[string]struct{} {
+	if s.posters == nil || len(relPaths) == 0 {
 		return nil
 	}
 
-	paths, err := s.posters.PosterPaths(ctx, library.ID)
+	paths, err := s.posters.PosterPathsFor(ctx, library.ID, relPaths)
 	if err != nil {
 		return nil
 	}
@@ -402,7 +421,13 @@ func (s *Service) listShowsPage(
 		return nil, 0, fmt.Errorf("list catalog shows: %w", err)
 	}
 
-	posters := s.posterPaths(ctx, library)
+	pagePaths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.PosterPath != "" {
+			pagePaths = append(pagePaths, row.PosterPath)
+		}
+	}
+	posters := s.posterPathsFor(ctx, library, pagePaths)
 	shows := make([]ShowSummary, 0, len(rows))
 	for _, row := range rows {
 		shows = append(shows, ShowSummary{

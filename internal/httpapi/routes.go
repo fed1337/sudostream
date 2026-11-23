@@ -29,7 +29,6 @@ import (
 	"sudoStream/internal/usersub"
 	"sudoStream/internal/watch"
 
-	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,7 +38,6 @@ const (
 	minThumbnailSize     = 32
 	maxThumbnailSize     = 1024
 	supportedImageError  = "file is not a supported image"
-	thumbnailEncodeError = "failed to encode thumbnail"
 	invalidPathError     = "invalid path"
 )
 
@@ -58,6 +56,7 @@ type handler struct {
 	homeShelf  *homeshelf.Service
 	catalog    *catalog.Service
 	videoThumb *thumbnail.VideoThumbnailer
+	imageThumb *thumbnail.ImageThumbnailer
 	transcode  *transcode.Service
 	trash      *trash.Service
 	usersub    *usersub.Service
@@ -84,9 +83,14 @@ func RegisterRoutes(
 	watchService *watch.Service,
 	cfg RouteConfig,
 ) *Workers {
-	videoThumb, err := thumbnail.NewVideoThumbnailer(cacheSubdir("thumbs"))
+	thumbsDir := cacheSubdir("thumbs")
+	videoThumb, err := thumbnail.NewVideoThumbnailer(thumbsDir)
 	if err != nil {
 		slog.Error("failed to init video thumbnailer", "err", err)
+	}
+	imageThumb, err := thumbnail.NewImageThumbnailer(thumbsDir)
+	if err != nil {
+		slog.Error("failed to init image thumbnailer", "err", err)
 	}
 	transcodeSvc, err := transcode.NewService(cacheSubdir("hls"))
 	if err != nil {
@@ -118,6 +122,7 @@ func RegisterRoutes(
 		favorite:   cfg.Favorite,
 		homeShelf:  cfg.HomeShelf,
 		videoThumb: videoThumb,
+		imageThumb: imageThumb,
 		transcode:  transcodeSvc,
 		trash:      cfg.Trash,
 		usersub:    cfg.UserSubtitle,
@@ -546,7 +551,7 @@ func (h *handler) stream(c *gin.Context) {
 // Create a thumbnail.
 //
 //	@Summary		Get thumbnail
-//	@Description	Serves a cached video poster (WebP; maintenance warm only) or resizes an image on the fly.
+//	@Description	Serves a cached video poster (WebP; maintenance warm only) or a disk-cached image JPEG thumbnail.
 //	@Tags			media
 //	@Produce		image/jpeg,image/webp
 //	@Param			path	path	string	true	"Path under media root"
@@ -588,7 +593,7 @@ func (h *handler) thumbnail(c *gin.Context) {
 		return
 	}
 
-	h.serveImageThumbnail(c, filePath, width, height)
+	h.serveImageThumbnail(c, pathParam, filePath, info, width, height)
 }
 
 func (h *handler) serveVideoThumbnail(
@@ -631,23 +636,32 @@ func (h *handler) serveVideoThumbnail(
 	observability.LogAction(c, "media.thumbnail", slog.String("path", mediaPath))
 }
 
-func (h *handler) serveImageThumbnail(c *gin.Context, filePath string, width, height int) {
-	img, err := imaging.Open(filePath)
+func (h *handler) serveImageThumbnail(
+	c *gin.Context,
+	mediaPath, filePath string,
+	info os.FileInfo,
+	width, height int,
+) {
+	if h.imageThumb == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "image thumbnails disabled"})
+
+		return
+	}
+
+	mtime := info.ModTime().Unix()
+	size := info.Size()
+	thumbPath, err := h.imageThumb.OpenOrGenerate(filePath, mediaPath, mtime, size, width, height)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{errorKey: supportedImageError})
 
 		return
 	}
 
-	thumb := imaging.Thumbnail(img, width, height, imaging.Lanczos)
-
 	c.Header("Content-Type", "image/jpeg")
-	err = imaging.Encode(c.Writer, thumb, imaging.JPEG)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{errorKey: thumbnailEncodeError})
+	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	http.ServeFile(c.Writer, c.Request, thumbPath)
 
-		return
-	}
+	observability.LogAction(c, "media.thumbnail", slog.String("path", mediaPath))
 }
 
 func (h *handler) enrichBrowsePermissions(

@@ -109,6 +109,52 @@ func TestPlaybackNegotiate_DirectPlayWhenProfileMatches(t *testing.T) {
 		if resp.MasterURL != "" {
 			t.Fatalf("expected empty masterUrl for Direct Play, got %q", resp.MasterURL)
 		}
+		if len(resp.Chapters) != 2 {
+			t.Fatalf("expected chapters from cached source meta, got %+v", resp.Chapters)
+		}
+	})
+}
+
+func TestSourceCapsForPlayback_UsesCachedMetaWithoutProbe(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "sourceCapsForPlayback returns caps and chapters from source meta", func(a *allure.Context) {
+		t := a.T()
+		gin.SetMode(gin.TestMode)
+
+		fixture := newPlayTestFixture(t, "movies/caps.mp4")
+		meta := fixture.sourceMeta()
+		meta.VideoCodec = playTestCodecH264
+		meta.PackagingMode = transcode.PackagingRemux
+		fixture.writePublishedCacheWithMeta(t, meta)
+
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodGet,
+			"/api/playback/"+fixture.rel,
+			nil,
+		)
+
+		caps, chapters, err := fixture.handler().sourceCapsForPlayback(
+			ctx,
+			fixture.abs,
+			fixture.rel,
+			fixture.cacheDir(),
+		)
+		if err != nil {
+			t.Fatalf("sourceCapsForPlayback: %v", err)
+		}
+		if caps.VideoCodec != playTestCodecH264 {
+			t.Fatalf("video codec: got %q", caps.VideoCodec)
+		}
+		if !caps.RemuxOK {
+			t.Fatal("expected RemuxOK from PackagingRemux meta")
+		}
+		if len(chapters) != 2 {
+			t.Fatalf("chapters: got %d want 2", len(chapters))
+		}
 	})
 }
 

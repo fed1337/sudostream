@@ -311,15 +311,43 @@ func isVideoMediaFile(absPath, name string) bool {
 }
 
 func generatePosterWebP(ctx context.Context, mediaPath, tempPath string) error {
-	streamIndex, hasArt := embeddedCoverStream(ctx, mediaPath)
-	if hasArt {
-		err := extractEmbeddedArtWebP(ctx, mediaPath, tempPath, streamIndex)
-		if err == nil {
-			return nil
+	if mayHaveEmbeddedCover(mediaPath) {
+		streamIndex, hasArt := embeddedCoverStream(ctx, mediaPath)
+		if hasArt {
+			err := extractEmbeddedArtWebP(ctx, mediaPath, tempPath, streamIndex)
+			if err == nil {
+				return nil
+			}
 		}
 	}
 
 	return extractFrameWebP(ctx, mediaPath, tempPath)
+}
+
+// mayHaveEmbeddedCover reports whether the container/extension can carry an attached_pic
+// stream. Raw/elementary and formats without cover-art conventions skip the ffprobe.
+func mayHaveEmbeddedCover(mediaPath string) bool {
+	ext := strings.ToLower(filepath.Ext(mediaPath))
+	switch ext {
+	case ".mkv", ".mp4", ".m4v", ".mov", ".avi", ".wmv", ".flac", ".mp3", ".m4a", ".aac":
+		return true
+	case ".webm", ".mpg", ".mpeg", ".ts", ".m2ts", ".mts", ".vob", ".ogv", ".flv",
+		".h264", ".h265", ".hevc", ".raw":
+		return false
+	default:
+		// Unknown extension: sniff MIME; only probe containers that commonly embed covers.
+		mimeType := mediafs.DetectMimeType(mediaPath, ext, false)
+		switch {
+		case strings.Contains(mimeType, "matroska"),
+			strings.Contains(mimeType, "mp4"),
+			strings.Contains(mimeType, "quicktime"),
+			strings.Contains(mimeType, "x-msvideo"),
+			strings.HasPrefix(mimeType, "audio/"):
+			return true
+		default:
+			return false
+		}
+	}
 }
 
 type ffprobeStreams struct {

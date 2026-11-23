@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	allure "github.com/allure-framework/allure-go/commons/gotest"
 )
@@ -194,6 +195,64 @@ func TestProbeAndPublish_FailsWithoutMedia(t *testing.T) {
 		_, err := ProbeAndPublish(context.Background(), root, filepath.Join(root, "missing.mp4"))
 		if err == nil {
 			t.Fatal("expected probe failure")
+		}
+	})
+}
+
+func TestProbeAndPublish_PublishesEqualLengthBeforeKeyframes(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "ProbeAndPublish returns equal-length timeline then writes keyframes async", func(a *allure.Context) {
+		t := a.T()
+		mediaPath := synthesizeFixture(t, 8)
+		outDir := filepath.Join(t.TempDir(), "cache")
+		err := os.MkdirAll(outDir, 0o750)
+		if err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+
+		meta, err := ProbeAndPublish(context.Background(), outDir, mediaPath)
+		if err != nil {
+			t.Fatalf("probe and publish: %v", err)
+		}
+		if len(meta.Segments) == 0 {
+			t.Fatal("expected equal-length segments immediately")
+		}
+		if _, ok := ReadKeyframes(outDir); ok {
+			t.Fatal("keyframes must not block initial publish")
+		}
+
+		deadline := time.Now().Add(15 * time.Second)
+		for time.Now().Before(deadline) {
+			if frames, ok := ReadKeyframes(outDir); ok && len(frames) > 0 {
+				return
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		t.Fatal("expected async keyframe probe to write .keyframes.json")
+	})
+}
+
+func TestHasProducedSegments_DetectsSegmentFiles(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "hasProducedSegments is false until a seg_*.ts appears", func(a *allure.Context) {
+		t := a.T()
+		outDir := t.TempDir()
+		variantDir := filepath.Join(outDir, VariantDir(720))
+		err := os.MkdirAll(variantDir, 0o750)
+		if err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if hasProducedSegments(outDir) {
+			t.Fatal("empty variant dir must not count as produced")
+		}
+		err = os.WriteFile(filepath.Join(variantDir, SegmentName(0)), []byte("ts"), 0o600)
+		if err != nil {
+			t.Fatalf("write segment: %v", err)
+		}
+		if !hasProducedSegments(outDir) {
+			t.Fatal("expected segment detection")
 		}
 	})
 }

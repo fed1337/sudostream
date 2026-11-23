@@ -305,6 +305,12 @@ func TestStore_Search_SceneRelease( //nolint:cyclop,paralleltest // integration 
 			if total != 1 || len(rows) != 1 || rows[0].RelPath != relPath {
 				t.Fatalf("rows=%+v total=%d", rows, total)
 			}
+			if rows[0].Title == "" {
+				t.Fatal("search rows must include catalog_display_name title for batch hydrate")
+			}
+			if rows[0].ShowKey == "" {
+				t.Fatal("search rows must include catalog_show_key for series hydrate")
+			}
 
 			hidden := ".trash/item/friends.mkv"
 			err = store.UpsertOriginal(

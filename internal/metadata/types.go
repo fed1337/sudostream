@@ -174,9 +174,12 @@ type Row struct {
 }
 
 // SearchRow is a metadata path that matched a search query.
+// Title/ShowKey come from denorm catalog_* columns so Search can hydrate without per-hit JSONB Get.
 type SearchRow struct {
 	LibraryID string
 	RelPath   string
+	Title     string
+	ShowKey   string
 }
 
 // SearchHit is a hydrated search result for the API.

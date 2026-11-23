@@ -162,7 +162,7 @@ func TestServeVideoThumbnail_NilThumbReturns500(t *testing.T) {
 func TestServeImageThumbnail_EncodesJPEG(t *testing.T) {
 	t.Parallel()
 
-	allure.Test(t, "image thumbnail is resized and encoded as JPEG", func(a *allure.Context) {
+	allure.Test(t, "image thumbnail is resized and disk-cached as JPEG", func(a *allure.Context) {
 		t := a.T()
 		gin.SetMode(gin.TestMode)
 
@@ -178,8 +178,17 @@ func TestServeImageThumbnail_EncodesJPEG(t *testing.T) {
 		if err != nil {
 			t.Fatalf("save image: %v", err)
 		}
+		info, err := os.Stat(imagePath)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
+		}
 
-		mediaHandler := &handler{}
+		imageThumb, err := thumbnail.NewImageThumbnailer(t.TempDir())
+		if err != nil {
+			t.Fatalf("image thumbnailer: %v", err)
+		}
+
+		mediaHandler := &handler{imageThumb: imageThumb}
 		recorder := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(recorder)
 		ctx.Request = httptest.NewRequestWithContext(
@@ -189,7 +198,7 @@ func TestServeImageThumbnail_EncodesJPEG(t *testing.T) {
 			nil,
 		)
 
-		mediaHandler.serveImageThumbnail(ctx, imagePath, 32, 32)
+		mediaHandler.serveImageThumbnail(ctx, "photos/still.jpg", imagePath, info, 32, 32)
 
 		if recorder.Code != http.StatusOK {
 			t.Fatalf("status: got %d", recorder.Code)
@@ -199,6 +208,20 @@ func TestServeImageThumbnail_EncodesJPEG(t *testing.T) {
 		}
 		if recorder.Body.Len() == 0 {
 			t.Fatal("expected JPEG body")
+		}
+
+		cached, openErr := imageThumb.OpenCached(
+			"photos/still.jpg",
+			info.ModTime().Unix(),
+			info.Size(),
+			32,
+			32,
+		)
+		if openErr != nil {
+			t.Fatalf("expected disk cache after generate: %v", openErr)
+		}
+		if cached == "" {
+			t.Fatal("empty cache path")
 		}
 	})
 }
@@ -216,8 +239,17 @@ func TestServeImageThumbnail_UnsupportedImageReturns400(t *testing.T) {
 		if err != nil {
 			t.Fatalf("write file: %v", err)
 		}
+		info, err := os.Stat(badPath)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
+		}
 
-		mediaHandler := &handler{}
+		imageThumb, err := thumbnail.NewImageThumbnailer(t.TempDir())
+		if err != nil {
+			t.Fatalf("image thumbnailer: %v", err)
+		}
+
+		mediaHandler := &handler{imageThumb: imageThumb}
 		recorder := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(recorder)
 		ctx.Request = httptest.NewRequestWithContext(
@@ -227,7 +259,7 @@ func TestServeImageThumbnail_UnsupportedImageReturns400(t *testing.T) {
 			nil,
 		)
 
-		mediaHandler.serveImageThumbnail(ctx, badPath, 32, 32)
+		mediaHandler.serveImageThumbnail(ctx, "notes.txt", badPath, info, 32, 32)
 
 		if recorder.Code != http.StatusBadRequest {
 			t.Fatalf("status: got %d", recorder.Code)

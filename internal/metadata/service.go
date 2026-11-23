@@ -878,19 +878,14 @@ func (s *Service) Search( //nolint:cyclop // hydrate hits from rows + library ma
 			continue
 		}
 
-		stored, getErr := s.store.Get(ctx, row.LibraryID, row.RelPath)
-		original := VideoFields{}
-		override := StoredOverride{}
-		if getErr == nil {
-			original = stored.Original
-			override = stored.Override
-		} else if !errors.Is(getErr, ErrNotFound) {
-			return nil, 0, fmt.Errorf("hydrate search hit: %w", getErr)
+		title := strings.TrimSpace(row.Title)
+		if title == "" {
+			title = strings.TrimSuffix(filepath.Base(row.RelPath), filepath.Ext(row.RelPath))
 		}
 
 		hit := SearchHit{
 			Path:        row.RelPath,
-			Title:       DisplayName(library.Type, row.RelPath, original, override),
+			Title:       title,
 			LibrarySlug: library.Slug,
 			LibraryType: library.Type,
 		}
@@ -898,7 +893,10 @@ func (s *Service) Search( //nolint:cyclop // hydrate hits from rows + library ma
 			hit.LibrarySlug = library.RelPath
 		}
 		if library.Type == access.LibraryTypeSeries {
-			hit.ShowKey = ParseSeriesIdentity(row.RelPath).ShowKey
+			hit.ShowKey = row.ShowKey
+			if hit.ShowKey == "" {
+				hit.ShowKey = ParseSeriesIdentity(row.RelPath).ShowKey
+			}
 		}
 
 		hits = append(hits, hit)

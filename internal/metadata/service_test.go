@@ -175,7 +175,18 @@ func (m *memoryRepository) Search(
 			continue
 		}
 
-		matches = append(matches, SearchRow{LibraryID: row.LibraryID, RelPath: row.RelPath})
+		denorm := CatalogDenormFrom(
+			access.LibraryTypeSeries,
+			row.RelPath,
+			row.Original,
+			row.Override,
+		)
+		matches = append(matches, SearchRow{
+			LibraryID: row.LibraryID,
+			RelPath:   row.RelPath,
+			Title:     denorm.DisplayName,
+			ShowKey:   denorm.ShowKey,
+		})
 	}
 
 	total := len(matches)

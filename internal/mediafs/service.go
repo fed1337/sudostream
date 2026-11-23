@@ -240,7 +240,7 @@ func (s *Service) buildChildren(dirPath, relPath string) ([]Item, error) {
 			continue
 		}
 		childRel := path.Join(relPath, name)
-		childFull, _, err := s.resolve(childRel)
+		_, _, err := s.resolve(childRel)
 		if err != nil {
 			continue
 		}
@@ -260,7 +260,8 @@ func (s *Service) buildChildren(dirPath, relPath string) ([]Item, error) {
 			Actions:   Action{Play: "", Thumbnail: "", Download: ""},
 			Children:  nil,
 		}
-		item.MimeType = DetectMimeType(childFull, item.Extension, item.IsDir)
+		// Browse lists use extension map only — sniffing opens every child (E-48).
+		item.MimeType = DetectMimeTypeByExtension(item.Extension, item.IsDir)
 		item.Actions = buildActions(item.Path, item.MimeType, item.Extension, item.IsDir)
 
 		children = append(children, item)
@@ -331,7 +332,22 @@ func isWithinRoot(root, candidate string) bool {
 	return strings.HasPrefix(candidate, prefix)
 }
 
-// DetectMimeType determines the MIME type of a file based on its extension or directory status.
+// DetectMimeTypeByExtension maps MIME from extension (or directory). No file I/O — used by browse/list.
+func DetectMimeTypeByExtension(extension string, isDir bool) string {
+	if isDir {
+		return directoryMimeType
+	}
+	if extension != "" {
+		if fromExt := mimeTypeFromExtension(extension); fromExt != "" {
+			return fromExt
+		}
+	}
+
+	return octetStreamMimeType
+}
+
+// DetectMimeType determines the MIME type from extension, falling back to content sniff for
+// play/download paths that need a reliable type when the extension is missing or unknown.
 func DetectMimeType(filePath, extension string, isDir bool) string {
 	if isDir {
 		return directoryMimeType

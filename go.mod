@@ -34,7 +34,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.14.0 // indirect
 	github.com/andybalholm/cascadia v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/boombuler/barcode v1.1.0 // indirect
+	github.com/boombuler/barcode v1.1.1 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.5 // indirect
 	github.com/bytedance/sonic/loader v0.5.3 // indirect
@@ -88,7 +88,7 @@ require (
 	github.com/quic-go/quic-go v0.65.0 // indirect
 	github.com/redis/rueidis v1.0.80 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sethvargo/go-retry v0.5.0 // indirect
+	github.com/sethvargo/go-retry v0.6.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect

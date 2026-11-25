@@ -88,7 +88,7 @@ require (
 	github.com/quic-go/quic-go v0.66.0 // indirect
 	github.com/redis/rueidis v1.0.80 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sethvargo/go-retry v0.7.0 // indirect
+	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/ssor/bom v0.0.0-20170718123548-6386211fdfcf // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect

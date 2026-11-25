@@ -90,7 +90,7 @@ type authBundle struct {
 }
 
 //	@title					sudoStream API
-//	@version				0.7.0
+//	@version				0.6.0
 //	@description			HTTP API for browsing and streaming media files.
 //	@servers.url			http://localhost:8080
 //	@servers.description	Local development server

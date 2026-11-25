@@ -55,7 +55,7 @@ Per-user toggles under **Account → Playback** (defaults off):
 | Pref | Behavior |
 |------|----------|
 | **Auto-skip intro** | Seek past a known intro once; Undo toast (~5s); keyboard `S` when Skip is visible |
-| **Auto-next episode** | On media **ended** only, go to next episode; never from near-end or credits |
+| **Auto-next episode** | On media **ended** only, play the next episode; never from near-end or credits. Continue progress on the next file still shows Resume / Start over (no forced play) |
 | **Resume chooser** | When Continue would seek, ask **Resume / Start over** before play |
 
 ---

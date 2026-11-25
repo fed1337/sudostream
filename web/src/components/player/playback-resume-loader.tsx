@@ -24,6 +24,8 @@ type PlaybackResumeLoaderProps = {
  *
  * Applies at most once per `resumeKey`: progress saves refetch the watch state and feed the
  * just-saved (already stale) position back in, which must not seek the playhead backwards.
+ *
+ * When `autoPlay` is set without a resume position (auto-next episode), starts playback once ready.
  */
 export function PlaybackResumeLoader({
   resumeAtSeconds,
@@ -50,11 +52,7 @@ export function PlaybackResumeLoader({
     const timeState = timeRef.current;
     const playbackState = playbackRef.current;
 
-    if (resumeAtSeconds === undefined || resumeAtSeconds < 0 || !timeState || !playbackState) {
-      return;
-    }
-
-    if (duration <= 0) {
+    if (!timeState || !playbackState || duration <= 0) {
       return;
     }
 
@@ -62,19 +60,41 @@ export function PlaybackResumeLoader({
       return;
     }
 
+    const shouldResume = resumeAtSeconds !== undefined && resumeAtSeconds >= 0;
+    if (!shouldResume && !autoPlay) {
+      return;
+    }
+
     let cancelled = false;
     let attempts = 0;
 
-    const finish = () => {
+    const finish = (marker: number) => {
       if (!cancelled) {
-        appliedRef.current = resumeAtSeconds;
+        appliedRef.current = marker;
       }
     };
 
-    const applyResume = async () => {
+    const tryPlay = async (activePlayback: PlaybackState) => {
+      if (!autoPlay || !activePlayback.paused) {
+        return;
+      }
+      try {
+        await activePlayback.play();
+      } catch {
+        // Browser may block autoplay without a fresh gesture.
+      }
+    };
+
+    const apply = async () => {
       const activeTime = timeRef.current;
       const activePlayback = playbackRef.current;
       if (cancelled || !activeTime || !activePlayback) {
+        return;
+      }
+
+      if (!shouldResume) {
+        await tryPlay(activePlayback);
+        finish(0);
         return;
       }
 
@@ -88,31 +108,22 @@ export function PlaybackResumeLoader({
       }
 
       if (Math.abs(activeTime.currentTime - resumeAtSeconds) <= 0.5) {
-        if (autoPlay && activePlayback.paused) {
-          try {
-            await activePlayback.play();
-          } catch {
-            // Browser may block autoplay without a fresh gesture.
-          }
-        }
-
-        finish();
-
+        await tryPlay(activePlayback);
+        finish(resumeAtSeconds);
         return;
       }
 
       if (attempts < 8) {
         window.setTimeout(() => {
-          void applyResume();
+          void apply();
         }, 250);
-
         return;
       }
 
-      finish();
+      finish(resumeAtSeconds);
     };
 
-    void applyResume();
+    void apply();
 
     return () => {
       cancelled = true;

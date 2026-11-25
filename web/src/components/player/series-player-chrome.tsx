@@ -32,8 +32,8 @@ type SeriesPlayerChromeProps = {
   catalogSeasonsLoading?: boolean;
   /** Browse another season’s episode list — does not navigate. */
   onBrowseSeason: (season: number) => void;
-  /** Navigate only when the user picks an episode. */
-  onSelectEpisode: (path: string) => void;
+  /** Navigate to an episode; pass `autoPlay` only for EOF auto-next. */
+  onSelectEpisode: (path: string, options?: { autoPlay?: boolean }) => void;
   onUploadSubtitle?: (file: File) => Promise<void>;
   uploadBusy?: boolean;
   skipIntro?: SkipIntroSegment | null;
@@ -144,7 +144,7 @@ export function SeriesPlayerChrome({
       return;
     }
     autoNextFiredRef.current = true;
-    onSelectEpisode(nav.next.path);
+    onSelectEpisode(nav.next.path, { autoPlay: true });
   }, [ended, autoNextEpisode, nav.next, onSelectEpisode]);
 
   const seasonLabel =

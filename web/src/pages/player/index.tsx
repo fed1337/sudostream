@@ -7,7 +7,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftIcon, DownloadIcon } from "lucide-react";
@@ -58,9 +58,14 @@ import {
 } from "@/lib/media-urls";
 import { isPlaybackComplete, shouldSaveProgress } from "@/lib/watch-progress";
 
+type PlayerLocationState = {
+  autoPlay?: boolean;
+};
+
 export default function PlayerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { "*": mediaPath } = useParams<{ "*": string | undefined }>();
@@ -72,6 +77,14 @@ export default function PlayerPage() {
     mediaPath: string;
     choice: "pending" | "resume" | "start";
   } | null>(null);
+  /** Media path that should auto-start after EOF auto-next (history state is cleared below). */
+  const [autoPlayForPath, setAutoPlayForPath] = useState<string | null>(null);
+  const navAutoPlay = Boolean((location.state as PlayerLocationState | null)?.autoPlay);
+  if (mediaPath && navAutoPlay && autoPlayForPath !== mediaPath) {
+    setAutoPlayForPath(mediaPath);
+  } else if (autoPlayForPath !== null && autoPlayForPath !== mediaPath && !navAutoPlay) {
+    setAutoPlayForPath(null);
+  }
   const playbackPrefsQuery = useQuery({
     ...getApiMePlaybackPreferencesOptions(),
   });
@@ -270,9 +283,21 @@ export default function PlayerPage() {
     },
   });
 
+  useEffect(() => {
+    if (!navAutoPlay || !mediaPath) {
+      return;
+    }
+    void navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: null },
+    );
+  }, [location.hash, location.pathname, location.search, mediaPath, navAutoPlay, navigate]);
+
   const selectEpisode = useCallback(
-    (path: string) => {
-      void navigate(playerPath(path, returnTo, { name: path.split("/").pop() }));
+    (path: string, options?: { autoPlay?: boolean }) => {
+      void navigate(playerPath(path, returnTo, { name: path.split("/").pop() }), {
+        state: options?.autoPlay ? { autoPlay: true } : null,
+      });
     },
     [navigate, returnTo],
   );
@@ -364,6 +389,12 @@ export default function PlayerPage() {
   const resumeDecided = !needsResumeChooser || resumeDecision !== "pending";
   const effectiveResumeAtSeconds =
     needsResumeChooser && resumeDecision === "resume" ? resumeAtSeconds : undefined;
+  // Auto-next play only when there is no Continue progress (same as a cold open otherwise).
+  const effectiveAutoPlay =
+    Boolean(mediaPath) &&
+    autoPlayForPath === mediaPath &&
+    watchQuery.isFetched &&
+    resumeAtSeconds === undefined;
 
   const goBack = () => {
     void navigate(returnTo);
@@ -423,6 +454,7 @@ export default function PlayerPage() {
           skipIntro={playback?.skipIntro}
           autoSkipIntro={autoSkipIntro}
           autoNextEpisode={autoNextEpisode}
+          autoPlay={effectiveAutoPlay}
           seriesChrome={seriesChrome}
           onUploadSubtitle={async (file) => {
             await uploadMutation.mutateAsync(file);

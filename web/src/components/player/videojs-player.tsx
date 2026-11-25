@@ -43,7 +43,7 @@ type SeriesChrome = {
   seasonsLoading?: boolean;
   catalogSeasonsLoading?: boolean;
   onBrowseSeason: (season: number) => void;
-  onSelectEpisode: (path: string) => void;
+  onSelectEpisode: (path: string, options?: { autoPlay?: boolean }) => void;
 };
 
 type VideoJSPlayerProps = {
@@ -51,6 +51,8 @@ type VideoJSPlayerProps = {
   /** Progressive file (Direct Play) vs HLS master. */
   playbackMode?: "hls" | "direct";
   resumeAtSeconds?: number;
+  /** Start playback once ready (auto-next); ignored when resume chooser applies. */
+  autoPlay?: boolean;
   className?: string;
   onError?: () => void;
   onEnded?: () => void;
@@ -75,6 +77,7 @@ export function VideoJSPlayer({
   src,
   playbackMode = "hls",
   resumeAtSeconds,
+  autoPlay = false,
   className,
   onError,
   onEnded,
@@ -236,7 +239,11 @@ export function VideoJSPlayer({
               />
             ) : null}
             <GoogleCast src={withAccessToken(mediaSrc)} />
-            <PlaybackResumeLoader resumeAtSeconds={resumeAtSeconds} resumeKey={src} />
+            <PlaybackResumeLoader
+              resumeAtSeconds={resumeAtSeconds}
+              autoPlay={autoPlay}
+              resumeKey={src}
+            />
             {onProgress ? <PlaybackProgressSaver video={videoEl} onProgress={onProgress} /> : null}
           </Container>
         </I18nProvider>

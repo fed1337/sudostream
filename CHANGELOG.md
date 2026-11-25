@@ -1,3 +1,29 @@
+## v0.7.0 (2026-11-25)
+
+### Feat
+
+- add external OIDC SSO support (#27)
+- add playback auto-skip/next user prefs
+
+### Fix
+
+- go-retry v0.7.0 failing build
+- auto-play next episode after EOF auto-next
+- prune watch/favorite on metadata.scan stale paths
+- card border added for better visibility
+
+### Refactor
+
+- improve catalog and playback performance (#30)
+- delete skipped test and update test suite (#29)
+
+### Perf
+
+- add in-process ACL cache with invalidation
+- soft-delete media_metadata.trashed_at for catalog filters
+- purge unused HLS cache after 15m idle
+- reduce catalog/playback probe overhead
+
 ## v0.6.0 (2026-11-19)
 
 ### Feat

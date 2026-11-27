@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { HistoryIcon } from "lucide-react";
@@ -62,23 +61,6 @@ export default function AdminSchedulePage() {
     },
   });
 
-  const [scanCron, setScanCron] = useState("");
-  const [scanEnabled, setScanEnabled] = useState(false);
-  const [purgeCron, setPurgeCron] = useState("");
-  const [purgeEnabled, setPurgeEnabled] = useState(false);
-  const [prevMaintenance, setPrevMaintenance] = useState(maintenanceQuery.data);
-
-  if (maintenanceQuery.data !== prevMaintenance) {
-    setPrevMaintenance(maintenanceQuery.data);
-    const actions = maintenanceQuery.data?.actions ?? [];
-    const scan = actions.find((action) => action.action === SCAN_ACTION);
-    const purge = actions.find((action) => action.action === PURGE_ACTION);
-    setScanCron(scan?.schedule?.cron ?? "");
-    setScanEnabled(Boolean(scan?.schedule?.enabled));
-    setPurgeCron(purge?.schedule?.cron ?? "");
-    setPurgeEnabled(Boolean(purge?.schedule?.enabled));
-  }
-
   const invalidateRuns = () => {
     void queryClient.invalidateQueries({ queryKey: getApiAdminMaintenanceRunsQueryKey() });
     void maintenanceQuery.refetch();
@@ -138,6 +120,8 @@ export default function AdminSchedulePage() {
     );
   }
 
+  // Read cron/enabled from query data (not mirrored local state). Object-identity
+  // sync skipped when React Query served a cache hit on first paint after SPA nav.
   const actions = maintenanceQuery.data?.actions ?? [];
   const scanStatus = actions.find((action) => action.action === SCAN_ACTION);
   const purgeStatus = actions.find((action) => action.action === PURGE_ACTION);
@@ -179,15 +163,13 @@ export default function AdminSchedulePage() {
           <MaintenanceActionCard
             title={t("admin.librariesScanTitle")}
             description={t("admin.librariesScanDescription")}
-            cron={scanCron}
-            enabled={scanEnabled}
+            cron={scanStatus?.schedule?.cron ?? ""}
+            enabled={Boolean(scanStatus?.schedule?.enabled)}
             status={scanStatus}
             saving={saveMutation.isPending}
             running={Boolean(scanStatus?.running) || runMutation.isPending}
             canceling={cancelMutation.isPending}
             onSave={(values) => {
-              setScanCron(values.cron);
-              setScanEnabled(values.enabled);
               saveMutation.mutate([
                 { action: SCAN_ACTION, cron: values.cron, enabled: values.enabled },
               ]);
@@ -201,15 +183,13 @@ export default function AdminSchedulePage() {
           <MaintenanceActionCard
             title={t("admin.cachePurgeTitle")}
             description={purgeDescription}
-            cron={purgeCron}
-            enabled={purgeEnabled}
+            cron={purgeStatus?.schedule?.cron ?? ""}
+            enabled={Boolean(purgeStatus?.schedule?.enabled)}
             status={purgeStatus}
             saving={saveMutation.isPending}
             running={Boolean(purgeStatus?.running) || runMutation.isPending}
             canceling={cancelMutation.isPending}
             onSave={(values) => {
-              setPurgeCron(values.cron);
-              setPurgeEnabled(values.enabled);
               saveMutation.mutate([
                 { action: PURGE_ACTION, cron: values.cron, enabled: values.enabled },
               ]);

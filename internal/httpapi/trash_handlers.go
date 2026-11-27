@@ -16,21 +16,55 @@ import (
 	"sudoStream/internal/transcode"
 	"sudoStream/internal/trash"
 	"sudoStream/internal/watch"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-const errTrashUnavailableMsg = "trash unavailable"
+const (
+	errTrashUnavailableMsg = "trash unavailable"
+	maxTrashBulkIDs        = 100
+)
+
+// TrashItemView is one recycle-bin row for admin UI (enriched list fields).
+type TrashItemView struct {
+	ID              string    `json:"id"`
+	OriginalRelPath string    `json:"originalRelPath"`
+	TrashRelPath    string    `json:"trashRelPath"`
+	LibraryID       string    `json:"libraryId,omitempty"`
+	DeletedAt       time.Time `json:"deletedAt"`
+	DeletedBy       string    `json:"deletedBy,omitempty"`
+	DeletedByEmail  string    `json:"deletedByEmail,omitempty"`
+	IsDir           bool      `json:"isDir"`
+	Size            int64     `json:"size"`
+}
 
 // TrashListResponse is GET /api/admin/trash.
 type TrashListResponse struct {
-	Items []trash.Item `json:"items"`
+	Items []TrashItemView `json:"items"`
 }
 
 // TrashSettingsResponse is GET/PATCH /api/admin/trash/settings.
 type TrashSettingsResponse struct {
 	Enabled       bool `json:"enabled"`
 	RetentionDays int  `json:"retentionDays"`
+}
+
+// TrashBulkRequest is POST /api/admin/trash/restore|purge.
+type TrashBulkRequest struct {
+	IDs []string `json:"ids"`
+}
+
+// TrashBulkFailure is one failed id in a bulk response.
+type TrashBulkFailure struct {
+	ID    string `json:"id"`
+	Error string `json:"error"`
+}
+
+// TrashBulkResponse is the partial-success payload for bulk restore/purge.
+type TrashBulkResponse struct {
+	OK     []string           `json:"ok"`
+	Failed []TrashBulkFailure `json:"failed"`
 }
 
 type trashCleanup struct {
@@ -116,7 +150,7 @@ func (c trashCleanup) removeCaches(item trash.Item) {
 	}
 }
 
-// ListTrash returns recycle-bin items.
+// ListTrash returns recycle-bin items (admin only).
 //
 //	@Summary	List deleted items
 //	@Tags		admin
@@ -138,10 +172,16 @@ func (h *adminHandler) listTrash(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, TrashListResponse{Items: items})
+	emails := h.trashDeletedByEmails(c.Request.Context(), items)
+	views := make([]TrashItemView, 0, len(items))
+	for _, item := range items {
+		views = append(views, h.toTrashItemView(item, emails[item.DeletedBy]))
+	}
+
+	c.JSON(http.StatusOK, TrashListResponse{Items: views})
 }
 
-// RestoreTrash restores a deleted item to its original path.
+// RestoreTrash restores a deleted item to its original path (admin only).
 //
 //	@Summary	Restore a deleted item
 //	@Tags		admin
@@ -174,7 +214,72 @@ func (h *adminHandler) restoreTrash(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
-// DeleteTrashForever permanently deletes one trash item.
+// RestoreTrashBulk restores selected trash items (admin only).
+//
+//	@Summary	Restore many trash items
+//	@Tags		admin
+//	@Accept		json
+//	@Produce	json
+//	@Param		body	body		TrashBulkRequest	true	"Trash item ids"
+//	@Success	200		{object}	TrashBulkResponse
+//	@Failure	400		{object}	ErrorResponse
+//	@Failure	503		{object}	ErrorResponse
+//	@Router		/api/admin/trash/restore [post]
+func (h *adminHandler) restoreTrashBulk(c *gin.Context) {
+	if h.trash == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errTrashUnavailableMsg})
+
+		return
+	}
+
+	ids, ok := h.readTrashBulkIDs(c)
+	if !ok {
+		return
+	}
+
+	result := h.trash.RestoreMany(c.Request.Context(), ids)
+	observability.LogAction(
+		c,
+		"trash.restore_many",
+		slog.Int("ok", len(result.OK)),
+		slog.Int("failed", len(result.Failed)),
+	)
+	c.JSON(http.StatusOK, toTrashBulkResponse(result))
+}
+
+// RestoreTrashAll restores every trash item (admin only).
+//
+//	@Summary	Restore all trash items
+//	@Tags		admin
+//	@Produce	json
+//	@Success	200	{object}	TrashBulkResponse
+//	@Failure	500	{object}	ErrorResponse
+//	@Failure	503	{object}	ErrorResponse
+//	@Router		/api/admin/trash/restore-all [post]
+func (h *adminHandler) restoreTrashAll(c *gin.Context) {
+	if h.trash == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errTrashUnavailableMsg})
+
+		return
+	}
+
+	result, err := h.trash.RestoreAll(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "trash operation failed"})
+
+		return
+	}
+
+	observability.LogAction(
+		c,
+		"trash.restore_all",
+		slog.Int("ok", len(result.OK)),
+		slog.Int("failed", len(result.Failed)),
+	)
+	c.JSON(http.StatusOK, toTrashBulkResponse(result))
+}
+
+// DeleteTrashForever permanently deletes one trash item (admin only).
 //
 //	@Summary	Delete a trash item forever
 //	@Tags		admin
@@ -201,7 +306,40 @@ func (h *adminHandler) deleteTrashForever(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// EmptyTrash permanently deletes every trash item.
+// PurgeTrashBulk permanently deletes selected trash items (admin only).
+//
+//	@Summary	Delete many trash items forever
+//	@Tags		admin
+//	@Accept		json
+//	@Produce	json
+//	@Param		body	body		TrashBulkRequest	true	"Trash item ids"
+//	@Success	200		{object}	TrashBulkResponse
+//	@Failure	400		{object}	ErrorResponse
+//	@Failure	503		{object}	ErrorResponse
+//	@Router		/api/admin/trash/purge [post]
+func (h *adminHandler) purgeTrashBulk(c *gin.Context) {
+	if h.trash == nil {
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errTrashUnavailableMsg})
+
+		return
+	}
+
+	ids, ok := h.readTrashBulkIDs(c)
+	if !ok {
+		return
+	}
+
+	result := h.trash.DeleteForeverMany(c.Request.Context(), ids)
+	observability.LogAction(
+		c,
+		"trash.purge_many",
+		slog.Int("ok", len(result.OK)),
+		slog.Int("failed", len(result.Failed)),
+	)
+	c.JSON(http.StatusOK, toTrashBulkResponse(result))
+}
+
+// EmptyTrash permanently deletes every trash item (admin only).
 //
 //	@Summary	Empty recycle bin
 //	@Tags		admin
@@ -227,7 +365,7 @@ func (h *adminHandler) emptyTrash(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// GetTrashSettings returns recycle_bin retention.
+// GetTrashSettings returns recycle_bin retention (admin only).
 //
 //	@Summary	Get recycle bin settings
 //	@Tags		admin
@@ -258,7 +396,7 @@ func (h *adminHandler) getTrashSettings(c *gin.Context) {
 	})
 }
 
-// PatchTrashSettings updates recycle_bin retention.
+// PatchTrashSettings updates recycle_bin retention (admin only).
 //
 //	@Summary	Update recycle bin settings
 //	@Tags		admin
@@ -304,15 +442,132 @@ func (h *adminHandler) patchTrashSettings(c *gin.Context) {
 	})
 }
 
-func (h *adminHandler) writeTrashError(c *gin.Context, err error) {
+func (h *adminHandler) readTrashBulkIDs(c *gin.Context) ([]string, bool) {
+	var body TrashBulkRequest
+	err := c.ShouldBindJSON(&body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: invalidRequestBody})
+
+		return nil, false
+	}
+	if len(body.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "ids required"})
+
+		return nil, false
+	}
+	if len(body.IDs) > maxTrashBulkIDs {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "too many ids"})
+
+		return nil, false
+	}
+
+	return body.IDs, true
+}
+
+func (h *adminHandler) toTrashItemView(item trash.Item, email string) TrashItemView {
+	view := TrashItemView{
+		ID:              item.ID,
+		OriginalRelPath: item.OriginalRelPath,
+		TrashRelPath:    item.TrashRelPath,
+		LibraryID:       item.LibraryID,
+		DeletedAt:       item.DeletedAt,
+		DeletedBy:       item.DeletedBy,
+		DeletedByEmail:  email,
+	}
+	if h.media == nil {
+		return view
+	}
+
+	fileAbs, err := h.media.FilePath(item.TrashRelPath)
+	if err == nil {
+		info, statErr := os.Stat(fileAbs)
+		if statErr == nil {
+			view.Size = info.Size()
+		}
+
+		return view
+	}
+	_, err = h.media.DirPath(item.TrashRelPath)
+	if err == nil {
+		view.IsDir = true
+	}
+
+	return view
+}
+
+func (h *adminHandler) trashDeletedByEmails(
+	ctx context.Context,
+	items []trash.Item,
+) map[string]string {
+	emails := make(map[string]string)
+	if h.auth == nil || len(items) == 0 {
+		return emails
+	}
+
+	need := make(map[string]struct{})
+	for _, item := range items {
+		if item.DeletedBy != "" {
+			need[item.DeletedBy] = struct{}{}
+		}
+	}
+	if len(need) == 0 {
+		return emails
+	}
+
+	users, err := h.auth.ListUsers(ctx)
+	if err != nil {
+		slog.Warn("trash list resolve deletedBy emails failed", slog.String("error", err.Error()))
+
+		return emails
+	}
+	for _, user := range users {
+		if _, ok := need[user.ID]; ok {
+			emails[user.ID] = user.Email
+		}
+	}
+
+	return emails
+}
+
+func toTrashBulkResponse(result trash.BatchResult) TrashBulkResponse {
+	failed := make([]TrashBulkFailure, 0, len(result.Failed))
+	for _, failure := range result.Failed {
+		failed = append(failed, TrashBulkFailure{
+			ID:    failure.ID,
+			Error: trashErrorMessage(failure.Err),
+		})
+	}
+	ok := result.OK
+	if ok == nil {
+		ok = []string{}
+	}
+
+	return TrashBulkResponse{OK: ok, Failed: failed}
+}
+
+func trashErrorMessage(err error) string {
 	switch {
 	case errors.Is(err, trash.ErrNotFound), errors.Is(err, mediafs.ErrTrashItemMissing):
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "trash item not found"})
+		return "trash item not found"
 	case errors.Is(err, mediafs.ErrRestoreConflict):
-		c.JSON(http.StatusConflict, ErrorResponse{Error: "restore destination exists"})
+		return "restore destination exists"
 	case errors.Is(err, mediafs.ErrDeleteReadOnly):
-		c.JSON(http.StatusForbidden, ErrorResponse{Error: "media volume is not writable"})
+		return "media volume is not writable"
 	default:
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "trash operation failed"})
+		return "trash operation failed"
+	}
+}
+
+func (h *adminHandler) writeTrashError(c *gin.Context, err error) {
+	msg := trashErrorMessage(err)
+	switch msg {
+	case "trash item not found":
+		c.JSON(http.StatusNotFound, ErrorResponse{Error: msg})
+	case "restore destination exists":
+		c.JSON(http.StatusConflict, ErrorResponse{Error: msg})
+	case "media volume is not writable":
+		c.JSON(http.StatusForbidden, ErrorResponse{Error: msg})
+	default:
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: msg})
 	}
 }

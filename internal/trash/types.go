@@ -33,6 +33,18 @@ type Item struct {
 	DeletedBy       string    `json:"deletedBy,omitempty"`
 }
 
+// ItemFailure is one id that failed in a bulk restore/purge.
+type ItemFailure struct {
+	ID  string
+	Err error
+}
+
+// BatchResult is the outcome of RestoreMany / DeleteForeverMany / RestoreAll.
+type BatchResult struct {
+	OK     []string
+	Failed []ItemFailure
+}
+
 // Settings is stored under settings.key = recycle_bin.
 type Settings struct {
 	Enabled       bool `json:"enabled"`

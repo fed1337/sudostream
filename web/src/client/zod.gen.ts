@@ -163,6 +163,36 @@ export const zInternalHttpapiStatusResponse = z.object({
   status: z.string().optional()
 });
 
+export const zInternalHttpapiTrashBulkFailure = z.object({
+  error: z.string().optional(),
+  id: z.string().optional()
+});
+
+export const zInternalHttpapiTrashBulkRequest = z.object({
+  ids: z.array(z.string()).optional()
+});
+
+export const zInternalHttpapiTrashBulkResponse = z.object({
+  failed: z.array(zInternalHttpapiTrashBulkFailure).optional(),
+  ok: z.array(z.string()).optional()
+});
+
+export const zInternalHttpapiTrashItemView = z.object({
+  deletedAt: z.string().optional(),
+  deletedBy: z.string().optional(),
+  deletedByEmail: z.string().optional(),
+  id: z.string().optional(),
+  isDir: z.boolean().optional(),
+  libraryId: z.string().optional(),
+  originalRelPath: z.string().optional(),
+  size: z.int().optional(),
+  trashRelPath: z.string().optional()
+});
+
+export const zInternalHttpapiTrashListResponse = z.object({
+  items: z.array(zInternalHttpapiTrashItemView).optional()
+});
+
 export const zInternalHttpapiTrashSettingsResponse = z.object({
   enabled: z.boolean().optional(),
   retentionDays: z.int().optional()
@@ -786,10 +816,6 @@ export const zSudoStreamInternalTrashItem = z.object({
   trashRelPath: z.string().optional()
 });
 
-export const zInternalHttpapiTrashListResponse = z.object({
-  items: z.array(zSudoStreamInternalTrashItem).optional()
-});
-
 /**
  * OK
  */
@@ -1101,6 +1127,31 @@ export const zDeleteApiAdminTrashResponse = z.void();
  * OK
  */
 export const zGetApiAdminTrashResponse = zInternalHttpapiTrashListResponse;
+
+/**
+ * Trash item ids
+ */
+export const zPostApiAdminTrashPurgeBody = zInternalHttpapiTrashBulkRequest;
+
+/**
+ * OK
+ */
+export const zPostApiAdminTrashPurgeResponse = zInternalHttpapiTrashBulkResponse;
+
+/**
+ * Trash item ids
+ */
+export const zPostApiAdminTrashRestoreBody = zInternalHttpapiTrashBulkRequest;
+
+/**
+ * OK
+ */
+export const zPostApiAdminTrashRestoreResponse = zInternalHttpapiTrashBulkResponse;
+
+/**
+ * OK
+ */
+export const zPostApiAdminTrashRestoreAllResponse = zInternalHttpapiTrashBulkResponse;
 
 /**
  * OK

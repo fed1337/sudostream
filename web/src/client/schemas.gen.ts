@@ -786,11 +786,89 @@ export const internal_httpapi_StatusResponseSchema = {
   type: 'object'
 } as const;
 
+export const internal_httpapi_TrashBulkFailureSchema = {
+  properties: {
+    error: {
+      type: 'string'
+    },
+    id: {
+      type: 'string'
+    }
+  },
+  type: 'object'
+} as const;
+
+export const internal_httpapi_TrashBulkRequestSchema = {
+  properties: {
+    ids: {
+      items: {
+        type: 'string'
+      },
+      type: 'array',
+      uniqueItems: false
+    }
+  },
+  type: 'object'
+} as const;
+
+export const internal_httpapi_TrashBulkResponseSchema = {
+  properties: {
+    failed: {
+      items: {
+        $ref: '#/components/schemas/internal_httpapi.TrashBulkFailure'
+      },
+      type: 'array',
+      uniqueItems: false
+    },
+    ok: {
+      items: {
+        type: 'string'
+      },
+      type: 'array',
+      uniqueItems: false
+    }
+  },
+  type: 'object'
+} as const;
+
+export const internal_httpapi_TrashItemViewSchema = {
+  properties: {
+    deletedAt: {
+      type: 'string'
+    },
+    deletedBy: {
+      type: 'string'
+    },
+    deletedByEmail: {
+      type: 'string'
+    },
+    id: {
+      type: 'string'
+    },
+    isDir: {
+      type: 'boolean'
+    },
+    libraryId: {
+      type: 'string'
+    },
+    originalRelPath: {
+      type: 'string'
+    },
+    size: {
+      type: 'integer'
+    },
+    trashRelPath: {
+      type: 'string'
+    }
+  },
+  type: 'object'
+} as const;
+
 export const internal_httpapi_TrashListResponseSchema = {
   properties: {
     items: {
       items: {
-        $ref: '#/components/schemas/sudoStream_internal_trash.Item'
+        $ref: '#/components/schemas/internal_httpapi.TrashItemView'
       },
       type: 'array',
       uniqueItems: false

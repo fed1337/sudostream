@@ -409,6 +409,160 @@ func TestAdminTrash_ErrorMappingConflictAndCleanup(t *testing.T) {
 	)
 }
 
+func TestAdminTrash_BulkRestorePurgeAndRestoreAll(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "admin trash bulk restore, purge, and restore-all", func(a *allure.Context) {
+		t := a.T()
+		gin.SetMode(gin.TestMode)
+
+		root := t.TempDir()
+		media, err := mediafs.New(root)
+		if err != nil {
+			t.Fatalf("media: %v", err)
+		}
+		err = os.MkdirAll(filepath.Join(root, "movies"), 0o750)
+		if err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		err = os.WriteFile(filepath.Join(root, "movies", "a.mp4"), []byte("aaaa"), 0o600)
+		if err != nil {
+			t.Fatalf("write a: %v", err)
+		}
+		err = os.WriteFile(filepath.Join(root, "movies", "b.mp4"), []byte("bbbb"), 0o600)
+		if err != nil {
+			t.Fatalf("write b: %v", err)
+		}
+		err = os.MkdirAll(filepath.Join(root, "series", "show"), 0o750)
+		if err != nil {
+			t.Fatalf("mkdir show: %v", err)
+		}
+		err = os.WriteFile(filepath.Join(root, "series", "show", "e1.mkv"), []byte("ep"), 0o600)
+		if err != nil {
+			t.Fatalf("write ep: %v", err)
+		}
+
+		svc := trash.NewService(media, newTrashMemoryStore(), nil, nil)
+		admin := &adminHandler{trash: svc, media: media}
+		router := gin.New()
+		router.GET("/api/admin/trash", admin.listTrash)
+		router.POST("/api/admin/trash/restore", admin.restoreTrashBulk)
+		router.POST("/api/admin/trash/purge", admin.purgeTrashBulk)
+		router.POST("/api/admin/trash/restore-all", admin.restoreTrashAll)
+
+		itemA, err := svc.Move(context.Background(), "movies/a.mp4", "")
+		if err != nil {
+			t.Fatalf("move a: %v", err)
+		}
+		itemB, err := svc.Move(context.Background(), "movies/b.mp4", "")
+		if err != nil {
+			t.Fatalf("move b: %v", err)
+		}
+		itemDir, err := svc.Move(context.Background(), "series/show", "")
+		if err != nil {
+			t.Fatalf("move dir: %v", err)
+		}
+
+		listRec := httptest.NewRecorder()
+		listReq := httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodGet,
+			"/api/admin/trash",
+			nil,
+		)
+		router.ServeHTTP(listRec, listReq)
+		if listRec.Code != http.StatusOK {
+			t.Fatalf("list: %d %s", listRec.Code, listRec.Body.String())
+		}
+		var listed TrashListResponse
+		err = json.Unmarshal(listRec.Body.Bytes(), &listed)
+		if err != nil || len(listed.Items) != 3 {
+			t.Fatalf("list body: %v %+v", err, listed)
+		}
+		var sawFile, sawDir bool
+		for _, item := range listed.Items {
+			if item.ID == itemA.ID {
+				sawFile = true
+				if item.IsDir || item.Size != 4 {
+					t.Fatalf("file enrichment: %+v", item)
+				}
+			}
+			if item.ID == itemDir.ID {
+				sawDir = true
+				if !item.IsDir || item.Size != 0 {
+					t.Fatalf("dir enrichment: %+v", item)
+				}
+			}
+		}
+		if !sawFile || !sawDir {
+			t.Fatalf("missing enrichment rows: %+v", listed.Items)
+		}
+
+		restoreBody, _ := json.Marshal(TrashBulkRequest{IDs: []string{itemA.ID, "missing"}})
+		restoreRec := httptest.NewRecorder()
+		restoreReq := httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			"/api/admin/trash/restore",
+			bytes.NewReader(restoreBody),
+		)
+		restoreReq.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(restoreRec, restoreReq)
+		if restoreRec.Code != http.StatusOK {
+			t.Fatalf("bulk restore: %d %s", restoreRec.Code, restoreRec.Body.String())
+		}
+		var restored TrashBulkResponse
+		err = json.Unmarshal(restoreRec.Body.Bytes(), &restored)
+		if err != nil || len(restored.OK) != 1 || len(restored.Failed) != 1 {
+			t.Fatalf("bulk restore body: %v %+v", err, restored)
+		}
+
+		purgeBody, _ := json.Marshal(TrashBulkRequest{IDs: []string{itemB.ID}})
+		purgeRec := httptest.NewRecorder()
+		purgeReq := httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			"/api/admin/trash/purge",
+			bytes.NewReader(purgeBody),
+		)
+		purgeReq.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(purgeRec, purgeReq)
+		if purgeRec.Code != http.StatusOK {
+			t.Fatalf("bulk purge: %d %s", purgeRec.Code, purgeRec.Body.String())
+		}
+
+		allRec := httptest.NewRecorder()
+		allReq := httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			"/api/admin/trash/restore-all",
+			nil,
+		)
+		router.ServeHTTP(allRec, allReq)
+		if allRec.Code != http.StatusOK {
+			t.Fatalf("restore all: %d %s", allRec.Code, allRec.Body.String())
+		}
+		var all TrashBulkResponse
+		err = json.Unmarshal(allRec.Body.Bytes(), &all)
+		if err != nil || len(all.OK) != 1 || all.OK[0] != itemDir.ID {
+			t.Fatalf("restore all body: %v %+v", err, all)
+		}
+
+		emptyRec := httptest.NewRecorder()
+		emptyReq := httptest.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			"/api/admin/trash/restore",
+			bytes.NewBufferString(`{"ids":[]}`),
+		)
+		emptyReq.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(emptyRec, emptyReq)
+		if emptyRec.Code != http.StatusBadRequest {
+			t.Fatalf("empty ids: %d", emptyRec.Code)
+		}
+	})
+}
+
 type trashSettingsKV struct {
 	raw []byte
 }

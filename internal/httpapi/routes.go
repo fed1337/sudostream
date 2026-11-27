@@ -318,6 +318,10 @@ func registerAdminTrashRoutes(admin *gin.RouterGroup, adminRoutes *adminHandler)
 	admin.DELETE("/trash", adminRoutes.emptyTrash)
 	admin.GET("/trash/settings", adminRoutes.getTrashSettings)
 	admin.PATCH("/trash/settings", adminRoutes.patchTrashSettings)
+	// Static bulk paths before /trash/:id.
+	admin.POST("/trash/restore", adminRoutes.restoreTrashBulk)
+	admin.POST("/trash/purge", adminRoutes.purgeTrashBulk)
+	admin.POST("/trash/restore-all", adminRoutes.restoreTrashAll)
 	admin.POST("/trash/:id/restore", adminRoutes.restoreTrash)
 	admin.DELETE("/trash/:id", adminRoutes.deleteTrashForever)
 }

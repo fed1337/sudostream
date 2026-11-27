@@ -230,6 +230,37 @@ func (s *Service) EmptyAll(ctx context.Context) (int, error) {
 	return deleted, nil
 }
 
+// RestoreMany restores each id; failures are collected (partial success).
+func (s *Service) RestoreMany(ctx context.Context, ids []string) BatchResult {
+	return s.runMany(ids, func(itemID string) error {
+		_, err := s.Restore(ctx, itemID)
+
+		return err
+	})
+}
+
+// DeleteForeverMany permanently deletes each id; failures are collected.
+func (s *Service) DeleteForeverMany(ctx context.Context, ids []string) BatchResult {
+	return s.runMany(ids, func(itemID string) error {
+		return s.DeleteForever(ctx, itemID)
+	})
+}
+
+// RestoreAll restores every trash item; failures are collected.
+func (s *Service) RestoreAll(ctx context.Context) (BatchResult, error) {
+	items, err := s.List(ctx)
+	if err != nil {
+		return BatchResult{}, err
+	}
+
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+
+	return s.RestoreMany(ctx, ids), nil
+}
+
 // OriginalPrefixes returns original rel paths of trash items (indexer freeze).
 func (s *Service) OriginalPrefixes(ctx context.Context) ([]string, error) {
 	if s == nil || s.store == nil {
@@ -333,6 +364,33 @@ func NormalizeSettings(settings Settings) (Settings, error) {
 	}
 
 	return settings, nil
+}
+
+func (s *Service) runMany(ids []string, apply func(itemID string) error) BatchResult {
+	result := BatchResult{
+		OK:     make([]string, 0, len(ids)),
+		Failed: nil,
+	}
+	seen := make(map[string]struct{}, len(ids))
+	for _, itemID := range ids {
+		if itemID == "" {
+			continue
+		}
+		if _, dup := seen[itemID]; dup {
+			continue
+		}
+		seen[itemID] = struct{}{}
+
+		err := apply(itemID)
+		if err != nil {
+			result.Failed = append(result.Failed, ItemFailure{ID: itemID, Err: err})
+
+			continue
+		}
+		result.OK = append(result.OK, itemID)
+	}
+
+	return result
 }
 
 func (s *Service) attachLibrary(ctx context.Context, item *Item) {

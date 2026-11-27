@@ -297,8 +297,34 @@ export type InternalHttpapiStatusResponse = {
   status?: string;
 };
 
+export type InternalHttpapiTrashBulkFailure = {
+  error?: string;
+  id?: string;
+};
+
+export type InternalHttpapiTrashBulkRequest = {
+  ids?: Array<string>;
+};
+
+export type InternalHttpapiTrashBulkResponse = {
+  failed?: Array<InternalHttpapiTrashBulkFailure>;
+  ok?: Array<string>;
+};
+
+export type InternalHttpapiTrashItemView = {
+  deletedAt?: string;
+  deletedBy?: string;
+  deletedByEmail?: string;
+  id?: string;
+  isDir?: boolean;
+  libraryId?: string;
+  originalRelPath?: string;
+  size?: number;
+  trashRelPath?: string;
+};
+
 export type InternalHttpapiTrashListResponse = {
-  items?: Array<SudoStreamInternalTrashItem>;
+  items?: Array<InternalHttpapiTrashItemView>;
 };
 
 export type InternalHttpapiTrashSettingsResponse = {
@@ -1916,6 +1942,99 @@ export type GetApiAdminTrashResponses = {
 };
 
 export type GetApiAdminTrashResponse = GetApiAdminTrashResponses[keyof GetApiAdminTrashResponses];
+
+export type PostApiAdminTrashPurgeData = {
+  /**
+   * Trash item ids
+   */
+  body: InternalHttpapiTrashBulkRequest;
+  path?: never;
+  query?: never;
+  url: '/api/admin/trash/purge';
+};
+
+export type PostApiAdminTrashPurgeErrors = {
+  /**
+   * Bad Request
+   */
+  400: InternalHttpapiErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: InternalHttpapiErrorResponse;
+};
+
+export type PostApiAdminTrashPurgeError = PostApiAdminTrashPurgeErrors[keyof PostApiAdminTrashPurgeErrors];
+
+export type PostApiAdminTrashPurgeResponses = {
+  /**
+   * OK
+   */
+  200: InternalHttpapiTrashBulkResponse;
+};
+
+export type PostApiAdminTrashPurgeResponse = PostApiAdminTrashPurgeResponses[keyof PostApiAdminTrashPurgeResponses];
+
+export type PostApiAdminTrashRestoreData = {
+  /**
+   * Trash item ids
+   */
+  body: InternalHttpapiTrashBulkRequest;
+  path?: never;
+  query?: never;
+  url: '/api/admin/trash/restore';
+};
+
+export type PostApiAdminTrashRestoreErrors = {
+  /**
+   * Bad Request
+   */
+  400: InternalHttpapiErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: InternalHttpapiErrorResponse;
+};
+
+export type PostApiAdminTrashRestoreError = PostApiAdminTrashRestoreErrors[keyof PostApiAdminTrashRestoreErrors];
+
+export type PostApiAdminTrashRestoreResponses = {
+  /**
+   * OK
+   */
+  200: InternalHttpapiTrashBulkResponse;
+};
+
+export type PostApiAdminTrashRestoreResponse = PostApiAdminTrashRestoreResponses[keyof PostApiAdminTrashRestoreResponses];
+
+export type PostApiAdminTrashRestoreAllData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/admin/trash/restore-all';
+};
+
+export type PostApiAdminTrashRestoreAllErrors = {
+  /**
+   * Internal Server Error
+   */
+  500: InternalHttpapiErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: InternalHttpapiErrorResponse;
+};
+
+export type PostApiAdminTrashRestoreAllError = PostApiAdminTrashRestoreAllErrors[keyof PostApiAdminTrashRestoreAllErrors];
+
+export type PostApiAdminTrashRestoreAllResponses = {
+  /**
+   * OK
+   */
+  200: InternalHttpapiTrashBulkResponse;
+};
+
+export type PostApiAdminTrashRestoreAllResponse = PostApiAdminTrashRestoreAllResponses[keyof PostApiAdminTrashRestoreAllResponses];
 
 export type GetApiAdminTrashSettingsData = {
   body?: never;

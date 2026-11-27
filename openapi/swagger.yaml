@@ -489,11 +489,60 @@ components:
         status:
           type: string
       type: object
+    internal_httpapi.TrashBulkFailure:
+      properties:
+        error:
+          type: string
+        id:
+          type: string
+      type: object
+    internal_httpapi.TrashBulkRequest:
+      properties:
+        ids:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.TrashBulkResponse:
+      properties:
+        failed:
+          items:
+            $ref: '#/components/schemas/internal_httpapi.TrashBulkFailure'
+          type: array
+          uniqueItems: false
+        ok:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
+    internal_httpapi.TrashItemView:
+      properties:
+        deletedAt:
+          type: string
+        deletedBy:
+          type: string
+        deletedByEmail:
+          type: string
+        id:
+          type: string
+        isDir:
+          type: boolean
+        libraryId:
+          type: string
+        originalRelPath:
+          type: string
+        size:
+          type: integer
+        trashRelPath:
+          type: string
+      type: object
     internal_httpapi.TrashListResponse:
       properties:
         items:
           items:
-            $ref: '#/components/schemas/sudoStream_internal_trash.Item'
+            $ref: '#/components/schemas/internal_httpapi.TrashItemView'
           type: array
           uniqueItems: false
       type: object
@@ -1406,7 +1455,7 @@ externalDocs:
 info:
   description: HTTP API for browsing and streaming media files.
   title: sudoStream API
-  version: 0.6.0
+  version: 0.7.0
 openapi: 3.1.0
 paths:
   /api/admin/dlna/settings:
@@ -2496,6 +2545,96 @@ paths:
                 $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
           description: Conflict
       summary: Restore a deleted item
+      tags:
+      - admin
+  /api/admin/trash/purge:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/internal_httpapi.TrashBulkRequest'
+              description: Trash item ids
+              summary: body
+        description: Trash item ids
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.TrashBulkResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Delete many trash items forever
+      tags:
+      - admin
+  /api/admin/trash/restore:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/internal_httpapi.TrashBulkRequest'
+              description: Trash item ids
+              summary: body
+        description: Trash item ids
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.TrashBulkResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Bad Request
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Restore many trash items
+      tags:
+      - admin
+  /api/admin/trash/restore-all:
+    post:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.TrashBulkResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Internal Server Error
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/internal_httpapi.ErrorResponse'
+          description: Service Unavailable
+      summary: Restore all trash items
       tags:
       - admin
   /api/admin/trash/settings:
@@ -4551,8 +4690,8 @@ paths:
       - media
   /api/thumbnail/{path}:
     get:
-      description: Serves a cached video poster (WebP; maintenance warm only) or resizes
-        an image on the fly.
+      description: Serves a cached video poster (WebP; maintenance warm only) or a
+        disk-cached image JPEG thumbnail.
       parameters:
       - description: Path under media root
         in: path

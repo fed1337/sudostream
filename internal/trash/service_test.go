@@ -258,6 +258,71 @@ func (r *recordingCleaner) OnPermanentDelete(_ context.Context, item Item) error
 	return nil
 }
 
+func TestService_RestoreManyAndRestoreAll(t *testing.T) {
+	t.Parallel()
+
+	allure.Test(t, "restore many and restore all collect partial failures", func(a *allure.Context) {
+		t := a.T()
+		root := t.TempDir()
+		media, err := mediafs.New(root)
+		if err != nil {
+			t.Fatalf("media: %v", err)
+		}
+		err = os.MkdirAll(filepath.Join(root, "movies"), 0o750)
+		if err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		err = os.WriteFile(filepath.Join(root, "movies", "a.mp4"), []byte("a"), 0o600)
+		if err != nil {
+			t.Fatalf("write a: %v", err)
+		}
+		err = os.WriteFile(filepath.Join(root, "movies", "b.mp4"), []byte("b"), 0o600)
+		if err != nil {
+			t.Fatalf("write b: %v", err)
+		}
+
+		svc := NewService(media, newMemoryStore(), nil, nil)
+		ctx := context.Background()
+		itemA, err := svc.Move(ctx, "movies/a.mp4", "user-1")
+		if err != nil {
+			t.Fatalf("move a: %v", err)
+		}
+		itemB, err := svc.Move(ctx, "movies/b.mp4", "user-1")
+		if err != nil {
+			t.Fatalf("move b: %v", err)
+		}
+
+		many := svc.RestoreMany(ctx, []string{itemA.ID, "missing-id", itemA.ID})
+		if len(many.OK) != 1 || many.OK[0] != itemA.ID {
+			t.Fatalf("restore many ok: %+v", many.OK)
+		}
+		if len(many.Failed) != 1 || many.Failed[0].ID != "missing-id" {
+			t.Fatalf("restore many failed: %+v", many.Failed)
+		}
+		_, err = os.Stat(filepath.Join(root, "movies", "a.mp4"))
+		if err != nil {
+			t.Fatalf("a restored: %v", err)
+		}
+
+		all, err := svc.RestoreAll(ctx)
+		if err != nil {
+			t.Fatalf("restore all: %v", err)
+		}
+		if len(all.OK) != 1 || all.OK[0] != itemB.ID {
+			t.Fatalf("restore all ok: %+v", all.OK)
+		}
+		_, err = os.Stat(filepath.Join(root, "movies", "b.mp4"))
+		if err != nil {
+			t.Fatalf("b restored: %v", err)
+		}
+
+		purge := svc.DeleteForeverMany(ctx, []string{"gone"})
+		if len(purge.Failed) != 1 {
+			t.Fatalf("purge missing: %+v", purge.Failed)
+		}
+	})
+}
+
 func TestService_EmptyAllSaveSettingsAndReconcile(t *testing.T) { //nolint:cyclop
 	t.Parallel()
 

@@ -1,3 +1,12 @@
+## v0.7.1 (2026-11-27)
+
+### Fix
+
+- derive schedule enabled state from query cache
+- oidc docs url
+- hide Continue orphans without media_metadata and delete them on metadata scans
+- drop resume/start over modal; silent seek if watch state exists
+
 ## v0.7.0 (2026-11-25)
 
 ### Feat

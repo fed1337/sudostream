@@ -38,7 +38,7 @@ services:
       SUDOSTREAM_SMTP_FROM: "sudostream@router.lan"
       SUDOSTREAM_SMTP_FROM_NAME: "sudoStream"
       SUDOSTREAM_COOKIE_SECURE: "false"
-      # OIDC SSO (optional) — see docs/admin/oidc-sso.md and compose.oidc-authelia.yml
+      # OIDC SSO (optional)
       # SUDOSTREAM_OIDC_ENABLED: "false"
       # SUDOSTREAM_OIDC_ISSUER_URL: ""
       # SUDOSTREAM_OIDC_ISSUER_NAME: "Authelia"

@@ -4,26 +4,61 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (branch, tag, or SHA). Empty = workflow branch. Image tag = sanitized ref."
+        required: false
+        type: string
+        default: ""
 
 permissions:
   packages: write
   actions: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   dev-build:
-    if: "!startsWith(github.event.head_commit.message, 'docs:')"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      !startsWith(github.event.head_commit.message, 'docs:')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Resolve build identity
+        id: meta
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            REF="${{ inputs.ref }}"
+            REF="${REF:-${{ github.ref_name }}}"
+            TAG=$(echo "$REF" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g; s/[^a-z0-9._-]/-/g; s/--*/-/g; s/^-//; s/-$//' )
+            TAG="${TAG:0:128}"
+            if [ "$TAG" = "dev" ] && [ "$REF" != "master" ]; then
+              echo "::error::tag 'dev' is reserved for master; pick another ref"
+              exit 1
+            fi
+          else
+            REF="${{ github.sha }}"
+            TAG="dev"
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          token: "${{ secrets.GITHUB_TOKEN }}"
+          ref: ${{ steps.meta.outputs.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve revision
+        id: rev
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -38,11 +73,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Image build metadata
-        id: image_meta
-        run: |
-          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
         env:
@@ -54,10 +84,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            BUILD_VERSION=dev
-            BUILD_REVISION=${{ github.sha }}
-            BUILD_CREATED=${{ steps.image_meta.outputs.created }}
-            IMAGE_REF_NAME=dev
+            BUILD_VERSION=${{ steps.meta.outputs.tag }}
+            BUILD_REVISION=${{ steps.rev.outputs.sha }}
+            BUILD_CREATED=${{ steps.meta.outputs.created }}
+            IMAGE_REF_NAME=${{ steps.meta.outputs.tag }}
             DISTROLESS_TAG=debug-nonroot
           annotations: |
             index,manifest:org.opencontainers.image.title=sudoStream
@@ -67,9 +97,9 @@ jobs:
             index,manifest:org.opencontainers.image.documentation=https://github.com/fed1337/sudostream/blob/master/README.md
             index,manifest:org.opencontainers.image.licenses=MIT
             index,manifest:org.opencontainers.image.vendor=fed1337
-            index,manifest:org.opencontainers.image.version=dev
-            index,manifest:org.opencontainers.image.revision=${{ github.sha }}
-            index,manifest:org.opencontainers.image.created=${{ steps.image_meta.outputs.created }}
-            index,manifest:org.opencontainers.image.ref.name=dev
+            index,manifest:org.opencontainers.image.version=${{ steps.meta.outputs.tag }}
+            index,manifest:org.opencontainers.image.revision=${{ steps.rev.outputs.sha }}
+            index,manifest:org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            index,manifest:org.opencontainers.image.ref.name=${{ steps.meta.outputs.tag }}
           tags: |
-            ghcr.io/fed1337/sudostream:dev
+            ghcr.io/fed1337/sudostream:${{ steps.meta.outputs.tag }}

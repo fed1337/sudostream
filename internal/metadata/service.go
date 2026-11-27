@@ -59,6 +59,9 @@ type FrozenPaths interface {
 // disappears from disk during metadata.scan stale prune.
 type PathStateCleaner interface {
 	DeleteForLibraryPath(ctx context.Context, libraryID, relPath string) error
+	// DeleteOrphansForLibrary removes flag rows with no matching media_metadata row
+	// (leftovers from older scans before path cleaners, or any out-of-band metadata delete).
+	DeleteOrphansForLibrary(ctx context.Context, libraryID string) error
 }
 
 // NewIndexer constructs a metadata indexer.
@@ -512,6 +515,8 @@ func (i *Indexer) deleteStalePaths(
 
 		i.cleanPathState(ctx, library.ID, relPath)
 	}
+
+	i.cleanOrphanPathState(ctx, library.ID)
 }
 
 func (i *Indexer) cleanPathState(ctx context.Context, libraryID, relPath string) {
@@ -525,6 +530,22 @@ func (i *Indexer) cleanPathState(ctx context.Context, libraryID, relPath string)
 				slog.String("action", "metadata.index"),
 				slog.String("library_id", libraryID),
 				slog.String("path", relPath),
+				slog.String("error", cleanErr.Error()),
+			)
+		}
+	}
+}
+
+func (i *Indexer) cleanOrphanPathState(ctx context.Context, libraryID string) {
+	for _, cleaner := range i.pathCleaners {
+		if cleaner == nil {
+			continue
+		}
+		cleanErr := cleaner.DeleteOrphansForLibrary(ctx, libraryID)
+		if cleanErr != nil {
+			slog.Warn("metadata index orphan path state cleanup failed",
+				slog.String("action", "metadata.index"),
+				slog.String("library_id", libraryID),
 				slog.String("error", cleanErr.Error()),
 			)
 		}

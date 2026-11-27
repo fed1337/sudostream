@@ -63,7 +63,7 @@ Open **Admin → Libraries → (library)**. Every card shares the same schedule 
 ### `metadata.scan` — Scan metadata
 
 Probes video files under the library roots with ffprobe and refreshes the DB metadata index (titles, duration, codecs, etc).
-Paths that disappeared from disk are dropped from the index, and orphaned **watched** / **favorite** rows for those paths are removed.
+Paths that disappeared from disk are dropped from the index, and orphaned **watch** (Continue + Watched) / **favorite** rows for those paths are removed — including leftovers whose metadata was already gone.
 Catalog **tiles** stay empty or stale until this has run successfully at least once; **browse** still shows files.
 
 | Setting | Description |

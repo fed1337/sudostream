@@ -76,6 +76,10 @@ func (m *memoryWatchStore) DeleteForPath(_ context.Context, libraryID, relPath s
 	return nil
 }
 
+func (m *memoryWatchStore) DeleteOrphansForLibrary(_ context.Context, _ string) error {
+	return nil
+}
+
 func (m *memoryWatchStore) rowKey(userID, libraryID, relPath string) string {
 	return userID + "|" + libraryID + "|" + relPath
 }
@@ -299,6 +303,10 @@ func (e *errorWatchStore) DeleteForPath(_ context.Context, _, _ string) error {
 	return e.deleteErr
 }
 
+func (e *errorWatchStore) DeleteOrphansForLibrary(_ context.Context, _ string) error {
+	return e.deleteErr
+}
+
 func TestService_PatchProgress(t *testing.T) {
 	t.Parallel()
 
@@ -511,6 +519,17 @@ func TestService_DeleteForPath(t *testing.T) {
 		err := service.DeleteForPath(context.Background(), "unknown/demo.mp4")
 		if err != nil {
 			t.Fatalf("delete unknown path: %v", err)
+		}
+	})
+
+	allure.Test(t, "DeleteOrphansForLibrary delegates to store", func(a *allure.Context) {
+		t := a.T()
+		store := &memoryWatchStore{rows: map[string]watch.State{}}
+		service := watch.NewService(nil, access.NewService(memoryAccessStore{}), store)
+
+		err := service.DeleteOrphansForLibrary(context.Background(), testWatchLibraryID)
+		if err != nil {
+			t.Fatalf("delete orphans: %v", err)
 		}
 	})
 }

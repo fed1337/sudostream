@@ -115,7 +115,8 @@ func (s stubFrozenPaths) OriginalPrefixes(_ context.Context) ([]string, error) {
 }
 
 type recordingPathCleaner struct {
-	calls []string
+	calls       []string
+	orphanCalls []string
 }
 
 func (r *recordingPathCleaner) DeleteForLibraryPath(
@@ -123,6 +124,15 @@ func (r *recordingPathCleaner) DeleteForLibraryPath(
 	libraryID, relPath string,
 ) error {
 	r.calls = append(r.calls, libraryID+"|"+relPath)
+
+	return nil
+}
+
+func (r *recordingPathCleaner) DeleteOrphansForLibrary(
+	_ context.Context,
+	libraryID string,
+) error {
+	r.orphanCalls = append(r.orphanCalls, libraryID)
 
 	return nil
 }
@@ -190,6 +200,9 @@ func TestIndexer_ProbesNewFilesAndDeletesStalePaths(t *testing.T) {
 			}
 			if len(cleaner.calls) != 1 || cleaner.calls[0] != "lib-1|"+stalePath {
 				t.Fatalf("path cleaners: %+v", cleaner.calls)
+			}
+			if len(cleaner.orphanCalls) != 1 || cleaner.orphanCalls[0] != "lib-1" {
+				t.Fatalf("orphan cleaners: %+v", cleaner.orphanCalls)
 			}
 		},
 	)

@@ -138,8 +138,8 @@ func (s *Store) ListForUser(
 		libraryIDs,
 		limit,
 		offset,
-		"watched = TRUE",
-		"watched_at DESC",
+		"w.watched = TRUE",
+		"w.watched_at DESC",
 	)
 }
 
@@ -149,7 +149,7 @@ func (s *Store) CountForUser(
 	userID string,
 	libraryIDs []string,
 ) (int64, error) {
-	return s.countRows(ctx, userID, libraryIDs, "watched = TRUE")
+	return s.countRows(ctx, userID, libraryIDs, "w.watched = TRUE")
 }
 
 // ListContinue returns in-progress titles for the Continue watching shelf.
@@ -165,8 +165,8 @@ func (s *Store) ListContinue(
 		libraryIDs,
 		limit,
 		offset,
-		"watched = FALSE AND COALESCE(position_seconds, 0) >= ?",
-		"updated_at DESC",
+		"w.watched = FALSE AND COALESCE(w.position_seconds, 0) >= ?",
+		"w.updated_at DESC",
 		watch.MinProgressSeconds,
 	)
 }
@@ -181,7 +181,7 @@ func (s *Store) CountContinue(
 		ctx,
 		userID,
 		libraryIDs,
-		"watched = FALSE AND COALESCE(position_seconds, 0) >= ?",
+		"w.watched = FALSE AND COALESCE(w.position_seconds, 0) >= ?",
 		watch.MinProgressSeconds,
 	)
 }
@@ -203,11 +203,10 @@ func (s *Store) CountByLibraries(
 	}
 
 	var rows []countRow
-	err := s.db.WithContext(ctx).
-		Model(&watchStateModel{}).
-		Select("library_id, COUNT(*) AS count").
-		Where("user_id = ? AND library_id IN ? AND watched = TRUE", userID, libraryIDs).
-		Group("library_id").
+	err := s.activeWatchScope(ctx).
+		Select("w.library_id, COUNT(*) AS count").
+		Where("w.user_id = ? AND w.library_id IN ? AND w.watched = TRUE", userID, libraryIDs).
+		Group("w.library_id").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, fmt.Errorf("count watch state: %w", err)
@@ -227,6 +226,29 @@ func (s *Store) DeleteForPath(ctx context.Context, libraryID, relPath string) er
 		Delete(&watchStateModel{}).Error
 	if err != nil {
 		return fmt.Errorf("delete watch state: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteOrphansForLibrary removes watch rows with no matching media_metadata row.
+func (s *Store) DeleteOrphansForLibrary(ctx context.Context, libraryID string) error {
+	if libraryID == "" {
+		return nil
+	}
+
+	err := s.db.WithContext(ctx).
+		Where(
+			`library_id = ? AND NOT EXISTS (
+				SELECT 1 FROM media_metadata AS m
+				WHERE m.library_id = watch_state.library_id
+				  AND m.rel_path = watch_state.rel_path
+			)`,
+			libraryID,
+		).
+		Delete(&watchStateModel{}).Error
+	if err != nil {
+		return fmt.Errorf("delete orphan watch state: %w", err)
 	}
 
 	return nil
@@ -277,12 +299,13 @@ func (s *Store) listRows(
 
 	queryArgs := append([]any{userID, libraryIDs}, args...)
 	var models []watchStateModel
-	err := s.db.WithContext(ctx).
-		Where("user_id = ? AND library_id IN ? AND "+filter, queryArgs...).
+	err := s.activeWatchScope(ctx).
+		Select("w.*").
+		Where("w.user_id = ? AND w.library_id IN ? AND "+filter, queryArgs...).
 		Order(order).
 		Limit(limit).
 		Offset(offset).
-		Find(&models).Error
+		Scan(&models).Error
 	if err != nil {
 		return nil, fmt.Errorf("list user watch state: %w", err)
 	}
@@ -314,13 +337,22 @@ func (s *Store) countRows(
 
 	queryArgs := append([]any{userID, libraryIDs}, args...)
 	var total int64
-	err := s.db.WithContext(ctx).
-		Model(&watchStateModel{}).
-		Where("user_id = ? AND library_id IN ? AND "+filter, queryArgs...).
+	err := s.activeWatchScope(ctx).
+		Where("w.user_id = ? AND w.library_id IN ? AND "+filter, queryArgs...).
 		Count(&total).Error
 	if err != nil {
 		return 0, fmt.Errorf("count watch state: %w", err)
 	}
 
 	return total, nil
+}
+
+// activeWatchScope keeps shelf queries on indexed, non-trashed media only.
+func (s *Store) activeWatchScope(ctx context.Context) *gorm.DB {
+	return s.db.WithContext(ctx).
+		Table("watch_state AS w").
+		Joins(`INNER JOIN media_metadata AS m
+			ON m.library_id = w.library_id
+			AND m.rel_path = w.rel_path
+			AND m.trashed_at IS NULL`)
 }

@@ -188,6 +188,29 @@ func TestStore_WatchCRUD(t *testing.T) {
 			t.Fatalf("in-progress must not be on watched shelf: %#v err=%v", watchedRows, err)
 		}
 
+		orphanPath := "movies/host-deleted.mp4"
+		err = store.Upsert(ctx, testWatchUserID, testWatchLibraryID, orphanPath, watch.State{
+			PositionSeconds: &position,
+			DurationSeconds: &duration,
+		})
+		if err != nil {
+			t.Fatalf("upsert orphan progress: %v", err)
+		}
+		continueRows, err = store.ListContinue(
+			ctx, testWatchUserID, []string{testWatchLibraryID}, 10, 0,
+		)
+		if err != nil || len(continueRows) != 1 || continueRows[0].RelPath != testWatchRelPath {
+			t.Fatalf("continue must hide metadata orphans: %#v err=%v", continueRows, err)
+		}
+		err = store.DeleteOrphansForLibrary(ctx, testWatchLibraryID)
+		if err != nil {
+			t.Fatalf("delete orphans: %v", err)
+		}
+		orphanState, err := store.Get(ctx, testWatchUserID, testWatchLibraryID, orphanPath)
+		if err != nil || orphanState.PositionSeconds != nil {
+			t.Fatalf("orphan watch row should be deleted: %#v err=%v", orphanState, err)
+		}
+
 		err = store.Ping(ctx)
 		if err != nil {
 			t.Fatalf("ping: %v", err)
@@ -256,6 +279,17 @@ func setupWatchTestDatabase(ctx context.Context, t *testing.T) *db.Database {
 	`, testWatchLibraryID)
 	if err != nil {
 		t.Fatalf("seed watch store test library root: %v", err)
+	}
+
+	for _, relPath := range []string{testWatchRelPath, testWatchRelPathB} {
+		_, err = database.SQLDB().ExecContext(ctx, `
+			INSERT INTO media_metadata (library_id, rel_path)
+			VALUES ($1, $2)
+			ON CONFLICT (library_id, rel_path) DO NOTHING
+		`, testWatchLibraryID, relPath)
+		if err != nil {
+			t.Fatalf("seed media_metadata %s: %v", relPath, err)
+		}
 	}
 
 	return database

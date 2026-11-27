@@ -69,6 +69,10 @@ func (m *memoryFavoriteStore) DeleteForPath(_ context.Context, libraryID, relPat
 	return nil
 }
 
+func (m *memoryFavoriteStore) DeleteOrphansForLibrary(_ context.Context, _ string) error {
+	return nil
+}
+
 type memoryAccessStore struct{}
 
 func (memoryAccessStore) ListLibraries(_ context.Context) ([]access.Library, error) {

@@ -21,6 +21,7 @@ type Repository interface {
 		relPaths []string,
 	) (map[string]bool, error)
 	DeleteForPath(ctx context.Context, libraryID, relPath string) error
+	DeleteOrphansForLibrary(ctx context.Context, libraryID string) error
 }
 
 // Service resolves media paths to libraries and stores favorites.
@@ -147,6 +148,20 @@ func (s *Service) DeleteForLibraryPath(ctx context.Context, libraryID, relPath s
 	err := s.store.DeleteForPath(ctx, libraryID, relPath)
 	if err != nil {
 		return fmt.Errorf("delete favorite: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteOrphansForLibrary removes favorite rows whose media_metadata row is gone.
+func (s *Service) DeleteOrphansForLibrary(ctx context.Context, libraryID string) error {
+	if s == nil || s.store == nil || libraryID == "" {
+		return nil
+	}
+
+	err := s.store.DeleteOrphansForLibrary(ctx, libraryID)
+	if err != nil {
+		return fmt.Errorf("delete orphan favorites: %w", err)
 	}
 
 	return nil

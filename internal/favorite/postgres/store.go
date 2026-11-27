@@ -120,12 +120,13 @@ func (s *Store) ListForUser(
 	}
 
 	var models []favoriteModel
-	err := s.db.WithContext(ctx).
-		Where("user_id = ? AND library_id IN ?", userID, libraryIDs).
-		Order("created_at DESC").
+	err := s.activeFavoriteScope(ctx).
+		Select("f.*").
+		Where("f.user_id = ? AND f.library_id IN ?", userID, libraryIDs).
+		Order("f.created_at DESC").
 		Limit(limit).
 		Offset(offset).
-		Find(&models).Error
+		Scan(&models).Error
 	if err != nil {
 		return nil, fmt.Errorf("list user favorites: %w", err)
 	}
@@ -153,9 +154,8 @@ func (s *Store) CountForUser(
 	}
 
 	var total int64
-	err := s.db.WithContext(ctx).
-		Model(&favoriteModel{}).
-		Where("user_id = ? AND library_id IN ?", userID, libraryIDs).
+	err := s.activeFavoriteScope(ctx).
+		Where("f.user_id = ? AND f.library_id IN ?", userID, libraryIDs).
 		Count(&total).Error
 	if err != nil {
 		return 0, fmt.Errorf("count user favorites: %w", err)
@@ -171,6 +171,29 @@ func (s *Store) DeleteForPath(ctx context.Context, libraryID, relPath string) er
 		Delete(&favoriteModel{}).Error
 	if err != nil {
 		return fmt.Errorf("delete favorite: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteOrphansForLibrary removes favorite rows with no matching media_metadata row.
+func (s *Store) DeleteOrphansForLibrary(ctx context.Context, libraryID string) error {
+	if libraryID == "" {
+		return nil
+	}
+
+	err := s.db.WithContext(ctx).
+		Where(
+			`library_id = ? AND NOT EXISTS (
+				SELECT 1 FROM media_metadata AS m
+				WHERE m.library_id = favorites.library_id
+				  AND m.rel_path = favorites.rel_path
+			)`,
+			libraryID,
+		).
+		Delete(&favoriteModel{}).Error
+	if err != nil {
+		return fmt.Errorf("delete orphan favorites: %w", err)
 	}
 
 	return nil
@@ -193,4 +216,14 @@ func (s *Store) Ping(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// activeFavoriteScope keeps shelf queries on indexed, non-trashed media only.
+func (s *Store) activeFavoriteScope(ctx context.Context) *gorm.DB {
+	return s.db.WithContext(ctx).
+		Table("favorites AS f").
+		Joins(`INNER JOIN media_metadata AS m
+			ON m.library_id = f.library_id
+			AND m.rel_path = f.rel_path
+			AND m.trashed_at IS NULL`)
 }

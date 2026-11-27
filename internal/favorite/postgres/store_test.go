@@ -223,6 +223,17 @@ func setupFavoriteTestDatabase(ctx context.Context, t *testing.T) *db.Database {
 		t.Fatalf("seed favorite store test library root: %v", err)
 	}
 
+	for _, relPath := range []string{testFavRelPath, testFavRelPathB, testFavNestedPath} {
+		_, err = database.SQLDB().ExecContext(ctx, `
+			INSERT INTO media_metadata (library_id, rel_path)
+			VALUES ($1, $2)
+			ON CONFLICT (library_id, rel_path) DO NOTHING
+		`, testFavLibraryID, relPath)
+		if err != nil {
+			t.Fatalf("seed media_metadata %s: %v", relPath, err)
+		}
+	}
+
 	return database
 }
 

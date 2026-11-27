@@ -87,6 +87,10 @@ func (m *watchHandlerMemoryStore) DeleteForPath(
 	return nil
 }
 
+func (m *watchHandlerMemoryStore) DeleteOrphansForLibrary(_ context.Context, _ string) error {
+	return nil
+}
+
 type flagMemoryStore struct {
 	rows map[string]bool
 }
@@ -139,6 +143,10 @@ func (m *flagMemoryStore) DeleteForPath(
 		}
 	}
 
+	return nil
+}
+
+func (m *flagMemoryStore) DeleteOrphansForLibrary(_ context.Context, _ string) error {
 	return nil
 }
 

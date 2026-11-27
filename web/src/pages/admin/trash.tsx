@@ -247,7 +247,6 @@ export default function AdminTrashPage() {
       {
         accessorKey: "deletedAt",
         id: "deletedAt",
-        enableHiding: false,
         header: t("admin.trashDeletedAt"),
         cell: ({ row }) => formatDate(row.original.deletedAt),
       },
@@ -301,6 +300,7 @@ export default function AdminTrashPage() {
     { id: "originalRelPath", label: t("admin.trashPath") },
     { id: "size", label: t("admin.trashSize") },
     { id: "deletedByEmail", label: t("admin.trashDeletedBy") },
+    { id: "deletedAt", label: t("admin.trashDeletedAt") },
   ] as const;
 
   if (trashQuery.isLoading) {
@@ -344,6 +344,9 @@ export default function AdminTrashPage() {
                 <DropdownMenuCheckboxItem
                   key={column.id}
                   checked={columnVisibility[column.id] !== false}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                  }}
                   onCheckedChange={(checked) => {
                     setColumnVisibility((prev) => ({
                       ...prev,

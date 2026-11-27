@@ -25,14 +25,6 @@ import {
 import { AppPreferences } from "@/components/app-preferences";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -73,10 +65,6 @@ export default function PlayerPage() {
   const isMobile = useIsMobile();
   const [playerError, setPlayerError] = useState(false);
   const handlePlayerError = useCallback(() => setPlayerError(true), []);
-  const [resumeChoice, setResumeChoice] = useState<{
-    mediaPath: string;
-    choice: "pending" | "resume" | "start";
-  } | null>(null);
   /** Media path that should auto-start after EOF auto-next (history state is cleared below). */
   const [autoPlayForPath, setAutoPlayForPath] = useState<string | null>(null);
   const navAutoPlay = Boolean((location.state as PlayerLocationState | null)?.autoPlay);
@@ -159,18 +147,6 @@ export default function PlayerPage() {
   useEffect(() => {
     playbackNegotiatedRef.current = false;
   }, [mediaPath]);
-
-  const resumeDecision =
-    mediaPath && resumeChoice?.mediaPath === mediaPath ? resumeChoice.choice : "pending";
-  const setResumeDecision = useCallback(
-    (choice: "pending" | "resume" | "start") => {
-      if (!mediaPath) {
-        return;
-      }
-      setResumeChoice({ mediaPath, choice });
-    },
-    [mediaPath],
-  );
 
   const playbackQuery = useQuery({
     queryKey: ["playback", mediaPath],
@@ -376,25 +352,16 @@ export default function PlayerPage() {
     !playerReady && playback?.status !== "error" && !playbackQuery.isError && !isDirectPlay;
   const playbackError = playback?.status === "error" || playbackQuery.isError || playerError;
 
+  // Silent resume: Continue progress seeks automatically; otherwise start at 0 (no modal).
   const resumeAtSeconds =
+    watchQuery.isFetched &&
     watchQuery.data &&
     !watchQuery.data.watched &&
     shouldSaveProgress(watchQuery.data.positionSeconds ?? 0)
       ? watchQuery.data.positionSeconds
       : undefined;
-  const needsResumeChooser =
-    Boolean(playerReady && playerSrc && !playerError) &&
-    resumeAtSeconds !== undefined &&
-    watchQuery.isSuccess;
-  const resumeDecided = !needsResumeChooser || resumeDecision !== "pending";
-  const effectiveResumeAtSeconds =
-    needsResumeChooser && resumeDecision === "resume" ? resumeAtSeconds : undefined;
-  // Auto-next play only when there is no Continue progress (same as a cold open otherwise).
-  const effectiveAutoPlay =
-    Boolean(mediaPath) &&
-    autoPlayForPath === mediaPath &&
-    watchQuery.isFetched &&
-    resumeAtSeconds === undefined;
+  const watchReady = watchQuery.isFetched;
+  const effectiveAutoPlay = Boolean(mediaPath) && autoPlayForPath === mediaPath && watchReady;
 
   const goBack = () => {
     void navigate(returnTo);
@@ -432,12 +399,12 @@ export default function PlayerPage() {
 
   const stage = (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
-      {playerReady && playerSrc && !playerError && resumeDecided ? (
+      {playerReady && playerSrc && !playerError && watchReady ? (
         <VideoJSPlayer
           className="h-full w-full"
           src={playerSrc}
           playbackMode={isDirectPlay ? "direct" : "hls"}
-          resumeAtSeconds={effectiveResumeAtSeconds}
+          resumeAtSeconds={resumeAtSeconds}
           providerSubtitleTracks={playback?.providerSubtitleTracks?.map((track) => ({
             ...track,
             url: absoluteApiUrl(track.url),
@@ -473,7 +440,7 @@ export default function PlayerPage() {
             </Alert>
           ) : null}
 
-          {processing ? (
+          {processing || (playerReady && !watchReady) ? (
             <div className="flex w-full max-w-lg flex-col gap-4">
               <Skeleton className="aspect-video w-full rounded-xl" />
               <Alert>
@@ -495,34 +462,8 @@ export default function PlayerPage() {
               </Button>
             </Alert>
           ) : null}
-
-          {needsResumeChooser && resumeDecision === "pending" ? (
-            <Skeleton className="aspect-video w-full max-w-lg rounded-xl" />
-          ) : null}
         </div>
       )}
-
-      <Dialog
-        open={needsResumeChooser && resumeDecision === "pending"}
-        onOpenChange={(open) => {
-          if (!open && resumeDecision === "pending") {
-            setResumeDecision("resume");
-          }
-        }}
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{t("player.resumeTitle")}</DialogTitle>
-            <DialogDescription>{t("player.resumeDescription")}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResumeDecision("start")}>
-              {t("player.startOver")}
-            </Button>
-            <Button onClick={() => setResumeDecision("resume")}>{t("player.resume")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 

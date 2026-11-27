@@ -51,7 +51,7 @@ type VideoJSPlayerProps = {
   /** Progressive file (Direct Play) vs HLS master. */
   playbackMode?: "hls" | "direct";
   resumeAtSeconds?: number;
-  /** Start playback once ready (auto-next); ignored when resume chooser applies. */
+  /** Start playback once ready (auto-next / silent resume). */
   autoPlay?: boolean;
   className?: string;
   onError?: () => void;

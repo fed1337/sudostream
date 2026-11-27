@@ -25,7 +25,7 @@ type PlaybackResumeLoaderProps = {
  * Applies at most once per `resumeKey`: progress saves refetch the watch state and feed the
  * just-saved (already stale) position back in, which must not seek the playhead backwards.
  *
- * When `autoPlay` is set without a resume position (auto-next episode), starts playback once ready.
+ * When `autoPlay` is set, starts playback once ready (after optional resume seek).
  */
 export function PlaybackResumeLoader({
   resumeAtSeconds,

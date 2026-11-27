@@ -37,5 +37,5 @@ Redirect URI (register on the IdP):
         client_secret: $pbkdf2-sha512$310000$.qFs7.GyQDArf4E2sfiGEg$qURQuIiQ/GkRplifXVM5UvlYwaHV43CDx/hxCbj2W6cnfir8OthVTXXcgcbfCXsr3Tbv//LxiZIC6rPORfMYEg
         authorization_policy: two_factor
         redirect_uris:
-          - https://sudostream.fed1337.fyi/api/auth/oidc/callback
+          - https://sudostream.local/api/auth/oidc/callback
 ```
